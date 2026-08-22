@@ -78,7 +78,7 @@
 /* Begin PBXFileReference section */
 		02C1298AD9321509D74417EB /* chart_010_hour_chen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_010_hour_chen.json; sourceTree = "<group>"; };
 		034ACE4FDF7CBF7A8A3FB51C /* chart_001_normal.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_001_normal.json; sourceTree = "<group>"; };
-		05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MightyZiWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiCoreTests.swift; sourceTree = "<group>"; };
 		0D12FE744C4E5E89927DD0FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0D504DB957AC3C401FBD7479 /* chart_005_historical_dst.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_005_historical_dst.json; sourceTree = "<group>"; };
@@ -110,7 +110,7 @@
 		9C567EF0828AE669C9B79739 /* ZiWeiRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiRules.swift; sourceTree = "<group>"; };
 		9EFE0F1F2C55985916423122 /* BirthInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthInputView.swift; sourceTree = "<group>"; };
 		A5E127D15AFEDE522FA72941 /* RuleBasedInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleBasedInterpreter.swift; sourceTree = "<group>"; };
-		AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MightyZiWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB955C7DF656FDC943976E73 /* ZiWeiChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiChart.swift; sourceTree = "<group>"; };
 		B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Celestial.swift; sourceTree = "<group>"; };
 		B5C389AE52A85ED6C0C074EF /* InterpretationSeedBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationSeedBuilder.swift; sourceTree = "<group>"; };
@@ -118,7 +118,7 @@
 		C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidator.swift; sourceTree = "<group>"; };
 		C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartFactBuilderTests.swift; sourceTree = "<group>"; };
 		C7BB733B679E4CC1FAC918ED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		CE506A8D25088FF150C0D88A /* MightyZiWei.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MightyZiWei.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE506A8D25088FF150C0D88A /* MightyZiWei.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MightyZiWei.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2C62A38C5D80DA4046E9E59 /* TimeZonePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeZonePickerView.swift; sourceTree = "<group>"; };
 		D43B88E143C001404E0389BC /* Star.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Star.swift; sourceTree = "<group>"; };
 		D44E169F23C465365C17F931 /* Palace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palace.swift; sourceTree = "<group>"; };
@@ -449,16 +449,13 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					7A819FFA15F9F9BF0150E2C6 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 					D60C11EA4D0EC6849030CE57 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 						TestTargetID = 7A819FFA15F9F9BF0150E2C6;
 					};
 					FEB43CA61087A004EEF52DDD = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -728,6 +725,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "很牛的紫微斗數";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
@@ -738,7 +736,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.narumi.MightyZiWei;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWei;
 				PRODUCT_NAME = MightyZiWei;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -750,13 +748,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.narumi.MightyZiWeiTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWeiTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MightyZiWei.app/MightyZiWei";
@@ -767,13 +766,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.narumi.MightyZiWeiUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWeiUITests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = MightyZiWei;
@@ -784,13 +784,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.narumi.MightyZiWeiUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWeiUITests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = MightyZiWei;
@@ -801,13 +802,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.narumi.MightyZiWeiTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWeiTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MightyZiWei.app/MightyZiWei";
@@ -819,6 +821,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = A4YQL6FFTK;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "很牛的紫微斗數";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
@@ -829,7 +832,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.narumi.MightyZiWei;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWei;
 				PRODUCT_NAME = MightyZiWei;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
