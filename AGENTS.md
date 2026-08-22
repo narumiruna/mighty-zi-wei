@@ -18,6 +18,10 @@
 
 - 以三合派為主，中州派為輔。
 
+## 設計風格
+
+- 應用程式採用極簡風格（Minimalist Style）。
+
 ## Code Style
 
 - Follow KISS (Keep It Simple) and YAGNI (You Aren't Gonna Need It).
