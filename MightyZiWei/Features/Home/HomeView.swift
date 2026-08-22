@@ -1,0 +1,73 @@
+import SwiftData
+import SwiftUI
+
+struct HomeView: View {
+    @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
+    @State private var showsSettings = false
+
+    private var recentCharts: ArraySlice<SavedChart> { charts.prefix(3) }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("很牛的\n紫微斗數")
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                            .accessibilityAddTraits(.isHeader)
+                        Text("清楚看懂自己的十二宮")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    NavigationLink {
+                        BirthInputView()
+                    } label: {
+                        Label("排一張命盤", systemImage: "plus")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("home.createChart")
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("最近命盤")
+                            .font(.headline)
+
+                        if recentCharts.isEmpty {
+                            Text("尚未儲存命盤")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .cardStyle()
+                        } else {
+                            ForEach(recentCharts) { chart in
+                                NavigationLink {
+                                    SavedChartLoaderView(savedChart: chart)
+                                } label: {
+                                    SavedChartRow(chart: chart)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .cardStyle()
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+                .padding()
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showsSettings = true
+                    } label: {
+                        Label("設定", systemImage: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showsSettings) {
+                SettingsView()
+            }
+        }
+    }
+}
