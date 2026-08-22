@@ -8,6 +8,12 @@
 - In documentation, put each prose sentence on its own source line.
 - Draw diagrams using Mermaid syntax.
 
+## 語言與在地化
+
+- 所有檔案均使用正體中文。
+- 應用程式介面使用正體中文。
+- 用詞以台灣慣用詞為主。
+
 ## Code Style
 
 - Follow KISS (Keep It Simple) and YAGNI (You Aren't Gonna Need It).
