@@ -1,6 +1,6 @@
 name: MightyZiWei
 options:
-  bundleIdPrefix: com.narumi
+  bundleIdPrefix: dev.narumi
   deploymentTarget:
     iOS: "26.0"
   xcodeVersion: "26.0"
@@ -9,10 +9,10 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: A4YQL6FFTK
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "3"
     ENABLE_USER_SCRIPT_SANDBOXING: true
     SWIFT_STRICT_CONCURRENCY: complete
     LOCALIZATION_PREFERS_STRING_CATALOGS: true
@@ -27,10 +27,11 @@ targets:
       - path: MightyZiWei/Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.narumi.MightyZiWei
+        PRODUCT_BUNDLE_IDENTIFIER: dev.narumi.MightyZiWei
         PRODUCT_NAME: MightyZiWei
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_CFBundleDisplayName: 很牛的紫微斗數
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: false
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
         INFOPLIST_KEY_UILaunchScreen_Generation: true
@@ -50,7 +51,7 @@ targets:
       - target: MightyZiWei
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.narumi.MightyZiWeiTests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.narumi.MightyZiWeiTests
         GENERATE_INFOPLIST_FILE: true
   MightyZiWeiUITests:
     type: bundle.ui-testing
@@ -61,7 +62,7 @@ targets:
       - target: MightyZiWei
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.narumi.MightyZiWeiUITests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.narumi.MightyZiWeiUITests
         GENERATE_INFOPLIST_FILE: true
 schemes:
   MightyZiWei:

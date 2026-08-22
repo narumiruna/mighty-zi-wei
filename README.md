@@ -42,6 +42,37 @@ xcodebuild test \
 CODE_SIGNING_ALLOWED=NO
 ```
 
+## TestFlight 外部測試
+
+每次上傳前，先在 `project.yml` 增加 `CURRENT_PROJECT_VERSION`，再執行 `xcodegen generate`。
+
+以下指令會使用 `Configuration/TestFlightExternalExportOptions.plist` 上傳可供外部測試的建置。
+該設定明確將 `testFlightInternalTestingOnly` 設為 `false`。
+
+```sh
+rm -rf /tmp/MightyZiWei.xcarchive /tmp/MightyZiWei-upload
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild archive \
+-project MightyZiWei.xcodeproj \
+-scheme MightyZiWei \
+-configuration Release \
+-destination 'generic/platform=iOS' \
+-archivePath /tmp/MightyZiWei.xcarchive \
+-allowProvisioningUpdates
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild -exportArchive \
+-archivePath /tmp/MightyZiWei.xcarchive \
+-exportPath /tmp/MightyZiWei-upload \
+-exportOptionsPlist Configuration/TestFlightExternalExportOptions.plist \
+-allowProvisioningUpdates
+```
+
+不要在 Xcode Organizer 選擇「TestFlight Internal Only」。
+該選項一旦用於上傳，該建置便不能改供外部測試，必須增加建置版本並重新上傳。
+上傳完成後，仍需在 App Store Connect 填寫測試資訊、建立外部測試群組，並提交 Beta App Review。
+
 ## 架構
 
 ```mermaid
