@@ -1,0 +1,76 @@
+name: MightyZiWei
+options:
+  bundleIdPrefix: com.narumi
+  deploymentTarget:
+    iOS: "26.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hant
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: true
+    SWIFT_STRICT_CONCURRENCY: complete
+    LOCALIZATION_PREFERS_STRING_CATALOGS: true
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+targets:
+  MightyZiWei:
+    type: application
+    platform: iOS
+    sources:
+      - path: MightyZiWei
+    resources:
+      - path: MightyZiWei/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.narumi.MightyZiWei
+        PRODUCT_NAME: MightyZiWei
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_CFBundleDisplayName: 很牛的紫微斗數
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: false
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  MightyZiWeiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MightyZiWeiTests
+    resources:
+      - path: MightyZiWeiTests/Fixtures
+        optional: true
+    dependencies:
+      - target: MightyZiWei
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.narumi.MightyZiWeiTests
+        GENERATE_INFOPLIST_FILE: true
+  MightyZiWeiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MightyZiWeiUITests
+    dependencies:
+      - target: MightyZiWei
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.narumi.MightyZiWeiUITests
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  MightyZiWei:
+    build:
+      targets:
+        MightyZiWei: all
+        MightyZiWeiTests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - MightyZiWeiTests
+        - MightyZiWeiUITests

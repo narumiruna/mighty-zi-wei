@@ -40,10 +40,7 @@
 
 ## Git & GitHub
 
-- Format branch names as `narumi/<type>/<short-description>` using lowercase kebab-case.
 - Do not use blanket staging such as `git add -A`; stage only intended paths.
 - Format commit message subjects as Conventional Commits: `<type>[(<scope>)][!]: <description>`.
 - Never change Git `user.name` or `user.email` unless explicitly requested.
 - Do not add `Co-Authored-By` trailers (or any other agent-attribution trailer) to commit messages unless the user explicitly asks for one. This overrides per-project guidelines that default-include such a trailer.
-- Always sign commits.
-- Format pull request titles as `<type>[(<scope>)][!]: <description>` and summarize the pull request's overall outcome.

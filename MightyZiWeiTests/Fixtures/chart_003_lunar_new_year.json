@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "ruleSet": {
+    "id": "taiwan-traditional-sanhe",
+    "version": 1
+  },
+  "sourceReference": "農曆新年與午夜後子時；國農曆對照採中央氣象署日曆資料，規則依 RULESET 手算。",
+  "input": {
+    "localDate": {
+      "year": 2024,
+      "month": 2,
+      "day": 10
+    },
+    "localTime": {
+      "hour": 0,
+      "minute": 30
+    },
+    "calendarIdentifier": "gregorian",
+    "timeZoneIdentifier": "Asia/Taipei"
+  },
+  "expected": {
+    "lunarDate": {
+      "cyclicalYear": 41,
+      "month": 1,
+      "day": 1,
+      "isLeapMonth": false
+    },
+    "hourBranch": "zi",
+    "lifeBranch": "yin",
+    "bodyBranch": "yin",
+    "fiveElementBureau": "fireSix",
+    "palaces": [
+      {
+        "kind": "life",
+        "stem": "bing",
+        "branch": "yin"
+      },
+      {
+        "kind": "siblings",
+        "stem": "yi",
+        "branch": "chou"
+      },
+      {
+        "kind": "spouse",
+        "stem": "jia",
+        "branch": "zi"
+      },
+      {
+        "kind": "children",
+        "stem": "yi",
+        "branch": "hai"
+      },
+      {
+        "kind": "wealth",
+        "stem": "jia",
+        "branch": "xu"
+      },
+      {
+        "kind": "health",
+        "stem": "gui",
+        "branch": "you"
+      },
+      {
+        "kind": "travel",
+        "stem": "ren",
+        "branch": "shen"
+      },
+      {
+        "kind": "friends",
+        "stem": "xin",
+        "branch": "wei"
+      },
+      {
+        "kind": "career",
+        "stem": "geng",
+        "branch": "wu"
+      },
+      {
+        "kind": "property",
+        "stem": "ji",
+        "branch": "si"
+      },
+      {
+        "kind": "fortune",
+        "stem": "wu",
+        "branch": "chen"
+      },
+      {
+        "kind": "parents",
+        "stem": "ding",
+        "branch": "mao"
+      }
+    ],
+    "stars": {
+      "diJie": "hai",
+      "diKong": "hai",
+      "huoXing": "yin",
+      "juMen": "xu",
+      "lianZhen": "chou",
+      "lingXing": "xu",
+      "luCun": "yin",
+      "poJun": "si",
+      "qiSha": "chou",
+      "qingYang": "mao",
+      "taiYang": "wu",
+      "taiYin": "shen",
+      "tanLang": "you",
+      "tianFu": "wei",
+      "tianJi": "shen",
+      "tianKui": "chou",
+      "tianLiang": "zi",
+      "tianMa": "yin",
+      "tianTong": "chen",
+      "tianXiang": "hai",
+      "tianYue": "wei",
+      "tuoLuo": "chou",
+      "wenChang": "xu",
+      "wenQu": "chen",
+      "wuQu": "si",
+      "youBi": "xu",
+      "ziWei": "you",
+      "zuoFu": "chen"
+    },
+    "transformations": {
+      "lu": "lianZhen",
+      "quan": "poJun",
+      "ke": "wuQu",
+      "ji": "taiYang"
+    }
+  }
+}
