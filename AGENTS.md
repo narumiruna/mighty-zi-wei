@@ -8,6 +8,12 @@
 - In documentation, put each prose sentence on its own source line.
 - Draw diagrams using Mermaid syntax.
 
+## 檔案傳送
+
+- 不得透過 Git、GitHub、訊息附件、外部服務或其他管道傳送任何二進位檔案。
+- 不得暫存、提交、推送或上傳 `.png`、`.jpg`、`.jpeg` 或其他圖片格式檔案。
+- 如驗證流程產生二進位檔案或圖片，只能留在本機暫存路徑，且不得納入 repository。
+
 ## 語言與在地化
 
 - 所有檔案均使用正體中文。
