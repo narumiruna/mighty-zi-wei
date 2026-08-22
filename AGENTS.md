@@ -14,6 +14,10 @@
 - 應用程式介面使用正體中文。
 - 用詞以台灣慣用詞為主。
 
+## 紫微斗數流派
+
+- 以三合派為主，中州派為輔。
+
 ## Code Style
 
 - Follow KISS (Keep It Simple) and YAGNI (You Aren't Gonna Need It).
