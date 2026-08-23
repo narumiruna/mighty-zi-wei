@@ -11,14 +11,15 @@ description: 研究、核對或解讀紫微斗數本命盤時使用，包含三�
 
 1. 先分清楚輸入是已驗證命盤事實、一般知識問題，還是待查證的古籍說法。
 2. 命盤解讀只使用已驗證的 `ChartFact` 與核准的 `InterpretationSeed`，不得從對話、姓名或主觀敘述創造命盤事實。
-3. 資料不足時列出缺少的事實，停止該項判斷，不得自行排盤或補星。
-4. 解讀前讀取 [判讀原則](references/interpretation-principles.md)。
-5. 需要核對原文時依 [來源指南](references/source-guide.md) 只讀取相關章節。
-6. 遇到流派差異、規則衝突或產品未支援項目時讀取 [規則邊界與差異](references/canonical-boundaries.md)。
-7. 依命宮與身宮、命財官遷三方四正、相關主輔煞星、生年四化的順序分析。
-8. 先記錄盤面事實，再說明規則與來源，最後才提出綜合解讀。
-9. 每項命盤判斷至少引用一個存在的 fact ID，且每項古籍主張標示來源檔案與章節。
-10. 輸出前檢查是否混入未驗證位置、單星定論、流派混用、宿命斷言或專業建議。
+3. 已有完整公曆當地日期、當地時間與 IANA 時區，但尚無命盤事實時，執行 `uv run scripts/generate_chart_facts.py --date YYYY-MM-DD --time HH:MM --timezone Asia/Taipei`，只採用成功輸出的 facts 與 seeds。
+4. 缺少日期、時間或時區，或腳本驗證失敗時，列出缺少資料並停止該項判斷，不得手動補星。
+5. 解讀前讀取 [判讀原則](references/interpretation-principles.md)。
+6. 需要核對原文時依 [來源指南](references/source-guide.md) 只讀取相關章節。
+7. 遇到流派差異、規則衝突或產品未支援項目時讀取 [規則邊界與差異](references/canonical-boundaries.md)。
+8. 依命宮與身宮、命財官遷三方四正、相關主輔煞星、生年四化的順序分析。
+9. 先記錄盤面事實，再說明規則與來源，最後才提出綜合解讀。
+10. 每項命盤判斷至少引用一個存在的 fact ID，且每項古籍主張標示來源檔案與章節。
+11. 輸出前檢查是否混入未驗證位置、單星定論、流派混用、宿命斷言或專業建議。
 
 ## 解讀方法
 
