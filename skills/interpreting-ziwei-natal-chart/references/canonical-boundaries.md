@@ -2,7 +2,7 @@
 
 ## Canonical specification
 
-產品排盤以 repository 根目錄的 [RULESET.md](../../../../RULESET.md) 為唯一 canonical specification。
+產品排盤以 repository 根目錄的 `RULESET.md` 為唯一 canonical specification。
 
 目前規則集為 `taiwan-traditional-sanhe` v1。
 
