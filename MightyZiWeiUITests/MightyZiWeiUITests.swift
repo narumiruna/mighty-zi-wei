@@ -9,7 +9,7 @@ final class MightyZiWeiUITests: XCTestCase {
         "-AppleLocale", "zh_TW"
     ]
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         continueAfterFailure = false
         XCUIDevice.shared.appearance = .light
         app = XCUIApplication()
@@ -28,6 +28,9 @@ final class MightyZiWeiUITests: XCTestCase {
         createButton.tap()
 
         let generateButton = app.buttons["birthInput.generate"]
+        if !generateButton.waitForExistence(timeout: 5), createButton.exists {
+            createButton.tap()
+        }
         XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
         generateButton.tap()
 
@@ -73,6 +76,16 @@ final class MightyZiWeiUITests: XCTestCase {
         interpretationButton.tap()
 
         XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
+        let configureAIButton = app.buttons["interpretation.configureAI"]
+        XCTAssertTrue(configureAIButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["基本解讀"].exists)
+        configureAIButton.tap()
+        XCTAssertTrue(app.navigationBars["AI API 設定"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["ai.endpoint"].exists)
+        XCTAssertTrue(app.textFields["ai.model"].exists)
+        app.buttons["取消"].tap()
+        XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
+
         for title in ["命盤總覽", "個性", "工作與事業", "財務傾向", "感情與人際"] {
             let heading = app.staticTexts[title]
             scrollToElement(heading)

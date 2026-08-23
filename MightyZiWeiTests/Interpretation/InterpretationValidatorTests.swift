@@ -40,6 +40,28 @@ final class InterpretationValidatorTests: XCTestCase {
         XCTAssertThrowsError(try InterpretationValidator().validate(sections: sections, facts: [fact]))
     }
 
+    func test拒絕重複依據與空白內容() {
+        let duplicateEvidence = makeSections { category in
+            category == .overview ? [fact.id, fact.id] : [fact.id]
+        }
+        XCTAssertThrowsError(
+            try InterpretationValidator().validate(sections: duplicateEvidence, facts: [fact])
+        )
+
+        let emptyContent = InterpretationCategory.allCases.map { category in
+            InterpretationSection(
+                id: category.rawValue,
+                category: category,
+                title: category.title,
+                content: category == .personality ? "   " : "你可能傾向先掌握整體方向。",
+                evidenceFactIDs: [fact.id]
+            )
+        }
+        XCTAssertThrowsError(
+            try InterpretationValidator().validate(sections: emptyContent, facts: [fact])
+        )
+    }
+
     func test拒絕確定式預測() {
         let sections = InterpretationCategory.allCases.map { category in
             InterpretationSection(
@@ -52,5 +74,19 @@ final class InterpretationValidatorTests: XCTestCase {
         }
 
         XCTAssertThrowsError(try InterpretationValidator().validate(sections: sections, facts: [fact]))
+    }
+
+    private func makeSections(
+        evidence: (InterpretationCategory) -> [String]
+    ) -> [InterpretationSection] {
+        InterpretationCategory.allCases.map { category in
+            InterpretationSection(
+                id: category.rawValue,
+                category: category,
+                title: category.title,
+                content: "你可能傾向先掌握整體方向。",
+                evidenceFactIDs: evidence(category)
+            )
+        }
     }
 }

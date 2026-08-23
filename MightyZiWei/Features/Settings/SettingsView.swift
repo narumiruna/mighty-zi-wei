@@ -4,32 +4,31 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(AIConfigurationStore.self) private var aiConfigurationStore
     @Query private var charts: [SavedChart]
     @State private var showsDeleteAllConfirmation = false
     @State private var errorMessage: String?
 
-    private let modelInterpreter = FoundationModelInterpreter()
-
     var body: some View {
         NavigationStack {
             List {
-                Section("裝置端 AI") {
+                Section("AI API") {
                     LabeledContent {
-                        Text(availabilityTitle)
+                        Text(aiConfigurationStore.isConfigured ? "已設定" : "尚未設定")
                             .foregroundStyle(.secondary)
                     } label: {
-                        Label("Apple Intelligence", systemImage: "apple.intelligence")
+                        Label("OpenAI 相容 API", systemImage: "cloud")
                     }
-                    Text(modelInterpreter.availability.description)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    NavigationLink("設定 API") {
+                        AIConfigurationView()
+                    }
                 }
 
                 Section("隱私與資料") {
-                    Label("不傳送資料到開發者伺服器", systemImage: "hand.raised")
+                    Label("不使用開發者控制的伺服器", systemImage: "hand.raised")
                     LabeledContent("已儲存命盤", value: "\(charts.count) 張")
                     if !charts.isEmpty {
-                        Button("刪除所有本機資料", systemImage: "trash", role: .destructive) {
+                        Button("刪除所有已儲存命盤", systemImage: "trash", role: .destructive) {
                             showsDeleteAllConfirmation = true
                         }
                     }
@@ -53,7 +52,7 @@ struct SettingsView: View {
                 }
             }
             .confirmationDialog(
-                "刪除所有本機資料？",
+                "刪除所有已儲存命盤？",
                 isPresented: $showsDeleteAllConfirmation,
                 titleVisibility: .visible
             ) {
@@ -70,13 +69,6 @@ struct SettingsView: View {
         }
     }
 
-    private var availabilityTitle: String {
-        switch modelInterpreter.availability {
-        case .available: "可使用"
-        case .unavailable: "使用基本解讀"
-        }
-    }
-
     private var errorIsPresented: Binding<Bool> {
         Binding(
             get: { errorMessage != nil },
@@ -89,7 +81,7 @@ struct SettingsView: View {
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {
-            errorMessage = "目前無法刪除本機資料，請稍後再試。"
+            errorMessage = "目前無法刪除已儲存命盤，請稍後再試。"
         }
     }
 }
