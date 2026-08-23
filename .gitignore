@@ -76,3 +76,6 @@ fastlane/test_output
 *.[Ii][Cc][Oo]
 *.[Ss][Vv][Gg]
 *.[Pp][Dd][Ff]
+
+# dotenv
+.env

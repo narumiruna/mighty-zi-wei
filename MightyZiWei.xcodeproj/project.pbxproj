@@ -82,7 +82,7 @@
 /* Begin PBXFileReference section */
 		02C1298AD9321509D74417EB /* chart_010_hour_chen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_010_hour_chen.json; sourceTree = "<group>"; };
 		034ACE4FDF7CBF7A8A3FB51C /* chart_001_normal.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_001_normal.json; sourceTree = "<group>"; };
-		05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MightyZiWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiCoreTests.swift; sourceTree = "<group>"; };
 		0D12FE744C4E5E89927DD0FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0D504DB957AC3C401FBD7479 /* chart_005_historical_dst.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_005_historical_dst.json; sourceTree = "<group>"; };
@@ -116,7 +116,7 @@
 		9EFE0F1F2C55985916423122 /* BirthInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthInputView.swift; sourceTree = "<group>"; };
 		9FE9EC7A6106AD1114964AEE /* AIConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationView.swift; sourceTree = "<group>"; };
 		A5E127D15AFEDE522FA72941 /* RuleBasedInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleBasedInterpreter.swift; sourceTree = "<group>"; };
-		AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MightyZiWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB955C7DF656FDC943976E73 /* ZiWeiChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiChart.swift; sourceTree = "<group>"; };
 		AD8015906E6B1A5D4A037EEF /* AIConfigurationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationStoreTests.swift; sourceTree = "<group>"; };
 		B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Celestial.swift; sourceTree = "<group>"; };
@@ -125,7 +125,7 @@
 		C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidator.swift; sourceTree = "<group>"; };
 		C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartFactBuilderTests.swift; sourceTree = "<group>"; };
 		C7BB733B679E4CC1FAC918ED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		CE506A8D25088FF150C0D88A /* MightyZiWei.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MightyZiWei.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE506A8D25088FF150C0D88A /* MightyZiWei.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MightyZiWei.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2C62A38C5D80DA4046E9E59 /* TimeZonePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeZonePickerView.swift; sourceTree = "<group>"; };
 		D43B88E143C001404E0389BC /* Star.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Star.swift; sourceTree = "<group>"; };
 		D44E169F23C465365C17F931 /* Palace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palace.swift; sourceTree = "<group>"; };
@@ -466,7 +466,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2600;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					7A819FFA15F9F9BF0150E2C6 = {
 						DevelopmentTeam = A4YQL6FFTK;
@@ -676,6 +676,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -740,6 +741,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;
