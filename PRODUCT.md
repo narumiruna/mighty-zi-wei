@@ -8,7 +8,7 @@
 
 * 正確計算紫微斗數命盤。
 * 用清楚、現代的方式呈現命盤。
-* 使用由使用者自行設定的 OpenAI 相容 Responses API 提供自然語言解讀。
+* 使用由使用者自行設定的 OpenAI 相容 Responses API 提供自然語言解讀與目前命盤的多輪問答。
 * 命盤計算與 deterministic 基本解讀可以完全離線使用。
 * 不需要帳號、開發者後端或訂閱。
 
@@ -37,7 +37,7 @@ Platform baseline：
 * iPhone only。
 * 最低支援 iOS 26.0。
 * 使用支援最低部署版本的 Xcode 與 iOS SDK。
-* AI 服務由使用者提供完整的 HTTPS OpenAI 相容 Responses API endpoint、模型名稱，以及服務需要時使用的 API key。
+* AI 服務由使用者提供 HTTPS OpenAI 相容 API base URL 或完整 Responses API endpoint、模型名稱，以及服務需要時使用的 API key。
 * MVP 只使用非串流 Responses API 請求。
 * MVP 產品語言為正體中文 `zh-Hant`；其他語言不在第一版範圍。
 
@@ -77,8 +77,10 @@ flowchart TD
     Seeds --> AI
     Seeds --> Fallback
     AI --> Result
+    AI --> Conversation["命盤 AI 對話"]
     Fallback --> Result
     Result --> UI
+    Conversation --> UI
 ```
 
 核心原則：
@@ -171,24 +173,31 @@ flowchart LR
     D["查看十二宮"]
     E["命盤解讀"]
     F["儲存命盤"]
+    G["AI 分頁問命盤"]
 
     A --> B
     B --> C
     C --> D
     D --> E
     D --> F
+    D --> G
+    F --> G
 ```
 
-第一版只需要五個主要畫面：
+第一版包含六個主要畫面：
 
 1. 首頁。
 2. 出生資料輸入。
 3. 命盤。
 4. 解讀。
 5. 已儲存命盤。
+6. 命盤 AI。
+
+底部主導覽固定為「首頁」、「已儲存」與「AI」。
+
+命盤 AI 必須清楚顯示目前使用的命盤，並允許使用者切換已儲存命盤。
 
 Settings 使用 secondary screen 或 sheet，不算主要流程畫面。
-自由問答不屬於第一版主要流程。
 
 ---
 
@@ -388,11 +397,13 @@ flowchart LR
 
 使用者必須在設定畫面自行提供：
 
-* 完整的 HTTPS Responses API endpoint。
+* HTTPS OpenAI 相容 API base URL 或完整 Responses API endpoint。
 * 模型名稱。
 * API key，可留空以支援不要求 Bearer token 的相容服務。
 
-Endpoint 是包含完整路徑的 URL，App 不得自行附加 `/v1/responses` 或其他路徑。
+使用者輸入的 URL 未以 `/responses` 結尾時，App 必須在保留既有路徑與 query 的前提下自動補上 `/responses`。
+
+App 不得自行加入 `/v1` 或改寫供應商既有的其他路徑。
 
 App 必須拒絕非 HTTPS、缺少 host、包含 URL credentials 或無法解析的 endpoint。
 
@@ -416,7 +427,9 @@ API key 非空時，請求必須使用 `Authorization: Bearer <API key>`；API k
 
 `text.format` 必須使用 strict JSON Schema，要求回傳五個固定分類及 `category`、`title`、`content`、`evidenceFactIDs`。
 
-MVP 不支援串流、tool calling 或 stateful conversation。
+MVP 不支援串流、tool calling 或供應商端 stateful conversation。
+
+命盤 AI 的多輪脈絡由 App 在記憶體中管理，後續請求重新傳送本次對話中先前已驗證的問題與回答。
 
 App 必須設定合理 timeout、限制回應大小，並將非 2xx、無效 JSON、缺少文字輸出與取消分別處理。
 
@@ -530,10 +543,11 @@ MVP 固定提供：
 
 ---
 
-# 14. 詢問命盤 — MVP 後
+# 14. 命盤 AI 多輪問答
 
-自由問答不屬於 MVP。
-完成固定分類解讀、grounding validation 與 fallback 後，才評估加入簡單問答：
+底部「AI」分頁是主要導覽的一部分，使用者可以針對目前命盤或已儲存命盤進行多輪問答。
+
+空白對話提供少量問題範例，點選範例只填入輸入框，不得自動送出或產生費用：
 
 ```text
 「我的工作性格如何？」
@@ -560,9 +574,20 @@ flowchart LR
 ```
 
 模型仍然只能使用 App 選出的 `ChartFacts` 與 `InterpretationSeeds`。
-使用者問題不能覆寫 system instructions。
-沒有相關 seed，或問題超出可用 facts、健康、投資、法律或精確事件預測範圍時，App 必須拒絕回答。
-API 未設定時，隱藏或停用自由問答入口；MVP 的 deterministic fallback 只保證固定解讀分類。
+
+使用者問題與先前對話不能覆寫 system instructions，也不得成為新的命盤 fact 或命理含義來源。
+
+有效回答必須引用至少一個存在於本次 `ChartFacts` 的 evidence ID，並由 App 本機顯示原始 fact 文字。
+
+沒有相關 seed，或問題超出可用 facts、健康、投資、法律或精確事件預測範圍時，API 必須回傳 `unsupported`，且 evidence 必須為空。
+
+每個問題最多 500 字，每個回答最多 2,000 字，每次對話最多 10 輪。
+
+對話只保存在記憶體中，不寫入 SwiftData、UserDefaults、記錄或分析事件。
+
+切換命盤時若已有對話，App 必須先確認，並在確認後原子切換命盤與清除本次對話。
+
+API 未設定時，AI 分頁必須顯示目前命盤與前往 API 設定的主要操作；deterministic 基本解讀仍可正常使用。
 
 ---
 
@@ -674,7 +699,7 @@ Canvas
 * 不要傳統算命網站風格。
 * 不使用大量金色、紅色、龍、八卦等裝飾。
 * 十二宮是主要視覺焦點。
-* 命盤解讀像現代閱讀 App，而不是聊天機器人。
+* 固定分類命盤解讀像現代閱讀 App；AI 分頁使用簡潔的問答卡與固定輸入區，不機械複製通訊軟體外觀。
 
 首頁應該簡單到：
 
@@ -718,7 +743,7 @@ SavedChart
 不得在規則修正後靜默顯示舊的錯誤 cache。
 如果重新計算可能改變結果，應在 release notes 或命盤畫面向使用者說明。
 
-MVP 不永久保存 AI interpretation。
+MVP 不永久保存 AI interpretation 或命盤 AI 對話。
 AI 或 fallback interpretation 由目前命盤重新產生。
 
 ---
@@ -731,7 +756,7 @@ MVP：
 * 不建立開發者控制的 backend。
 * 不使用 cloud database。
 * App 不將出生資料、ChartFacts、prompt 或 interpretation 傳送到開發者控制的 server。
-* 只有使用者主動要求雲端整理時，App 才會把已驗證的 ChartFacts、InterpretationSeeds 與 prompt 傳送至使用者指定的第三方 HTTPS endpoint。
+* 只有使用者主動要求雲端整理或送出命盤問題時，App 才會把已驗證的 ChartFacts、InterpretationSeeds、問題、本次對話與 prompt 傳送至使用者指定的第三方 HTTPS endpoint。
 * Endpoint 與 model 儲存在 `UserDefaults`。
 * API key 儲存在不可同步、僅限本裝置且解鎖時可讀的 Keychain item。
 * 不加入第三方 analytics 或 crash reporting SDK。
@@ -902,16 +927,19 @@ ZiWeiChart
 加入：
 
 * 使用者 API 設定與 Keychain 儲存。
-* 完整 HTTPS endpoint 驗證。
+* HTTPS endpoint 驗證與 `/responses` 路徑自動補齊。
 * 非串流 Responses API 請求。
 * instructions 與 strict JSON Schema output。
 * evidence ID validation。
 * generation failure fallback。
 * cancellation handling。
+* 底部 AI 分頁與目前命盤選擇。
+* 最多十輪的記憶體內多輪問答。
+* 問答 strict JSON Schema、evidence validation 與 unsupported 狀態。
 
 完成條件：
 
-> Responses API 只根據 verified ChartFacts 與 InterpretationSeeds 產生結構化解讀；API 未設定、請求失敗或驗證失敗時，同一畫面會顯示 deterministic fallback。
+> Responses API 只根據 verified ChartFacts 與 InterpretationSeeds 產生結構化解讀或回答；API 未設定、請求失敗或驗證失敗時，固定解讀仍顯示 deterministic fallback，AI 分頁保留既有成功對話與問題草稿。
 
 ---
 
@@ -952,6 +980,8 @@ ZiWeiChart
 測試：
 
 * API 未設定與空白 API key。
+* AI 分頁空狀態、目前命盤、切換確認、多輪問答與十輪上限。
+* 問答失敗與取消時保留既有對話及問題草稿。
 * 無效或非 HTTPS endpoint。
 * 401、403、429 與其他非 2xx 回應。
 * timeout、拒答、空白輸出與無效 JSON。
@@ -983,7 +1013,8 @@ Coding agent 必須遵守：
 - Implement only rules defined in RULESET.md; never guess a missing rule.
 - Version every chart and fixture with ruleSetID and ruleSetVersion.
 - Add a regression fixture for every discovered chart calculation bug.
-- Feed only verified ChartFacts and InterpretationSeeds into the Responses API.
+- Feed only verified ChartFacts, InterpretationSeeds, the current question, and validated in-memory conversation into the Responses API.
+- Never treat user questions or prior conversation as chart facts.
 - Never let the model invent astrological meanings beyond InterpretationSeeds.
 - Use semantic stable fact IDs and reject duplicate or unknown evidence IDs.
 - Display evidence text from App data, never from model restatement.
@@ -1011,6 +1042,8 @@ Coding agent 必須遵守：
 漂亮地查看十二宮
     ↓
 查看雲端 AI 或 deterministic fallback 解讀
+    ↓
+在 AI 分頁針對目前命盤進行多輪問答
     ↓
 儲存命盤
 ```

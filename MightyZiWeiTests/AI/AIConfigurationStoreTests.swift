@@ -39,6 +39,48 @@ final class AIConfigurationStoreTests: XCTestCase {
         XCTAssertEqual(configuration.apiKey, "secret")
     }
 
+    func testBaseURL會自動補上Responses路徑並保存() throws {
+        let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
+
+        try store.save(
+            endpoint: "https://example.com/openai/v1/",
+            model: "example-model",
+            apiKey: ""
+        )
+
+        XCTAssertEqual(store.endpoint, "https://example.com/openai/v1/responses")
+        XCTAssertEqual(
+            try store.configuration().endpoint.absoluteString,
+            "https://example.com/openai/v1/responses"
+        )
+    }
+
+    func test完整ResponsesURL不會重複補上路徑並保留Query() throws {
+        let configuration = try OpenAIResponsesConfiguration(
+            endpoint: "https://example.com/openai/v1/responses/?api-version=2026-01-01",
+            model: "example-model",
+            apiKey: nil
+        )
+
+        XCTAssertEqual(
+            configuration.endpoint.absoluteString,
+            "https://example.com/openai/v1/responses?api-version=2026-01-01"
+        )
+    }
+
+    func testBaseURL補上Responses路徑時會保留Query() throws {
+        let configuration = try OpenAIResponsesConfiguration(
+            endpoint: "https://example.com/openai/v1?api-version=2026-01-01",
+            model: "example-model",
+            apiKey: nil
+        )
+
+        XCTAssertEqual(
+            configuration.endpoint.absoluteString,
+            "https://example.com/openai/v1/responses?api-version=2026-01-01"
+        )
+    }
+
     func test空白APIKey不會儲存憑證() throws {
         let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
 

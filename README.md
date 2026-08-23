@@ -2,7 +2,7 @@
 
 很牛的紫微斗數是一款 iPhone 原生紫微斗數 App。
 
-第一版以台灣傳統三合派為主、中州派為輔，提供 deterministic 排盤、十二宮閱讀、基本解讀、使用者自行設定的 OpenAI 相容 Responses API 整理與本機儲存。
+第一版以台灣傳統三合派為主、中州派為輔，提供 deterministic 排盤、十二宮閱讀、基本解讀、使用者自行設定的 OpenAI 相容 Responses API 整理、命盤多輪問答與本機儲存。
 
 ## MVP 功能
 
@@ -10,9 +10,11 @@
 - 依 `taiwan-traditional-sanhe` v1 計算命宮、身宮、十二宮干支、五行局與 MVP 星曜。
 - 以適合新手的精簡總覽查看十二宮，點選宮位後再漸進顯示主星、四化與進階資料。
 - 顯示附有已驗證依據的五類基本解讀。
-- 使用者可自行設定完整的 HTTPS OpenAI 相容 Responses API endpoint，並以非串流請求整理解讀文字。
+- 使用者可自行設定 HTTPS OpenAI 相容 API base URL 或完整 Responses API endpoint，未以 `/responses` 結尾時 App 會自動補齊路徑，並以非串流請求整理解讀文字。
 - API 設定畫面可發出不含命盤資料的小型 request，確認 endpoint、model、授權與 structured output 是否可用。
-- API 未設定、請求失敗或驗證失敗時，自動使用完整的 deterministic 基本解讀。
+- 底部「AI」分頁可針對目前或已儲存命盤進行最多十輪問答，每個有效回答都會顯示 App 驗證過的命盤依據。
+- 對話只保存在本次 App 執行期間；切換命盤會先確認並清除本次對話。
+- API 未設定、請求失敗或驗證失敗時，完整的 deterministic 基本解讀仍可正常使用。
 - API key 可依服務需求留空；非空 key 只儲存在不可同步的 iOS Keychain，不寫入 SwiftData、記錄或 repository。
 - 使用 SwiftData 儲存、重新命名與刪除命盤。
 - 不需要帳號、開發者後端或訂閱。
@@ -87,6 +89,7 @@ flowchart TD
     Seeds["InterpretationSeeds"]
     Settings["API 設定與 Keychain"]
     AI["OpenAI 相容 Responses API（非串流）"]
+    Conversation["命盤 AI 多輪問答"]
     Fallback["Deterministic renderer"]
     UI["SwiftUI"]
     Store["SwiftData"]
@@ -98,6 +101,8 @@ flowchart TD
     Settings --> AI
     Seeds --> AI
     Seeds --> Fallback
+    AI --> Conversation
+    Conversation --> UI
     AI --> UI
     Fallback --> UI
     Chart --> UI
@@ -108,11 +113,13 @@ flowchart TD
 
 Responses API 不參與排盤，也不能新增 App 未提供的命理含義。
 
+命盤問答只使用 App 產生的 verified ChartFacts、InterpretationSeeds、本次問題與已驗證的本次對話。
+
 ## 隱私
 
 App 不會將出生資料、命盤、prompt 或解讀傳送到開發者控制的伺服器。
 
-只有使用者啟用 AI 解讀時，App 才會將必要的命盤 facts、interpretation seeds 與 prompt 直接傳送到使用者設定的第三方 HTTPS endpoint。
+只有使用者啟用 AI 整理或主動提問時，App 才會將必要的命盤 facts、interpretation seeds、問題、本次對話與 prompt 直接傳送到使用者設定的第三方 HTTPS endpoint。
 
 API key 只儲存在 iOS Keychain。
 
@@ -122,7 +129,7 @@ API key 只儲存在 iOS Keychain。
 
 ## 介面驗證
 
-UI tests 會驗證首頁、命盤總覽、宮位詳情、基本解讀、Dark Mode 與最大 Dynamic Type。
+UI tests 會驗證首頁、命盤總覽、宮位詳情、基本解讀、AI 分頁、多輪問答、Dark Mode 與最大 Dynamic Type。
 
 測試截圖只保存在本機的 `.xcresult` 測試結果中，不納入 repository。
 

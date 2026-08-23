@@ -18,7 +18,7 @@ struct AIConfigurationView: View {
     var body: some View {
         Form {
             Section {
-                TextField("完整 Responses API URL", text: $endpoint, axis: .vertical)
+                TextField("API Base URL 或完整 Responses URL", text: $endpoint, axis: .vertical)
                     .textContentType(.URL)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -38,7 +38,7 @@ struct AIConfigurationView: View {
             } header: {
                 Text("Responses API")
             } footer: {
-                Text("Endpoint 必須是完整的 HTTPS Responses API URL。API key 只儲存在本機 Keychain，不會同步到其他裝置。")
+                Text("URL 必須使用 HTTPS。若網址未以 /responses 結尾，App 會自動補上。API key 只儲存在本機 Keychain，不會同步到其他裝置。")
             }
             .disabled(isTesting)
 
@@ -71,7 +71,7 @@ struct AIConfigurationView: View {
             Section("資料與費用") {
                 Text("只有在你主動要求雲端整理時，App 才會傳送已驗證的命盤事實與基礎解讀。")
                 Text("資料會傳送到你設定的第三方服務，並受該服務的隱私政策、保存方式與費用規則約束。")
-                Text("Prompt 不包含姓名、原始出生日期或出生時間。API key 只會作為授權 header 傳送到你設定的 endpoint。")
+                Text("App 不會主動把姓名、原始出生日期或出生時間加入 prompt；你在問題中輸入的內容仍會傳送。API key 只會作為授權 header 傳送到你設定的 endpoint。")
             }
 
             Section {
@@ -156,6 +156,7 @@ struct AIConfigurationView: View {
                     model: model,
                     apiKey: apiKey
                 )
+                endpoint = configuration.endpoint.absoluteString
                 try await OpenAIResponsesInterpreter().testConnection(
                     configuration: configuration
                 )

@@ -46,7 +46,7 @@ final class MightyZiWeiUITests: XCTestCase {
         let chartData = app.buttons["chart.data"]
         XCTAssertTrue(chartData.waitForExistence(timeout: 5))
         chartData.tap()
-        XCTAssertTrue(fiveElementBureau.waitForExistence(timeout: 3))
+        XCTAssertTrue(fiveElementBureau.waitForExistence(timeout: 5))
         chartData.tap()
 
         let lifePalaceButton = app.buttons["chart.palace.life"]
@@ -93,6 +93,69 @@ final class MightyZiWeiUITests: XCTestCase {
             XCTAssertTrue(heading.exists)
         }
         attachScreenshot(name: "基本解讀")
+
+        app.tabBars.buttons["AI"].tap()
+        XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["assistant.configureAPI"].waitForExistence(timeout: 5))
+    }
+
+    func testAI分頁可針對目前命盤進行多輪問答且不連真實網路() {
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = localizationArguments + [
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryL",
+            "-UITestMockAI"
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.tabBars.buttons["AI"].waitForExistence(timeout: 5))
+        let createButton = app.buttons["home.createChart"]
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5))
+        createButton.tap()
+        let generateButton = app.buttons["birthInput.generate"]
+        if !generateButton.waitForExistence(timeout: 5), createButton.exists {
+            createButton.tap()
+        }
+        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        generateButton.tap()
+        XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
+
+        let askButton = app.buttons["chart.askAI"]
+        scrollToElement(askButton)
+        askButton.tap()
+
+        XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
+        let composer = app.textFields["assistant.composer"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 5))
+        app.buttons["assistant.suggestion.0"].tap()
+        XCTAssertEqual(composer.value as? String, "我的工作性格有什麼特色？")
+        XCTAssertFalse(app.otherElements["assistant.answer"].exists)
+        app.buttons["assistant.send"].tap()
+
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["命盤助理"].exists)
+        XCTAssertTrue(app.staticTexts["我的工作性格有什麼特色？"].exists)
+
+        composer.tap()
+        composer.typeText("可以再說清楚一點嗎？")
+        app.buttons["assistant.send"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["assistant.loading"]
+                .waitForExistence(timeout: 5)
+        )
+        app.buttons["停止"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["assistant.cancelled"]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertEqual(composer.value as? String, "可以再說清楚一點嗎？")
+
+        app.buttons["assistant.send"].tap()
+        XCTAssertTrue(
+            app.otherElements.matching(identifier: "assistant.answer").element(boundBy: 1)
+                .waitForExistence(timeout: 5)
+        )
     }
 
     func test深色模式與宮位無障礙標籤() {
@@ -144,6 +207,12 @@ final class MightyZiWeiUITests: XCTestCase {
         scrollToElement(interpretationButton)
         XCTAssertTrue(interpretationButton.isHittable)
         attachScreenshot(name: "最大動態字級命盤")
+
+        app.tabBars.buttons["AI"].tap()
+        XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
+        let configureAPI = app.buttons["assistant.configureAPI"]
+        scrollToElement(configureAPI)
+        XCTAssertTrue(configureAPI.isHittable)
     }
 
     private func assert命盤完整顯示在畫面內() {

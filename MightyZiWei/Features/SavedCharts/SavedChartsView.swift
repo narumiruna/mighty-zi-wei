@@ -175,7 +175,8 @@ struct SavedChartLoaderView: View {
                     chart: chart,
                     name: savedChart.name,
                     allowsSaving: false,
-                    notice: notice
+                    notice: notice,
+                    savedChartID: savedChart.id
                 )
             } else if let errorMessage {
                 EmptyStateView(

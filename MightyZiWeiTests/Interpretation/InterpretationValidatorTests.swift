@@ -112,6 +112,83 @@ final class InterpretationValidatorTests: XCTestCase {
         XCTAssertThrowsError(try InterpretationValidator().validate(sections: sections, facts: [fact]))
     }
 
+    func test對話回答必須引用已知且不重複的依據() throws {
+        let answer = ChartConversationAnswer(
+            status: .answered,
+            content: "你可能傾向先掌握整體方向。",
+            evidenceFactIDs: [fact.id]
+        )
+
+        XCTAssertEqual(
+            try ConversationAnswerValidator().validate(answer, facts: [fact]),
+            answer
+        )
+
+        XCTAssertThrowsError(
+            try ConversationAnswerValidator().validate(
+                ChartConversationAnswer(
+                    status: .answered,
+                    content: answer.content,
+                    evidenceFactIDs: ["unknown"]
+                ),
+                facts: [fact]
+            )
+        )
+        XCTAssertThrowsError(
+            try ConversationAnswerValidator().validate(
+                ChartConversationAnswer(
+                    status: .answered,
+                    content: answer.content,
+                    evidenceFactIDs: [fact.id, fact.id]
+                ),
+                facts: [fact]
+            )
+        )
+    }
+
+    func test不支援的對話回答不得附加命盤依據() throws {
+        let unsupported = ChartConversationAnswer(
+            status: .unsupported,
+            content: "目前命盤資料不足以回答這個問題。",
+            evidenceFactIDs: []
+        )
+
+        let validated = try ConversationAnswerValidator().validate(unsupported, facts: [fact])
+        XCTAssertEqual(validated.status, .unsupported)
+        XCTAssertTrue(validated.evidenceFactIDs.isEmpty)
+        XCTAssertTrue(validated.content.contains("超出目前命盤資料"))
+        XCTAssertThrowsError(
+            try ConversationAnswerValidator().validate(
+                ChartConversationAnswer(
+                    status: .unsupported,
+                    content: unsupported.content,
+                    evidenceFactIDs: [fact.id]
+                ),
+                facts: [fact]
+            )
+        )
+    }
+
+    func test對話回答拒絕空白與不安全內容() {
+        for content in [
+            "   ",
+            "你一定會成功。",
+            "以下是適合你的投資建議。",
+            String(repeating: "字", count: 2_001)
+        ] {
+            XCTAssertThrowsError(
+                try ConversationAnswerValidator().validate(
+                    ChartConversationAnswer(
+                        status: .answered,
+                        content: content,
+                        evidenceFactIDs: [fact.id]
+                    ),
+                    facts: [fact]
+                )
+            )
+        }
+    }
+
     private func makeSections(
         evidence: (InterpretationCategory) -> [String]
     ) -> [InterpretationSection] {

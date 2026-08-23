@@ -467,9 +467,13 @@ natal.transformation.lu.star
 
 `InterpretationSeed` 必須引用至少一個存在的 fact ID。
 
-使用者設定的 OpenAI 相容 Responses API 只能整理 App 已提供的 facts 與 seeds。
+使用者設定的 OpenAI 相容 Responses API 只能整理 App 已提供的 facts 與 seeds，或根據這些資料回答目前命盤的問題。
 
-API 請求必須使用完整的 HTTPS endpoint，且 MVP 只允許非串流 Responses API 呼叫。
+命盤 AI 的後續追問可以帶入本次對話中先前已驗證的問題與回答，但對話文字不得成為新的命盤 fact 或命理含義來源。
+
+有效問答必須引用至少一個本次提供的 fact ID；資料不足或問題超出允許範圍時必須回傳不支援，且不得附加 evidence。
+
+API 請求必須使用 HTTPS endpoint，使用者輸入的 URL 未以 `/responses` 結尾時 App 必須自動補齊路徑，且 MVP 只允許非串流 Responses API 呼叫。
 
 API key 必須只儲存在 iOS Keychain，不得進入規則資料、SwiftData、記錄或 repository。
 
@@ -479,7 +483,9 @@ Responses API 不得計算命宮、身宮、星曜、五行局、四化、宮位
 
 顯示 evidence 時必須由 App 依 ID 取回原始文字。
 
-API 未設定、請求失敗、回應無效或驗證失敗時，必須使用 deterministic fallback。
+API 未設定、請求失敗、回應無效或驗證失敗時，固定分類解讀必須使用 deterministic fallback，命盤 AI 則必須保留既有成功對話與問題草稿。
+
+命盤 AI 對話不得永久保存，切換命盤時不得混用不同命盤的對話依據。
 
 ## 15. Golden fixtures
 

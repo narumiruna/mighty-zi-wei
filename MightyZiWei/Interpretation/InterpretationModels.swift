@@ -77,3 +77,44 @@ struct ChartInterpretation: Codable, Hashable, Sendable {
     let sections: [InterpretationSection]
     let source: Source
 }
+
+struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
+    let id: UUID
+    let question: String
+    let answer: String
+    let evidenceFactIDs: [String]
+
+    init(
+        id: UUID = UUID(),
+        question: String,
+        answer: String,
+        evidenceFactIDs: [String]
+    ) {
+        self.id = id
+        self.question = question
+        self.answer = answer
+        self.evidenceFactIDs = evidenceFactIDs
+    }
+}
+
+struct ChartConversationAnswer: Equatable, Sendable {
+    enum Status: String, Codable, Sendable {
+        case answered
+        case unsupported
+    }
+
+    let status: Status
+    let content: String
+    let evidenceFactIDs: [String]
+}
+
+struct ChartAssistantChart: Identifiable, Sendable {
+    let id: UUID
+    let savedChartID: UUID?
+    let name: String
+    let detail: String
+    let facts: [ChartFact]
+    let seeds: [InterpretationSeed]
+
+    var isSaved: Bool { savedChartID != nil }
+}

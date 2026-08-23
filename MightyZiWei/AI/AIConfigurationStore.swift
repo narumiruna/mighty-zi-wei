@@ -13,10 +13,9 @@ struct OpenAIResponsesConfiguration: Equatable, Sendable {
         let trimmedAPIKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard
-            let components = URLComponents(string: trimmedEndpoint),
+            var components = URLComponents(string: trimmedEndpoint),
             components.scheme?.lowercased() == "https",
-            components.host?.isEmpty == false,
-            let url = components.url
+            components.host?.isEmpty == false
         else {
             throw ValidationError.invalidEndpoint
         }
@@ -27,9 +26,33 @@ struct OpenAIResponsesConfiguration: Equatable, Sendable {
             throw ValidationError.missingModel
         }
 
+        components.percentEncodedPath = Self.responsesPath(
+            from: components.percentEncodedPath
+        )
+        guard let url = components.url else {
+            throw ValidationError.invalidEndpoint
+        }
+
         self.endpoint = url
         self.model = trimmedModel
         self.apiKey = trimmedAPIKey?.isEmpty == false ? trimmedAPIKey : nil
+    }
+
+    private static func responsesPath(from path: String) -> String {
+        let pathWithoutTrailingSlashes = path.replacing(
+            /\/+$/,
+            with: ""
+        )
+        let lastComponent = pathWithoutTrailingSlashes
+            .split(separator: "/")
+            .last
+            .flatMap { String($0).removingPercentEncoding }?
+            .lowercased()
+
+        if lastComponent == "responses" {
+            return pathWithoutTrailingSlashes
+        }
+        return "\(pathWithoutTrailingSlashes)/responses"
     }
 
     enum ValidationError: LocalizedError, Equatable {

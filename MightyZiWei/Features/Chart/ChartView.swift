@@ -6,8 +6,13 @@ struct ChartView: View {
     let name: String
     var allowsSaving = true
     var notice: String?
+    var savedChartID: UUID?
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(AppNavigationState.self) private var navigation
+    @Environment(ChartAssistantStore.self) private var assistantStore
+    @State private var assistantChartID = UUID()
+    @State private var showsAssistantSwitchConfirmation = false
     @State private var isSaved = false
     @State private var saveMessage: String?
     @State private var errorMessage: String?
@@ -65,12 +70,25 @@ struct ChartView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("chart.interpretation")
 
+                Button {
+                    openAssistant()
+                } label: {
+                    Label("用 AI 詢問這張命盤", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("chart.askAI")
+
                 DisclaimerView(compact: true)
             }
             .padding()
         }
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            assistantStore.offer(assistantChart)
+        }
         .toolbar {
             if allowsSaving {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -93,6 +111,28 @@ struct ChartView: View {
         } message: {
             Text(errorMessage ?? "未知錯誤")
         }
+        .confirmationDialog(
+            "切換命盤並清除本次 AI 對話？",
+            isPresented: $showsAssistantSwitchConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("切換並前往 AI", role: .destructive) {
+                assistantStore.select(assistantChart)
+                navigation.selectedTab = .ai
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("目前 AI 對話使用另一張命盤。不同命盤的對話依據不能混用。")
+        }
+    }
+
+    private var assistantChart: ChartAssistantChart {
+        ChartAssistantChart.make(
+            id: savedChartID ?? assistantChartID,
+            savedChartID: savedChartID,
+            name: name,
+            chart: chart
+        )
     }
 
     private var displayName: String {
@@ -105,6 +145,15 @@ struct ChartView: View {
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+
+    private func openAssistant() {
+        if assistantStore.requiresConfirmation(toSelect: assistantChart) {
+            showsAssistantSwitchConfirmation = true
+        } else {
+            assistantStore.select(assistantChart)
+            navigation.selectedTab = .ai
+        }
     }
 
     private func saveChart() {
