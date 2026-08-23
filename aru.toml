@@ -1,0 +1,9 @@
+[project]
+targets = ["agents"]
+
+[instructions]
+
+[skills]
+"narumiruna/skills" = { include = ["creating-agent-skills"], exclude = [] }
+
+[mcp]
