@@ -192,8 +192,13 @@ final class ChartAssistantStore {
         if let interpreterError = error as? OpenAIResponsesInterpreter.InterpreterError {
             return interpreterError.errorDescription ?? "AI API 暫時無法完成回答。"
         }
-        if error is ConversationAnswerValidator.ValidationError {
-            return "回答未通過命盤依據與安全驗證，請重新提問。"
+        if let validationError = error as? ConversationAnswerValidator.ValidationError {
+            switch validationError {
+            case .unsafeContent:
+                return "AI 回答包含不允許的確定式或專業建議，請再試一次。"
+            default:
+                return "AI 回答格式或命盤依據不完整，請再試一次。"
+            }
         }
         return "AI API 暫時無法完成回答，請稍後再試。"
     }

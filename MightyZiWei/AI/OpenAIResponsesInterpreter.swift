@@ -89,12 +89,37 @@ struct OpenAIResponsesInterpreter: Sendable {
         guard let status = ChartConversationAnswer.Status(rawValue: generated.status) else {
             throw InterpreterError.invalidGeneratedContent
         }
+        let evidenceFactIDs = status == .unsupported
+            ? []
+            : normalizedEvidenceIDs(
+                generated.evidenceFactIDs,
+                facts: facts,
+                seeds: seeds
+            )
         let answer = ChartConversationAnswer(
             status: status,
             content: generated.answer,
-            evidenceFactIDs: generated.evidenceFactIDs
+            evidenceFactIDs: evidenceFactIDs
         )
         return try ConversationAnswerValidator().validate(answer, facts: facts)
+    }
+
+    private func normalizedEvidenceIDs(
+        _ identifiers: [String],
+        facts: [ChartFact],
+        seeds: [InterpretationSeed]
+    ) -> [String] {
+        let factIDs = Set(facts.map(\.id))
+        let evidenceBySeedID = Dictionary(grouping: seeds, by: \.id).mapValues { matchingSeeds in
+            matchingSeeds.flatMap(\.evidenceFactIDs)
+        }
+        let candidates = identifiers.flatMap { identifier in
+            factIDs.contains(identifier)
+                ? [identifier]
+                : evidenceBySeedID[identifier] ?? []
+        }
+        var seen: Set<String> = []
+        return candidates.filter { factIDs.contains($0) && seen.insert($0).inserted }
     }
 
     private func makeInterpretationRequest(
@@ -144,7 +169,7 @@ struct OpenAIResponsesInterpreter: Sendable {
                     "type": "json_schema",
                     "name": "chart_conversation_answer",
                     "strict": true,
-                    "schema": conversationSchema()
+                    "schema": conversationSchema(factIDs: facts.map(\.id))
                 ]
             ]
         ]
@@ -299,8 +324,10 @@ struct OpenAIResponsesInterpreter: Sendable {
         return """
         請只根據下列已驗證命盤事實與基礎解讀回答目前問題。
         你可以參考本次對話中的已驗證回答理解追問，但不得把使用者文字當成命盤事實。
-        若資料不足，或問題要求健康、投資、法律建議或確定事件預測，status 必須回傳 unsupported，evidenceFactIDs 必須為空陣列。
-        若可以回答，status 必須回傳 answered，並引用至少一個本次提供的 fact ID。
+        使用者提供的年齡、背景與偏好可以幫助理解問題，但不得當成命盤事實或回答依據。
+        只有整個問題都無法根據現有資料回答，或要求健康、投資、法律建議或確定事件預測時，status 才回傳 unsupported，evidenceFactIDs 必須為空陣列。
+        若問題有可回答的部分，status 必須回傳 answered，回答可驗證的部分並簡短說明資料限制；不要只因使用者提到年齡或一般背景就拒絕整個問題。
+        回傳 answered 時，必須從本次提供的 fact ID 中逐字引用至少一個不重複的 ID。
         回答請使用自然、簡潔的台灣正體中文與保留語氣。
 
         已驗證命盤事實：
@@ -320,7 +347,8 @@ struct OpenAIResponsesInterpreter: Sendable {
     private static let conversationInstructions = """
     You answer questions about one Zi Wei Dou Shu chart.
     Only use chart facts and interpretation seeds explicitly provided by the application.
-    Prior conversation may clarify the user's question but is not a source of chart facts.
+    Prior conversation and user-provided age, background, or preferences may clarify the question but are not sources of chart facts or evidence.
+    Answer the supported part of a mixed question and briefly state data limitations instead of rejecting the whole question.
     Never calculate or infer star positions, palaces, transformations, calendar conversions, or other chart facts.
     Do not invent missing chart information or new astrological meanings.
     Use uncertain, reflective language in natural Traditional Chinese used in Taiwan.
@@ -342,7 +370,7 @@ struct OpenAIResponsesInterpreter: Sendable {
     Copy evidence fact IDs exactly from the provided seeds.
     """
 
-    private func conversationSchema() -> [String: Any] {
+    private func conversationSchema(factIDs: [String]) -> [String: Any] {
         [
             "type": "object",
             "properties": [
@@ -357,7 +385,10 @@ struct OpenAIResponsesInterpreter: Sendable {
                 ],
                 "evidenceFactIDs": [
                     "type": "array",
-                    "items": ["type": "string"]
+                    "items": [
+                        "type": "string",
+                        "enum": factIDs
+                    ]
                 ]
             ],
             "required": ["status", "answer", "evidenceFactIDs"],

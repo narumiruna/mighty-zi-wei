@@ -131,6 +131,7 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             let input = try XCTUnwrap(json["input"] as? String)
             XCTAssertTrue(input.contains("可以再說清楚一點嗎？"))
             XCTAssertTrue(input.contains("我的工作風格如何？"))
+            XCTAssertTrue(input.contains("不要只因使用者提到年齡"))
             XCTAssertTrue(input.contains(fact.id))
             XCTAssertFalse(input.contains("BirthProfile"))
             XCTAssertFalse(input.contains("1990/01/01"))
@@ -141,6 +142,10 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             XCTAssertEqual(format["strict"] as? Bool, true)
             let schema = try XCTUnwrap(format["schema"] as? [String: Any])
             XCTAssertEqual(schema["additionalProperties"] as? Bool, false)
+            let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
+            let evidence = try XCTUnwrap(properties["evidenceFactIDs"] as? [String: Any])
+            let evidenceItems = try XCTUnwrap(evidence["items"] as? [String: Any])
+            XCTAssertEqual(evidenceItems["enum"] as? [String], [fact.id])
 
             return Self.response(
                 request: request,
@@ -148,7 +153,7 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
                 object: Self.outputEnvelope([
                     "status": "answered",
                     "answer": "你可能會先確認整體方向，再處理細節。",
-                    "evidenceFactIDs": [fact.id]
+                    "evidenceFactIDs": [fact.id, fact.id]
                 ])
             )
         }
@@ -166,14 +171,14 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
     }
 
     func test不支援問題可安全回應且不引用依據() async throws {
-        MockURLProtocol.handler = { request in
+        MockURLProtocol.handler = { [fact] request in
             Self.response(
                 request: request,
                 statusCode: 200,
                 object: Self.outputEnvelope([
                     "status": "unsupported",
                     "answer": "目前命盤資料無法提供健康診斷。",
-                    "evidenceFactIDs": []
+                    "evidenceFactIDs": [fact.id]
                 ])
             )
         }
@@ -188,6 +193,30 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
 
         XCTAssertEqual(result.status, .unsupported)
         XCTAssertTrue(result.evidenceFactIDs.isEmpty)
+    }
+
+    func test對話回答會忽略未知依據並把Seed轉成已驗證依據() async throws {
+        MockURLProtocol.handler = { request in
+            Self.response(
+                request: request,
+                statusCode: 200,
+                object: Self.outputEnvelope([
+                    "status": "answered",
+                    "answer": "你可能傾向先掌握方向。",
+                    "evidenceFactIDs": ["unknown", "seed.career"]
+                ])
+            )
+        }
+
+        let result = try await makeInterpreter().answer(
+            question: "我想問工作上的事情，然後我已經快四十歲了。",
+            history: [],
+            facts: [fact],
+            seeds: makeSeeds(),
+            configuration: try makeConfiguration(apiKey: nil)
+        )
+
+        XCTAssertEqual(result.evidenceFactIDs, [fact.id])
     }
 
     func test對話回答未知依據會被拒絕() async throws {

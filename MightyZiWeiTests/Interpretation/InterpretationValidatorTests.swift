@@ -80,6 +80,61 @@ final class InterpretationValidatorTests: XCTestCase {
         XCTAssertEqual(result.count, InterpretationCategory.allCases.count)
     }
 
+    func test接受否定式確定語氣() throws {
+        let sections = InterpretationCategory.allCases.map { category in
+            InterpretationSection(
+                id: category.rawValue,
+                category: category,
+                title: category.title,
+                content: category == .career
+                    ? "接近四十歲不一定會限制你的工作選擇。"
+                    : "你可能傾向先掌握整體方向。",
+                evidenceFactIDs: [fact.id]
+            )
+        }
+
+        XCTAssertNoThrow(
+            try InterpretationValidator().validate(sections: sections, facts: [fact])
+        )
+        XCTAssertNoThrow(
+            try ConversationAnswerValidator().validate(
+                ChartConversationAnswer(
+                    status: .answered,
+                    content: "年齡不一定會限制你的工作選擇，也無法保證單一路線最合適。",
+                    evidenceFactIDs: [fact.id]
+                ),
+                facts: [fact]
+            )
+        )
+    }
+
+    func test接受一般提及專業詞彙() throws {
+        let content = "命盤不能替代診斷或治療；買進與賣出仍應依現實資訊自行判斷。"
+        let sections = InterpretationCategory.allCases.map { category in
+            InterpretationSection(
+                id: category.rawValue,
+                category: category,
+                title: category.title,
+                content: category == .overview ? content : "你可能傾向先掌握整體方向。",
+                evidenceFactIDs: [fact.id]
+            )
+        }
+
+        XCTAssertNoThrow(
+            try InterpretationValidator().validate(sections: sections, facts: [fact])
+        )
+        XCTAssertNoThrow(
+            try ConversationAnswerValidator().validate(
+                ChartConversationAnswer(
+                    status: .answered,
+                    content: content,
+                    evidenceFactIDs: [fact.id]
+                ),
+                facts: [fact]
+            )
+        )
+    }
+
     func test仍拒絕實際專業建議() {
         let sections = InterpretationCategory.allCases.map { category in
             InterpretationSection(
@@ -156,7 +211,7 @@ final class InterpretationValidatorTests: XCTestCase {
         let validated = try ConversationAnswerValidator().validate(unsupported, facts: [fact])
         XCTAssertEqual(validated.status, .unsupported)
         XCTAssertTrue(validated.evidenceFactIDs.isEmpty)
-        XCTAssertTrue(validated.content.contains("超出目前命盤資料"))
+        XCTAssertTrue(validated.content.contains("目前命盤資料不足"))
         XCTAssertThrowsError(
             try ConversationAnswerValidator().validate(
                 ChartConversationAnswer(
