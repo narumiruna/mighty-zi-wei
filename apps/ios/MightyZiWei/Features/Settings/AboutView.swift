@@ -27,7 +27,7 @@ struct AboutView: View {
             Section("支援") {
                 Link(
                     "隱私權說明",
-                    destination: URL(string: "https://github.com/narumiruna/mighty-zi-wei/blob/main/Documentation/PRIVACY.md")!
+                    destination: URL(string: "https://github.com/narumiruna/mighty-zi-wei/blob/main/docs/PRIVACY.md")!
                 )
                 Link(
                     "回報問題",
