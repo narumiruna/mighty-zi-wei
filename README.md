@@ -29,17 +29,21 @@
 
 ## 產生專案
 
+iOS 專案位於 `apps/ios/`。
+
 ```sh
 brew install xcodegen
+cd apps/ios
 xcodegen generate
 open MightyZiWei.xcodeproj
 ```
 
-`project.yml` 是 Xcode project 的 source of truth。
+`apps/ios/project.yml` 是 Xcode project 的 source of truth。
 
 ## 建置與測試
 
 ```sh
+cd apps/ios
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 xcodebuild test \
 -project MightyZiWei.xcodeproj \
@@ -50,12 +54,13 @@ CODE_SIGNING_ALLOWED=NO
 
 ## TestFlight 外部測試
 
-每次上傳前，先在 `project.yml` 增加 `CURRENT_PROJECT_VERSION`，再執行 `xcodegen generate`。
+每次上傳前，先在 `apps/ios/project.yml` 增加 `CURRENT_PROJECT_VERSION`，再於 `apps/ios/` 執行 `xcodegen generate`。
 
-以下指令會使用 `Configuration/TestFlightExternalExportOptions.plist` 上傳可供外部測試的建置。
+以下指令會使用 `apps/ios/Configuration/TestFlightExternalExportOptions.plist` 上傳可供外部測試的建置。
 該設定明確將 `testFlightInternalTestingOnly` 設為 `false`。
 
 ```sh
+cd apps/ios
 rm -rf /tmp/MightyZiWei.xcarchive /tmp/MightyZiWei-upload
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
