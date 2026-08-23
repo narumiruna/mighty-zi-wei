@@ -153,7 +153,7 @@ API key 只儲存在 iOS Keychain。
 
 第三方可能依其方案收費，並依其條款與隱私政策處理資料。
 
-詳細內容請參閱 `Documentation/PRIVACY.md`。
+詳細內容請參閱 `docs/PRIVACY.md`。
 
 ## 介面驗證
 
