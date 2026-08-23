@@ -15,7 +15,7 @@ struct HomeView: View {
                         Text("很牛的\n紫微斗數")
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .accessibilityAddTraits(.isHeader)
-                        Text("清楚看懂自己的十二宮")
+                        Text("一步一步認識自己的命盤")
                             .font(.title3)
                             .foregroundStyle(.secondary)
                     }

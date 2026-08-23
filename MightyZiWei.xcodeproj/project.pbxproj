@@ -15,6 +15,7 @@
 		27E79E39D9D5C1A35BD66B4D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32476896280CD9A6DF081001 /* AboutView.swift */; };
 		2B3C06FAFA75B3A4135E0E47 /* MightyZiWeiUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DB1AE2F8775CC76192AEF9 /* MightyZiWeiUITests.swift */; };
 		2C1E451C5864455CCEDE6CDC /* Palace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44E169F23C465365C17F931 /* Palace.swift */; };
+		2FD092155F1006A5EEC58345 /* ChartLearningContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */; };
 		34698CCE011788503A6E8CEF /* AIConfigurationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD8015906E6B1A5D4A037EEF /* AIConfigurationStoreTests.swift */; };
 		3689D9DD4C5A0F7C91D34FC4 /* chart_011_hour_wei.json in Resources */ = {isa = PBXBuildFile; fileRef = DEB07B8EC61549D16345B2E2 /* chart_011_hour_wei.json */; };
 		4512C9F3380861D5A9160279 /* SavedChartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E9E7214FAB09F1CDC5E131 /* SavedChartTests.swift */; };
@@ -52,6 +53,7 @@
 		CDC81E182D78CF5D3A964A5F /* chart_014_hour_xu.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F5C44BDBCC4F068F53F6930 /* chart_014_hour_xu.json */; };
 		CE0D3975202B78474E838061 /* chart_003_lunar_new_year.json in Resources */ = {isa = PBXBuildFile; fileRef = 512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */; };
 		D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */; };
+		D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */; };
 		D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */; };
 		E40C3D0F7D9F72BE3EC5614C /* SavedChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */; };
 		F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */; };
@@ -82,6 +84,7 @@
 /* Begin PBXFileReference section */
 		02C1298AD9321509D74417EB /* chart_010_hour_chen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_010_hour_chen.json; sourceTree = "<group>"; };
 		034ACE4FDF7CBF7A8A3FB51C /* chart_001_normal.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_001_normal.json; sourceTree = "<group>"; };
+		05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContentTests.swift; sourceTree = "<group>"; };
 		05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MightyZiWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiCoreTests.swift; sourceTree = "<group>"; };
 		0D12FE744C4E5E89927DD0FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -96,6 +99,7 @@
 		32E9E7214FAB09F1CDC5E131 /* SavedChartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedChartTests.swift; sourceTree = "<group>"; };
 		3AD3B6947F9662D390173554 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidatorTests.swift; sourceTree = "<group>"; };
+		4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContent.swift; sourceTree = "<group>"; };
 		47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationView.swift; sourceTree = "<group>"; };
 		4B6A47B453849E7528D25DC7 /* chart_009_hour_mao.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_009_hour_mao.json; sourceTree = "<group>"; };
 		512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_003_lunar_new_year.json; sourceTree = "<group>"; };
@@ -317,6 +321,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		9DC2716039176B98C4C27187 /* Chart */ = {
+			isa = PBXGroup;
+			children = (
+				05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */,
+			);
+			path = Chart;
+			sourceTree = "<group>";
+		};
 		AC15383281B5AE1CB7951E68 /* Calendar */ = {
 			isa = PBXGroup;
 			children = (
@@ -338,6 +350,7 @@
 			children = (
 				0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */,
 				673A3BA999DB7B3E683C2F06 /* AI */,
+				9DC2716039176B98C4C27187 /* Chart */,
 				3456EFCB9F8D183CE321EE9B /* Fixtures */,
 				73B34818678329B034C77083 /* Interpretation */,
 				4B95E42FA8D1CA5B42027DAC /* Persistence */,
@@ -373,6 +386,7 @@
 		DD5EAD5FEF106EA91B4364F7 /* Chart */ = {
 			isa = PBXGroup;
 			children = (
+				4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */,
 				76E7E54747FAB806EA300947 /* ChartView.swift */,
 			);
 			path = Chart;
@@ -558,6 +572,7 @@
 				9DE3AC8EAF227B8CF9654AA5 /* CalendarNormalizer.swift in Sources */,
 				BBFC7F29C250D32C01527485 /* Celestial.swift in Sources */,
 				D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */,
+				2FD092155F1006A5EEC58345 /* ChartLearningContent.swift in Sources */,
 				F8EF326921C0E66BFA373FFE /* ChartView.swift in Sources */,
 				4EAADCB9D0FF0FE23D4494D3 /* DesignSystem.swift in Sources */,
 				A358EA97D679804CEC760488 /* HomeView.swift in Sources */,
@@ -588,6 +603,7 @@
 			files = (
 				34698CCE011788503A6E8CEF /* AIConfigurationStoreTests.swift in Sources */,
 				1F2F3B8A8BF7AB56672F02B7 /* ChartFactBuilderTests.swift in Sources */,
+				D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */,
 				D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */,
 				96C5BF79F91DF992D48C18CE /* InterpretationValidatorTests.swift in Sources */,
 				F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */,

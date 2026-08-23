@@ -6,6 +6,8 @@ scheme := "MightyZiWei"
 simulator := env_var_or_default("SIMULATOR", "iPhone 17 Pro")
 archive_path := "/tmp/MightyZiWei.xcarchive"
 upload_path := "/tmp/MightyZiWei-upload"
+device_build_path := "/tmp/MightyZiWei-device"
+bundle_id := "dev.narumi.MightyZiWei"
 export_options := "Configuration/TestFlightExternalExportOptions.plist"
 
 [default]
@@ -35,6 +37,40 @@ test: generate
         -scheme {{scheme}} \
         -destination 'platform=iOS Simulator,name={{simulator}}' \
         CODE_SIGNING_ALLOWED=NO
+
+# 建置、安裝並啟動 App（可用 DEVICE_ID 指定已連線的 iPhone）
+device: generate
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    device_id="${DEVICE_ID:-}"
+    if [[ -z "$device_id" ]]; then
+        device_id="$(DEVELOPER_DIR={{xcode_dev_dir}} xcrun devicectl list devices \
+            | awk '{ for (i = 1; i <= NF; i++) if ($i == "connected") { print $(i - 1); exit } }')"
+    fi
+
+    if [[ -z "$device_id" ]]; then
+        echo "找不到已連線的 iPhone。請解鎖手機、信任此 Mac，或設定 DEVICE_ID。" >&2
+        exit 1
+    fi
+
+    echo "正在建置並安裝到裝置：$device_id"
+    rm -rf {{device_build_path}}
+    DEVELOPER_DIR={{xcode_dev_dir}} xcodebuild build \
+        -project {{project}} \
+        -scheme {{scheme}} \
+        -configuration Debug \
+        -destination 'generic/platform=iOS' \
+        -derivedDataPath {{device_build_path}} \
+        -allowProvisioningUpdates
+    DEVELOPER_DIR={{xcode_dev_dir}} xcrun devicectl device install app \
+        --device "$device_id" \
+        {{device_build_path}}/Build/Products/Debug-iphoneos/MightyZiWei.app
+    if ! DEVELOPER_DIR={{xcode_dev_dir}} xcrun devicectl device process launch \
+        --device "$device_id" \
+        {{bundle_id}}; then
+        echo "App 已安裝，但手機目前無法自動開啟。請解鎖手機後手動開啟。" >&2
+    fi
 
 # 建立 TestFlight Release archive
 archive: generate

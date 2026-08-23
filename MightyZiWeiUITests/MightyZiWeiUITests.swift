@@ -35,8 +35,9 @@ final class MightyZiWeiUITests: XCTestCase {
         generateButton.tap()
 
         XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
-        assert命盤完整顯示在畫面內()
-        XCTAssertFalse(app.staticTexts["天梁"].exists)
+        XCTAssertTrue(app.staticTexts["你的核心性格"].exists)
+        XCTAssertTrue(app.buttons["chart.startExploring"].exists)
+        XCTAssertFalse(app.staticTexts["命宮干支"].exists)
         let fiveElementBureau = app.staticTexts.matching(
             NSPredicate(format: "label BEGINSWITH %@", "五行局")
         ).firstMatch
@@ -45,23 +46,47 @@ final class MightyZiWeiUITests: XCTestCase {
 
         let chartData = app.buttons["chart.data"]
         XCTAssertTrue(chartData.waitForExistence(timeout: 5))
+        scrollToElement(chartData)
         chartData.tap()
         XCTAssertTrue(fiveElementBureau.waitForExistence(timeout: 5))
         chartData.tap()
 
         let lifePalaceButton = app.buttons["chart.palace.life"]
-        XCTAssertTrue(lifePalaceButton.isHittable)
+        scrollToElement(lifePalaceButton)
         lifePalaceButton.tap()
 
         XCTAssertTrue(app.navigationBars["命宮"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["天梁"].exists)
-        XCTAssertFalse(app.staticTexts["擎羊"].exists)
+        XCTAssertTrue(app.staticTexts["你的核心性格"].exists)
+        XCTAssertFalse(app.staticTexts["宮位干支"].exists)
 
-        let otherStars = app.descendants(matching: .any)["palace.otherStars"]
-        XCTAssertTrue(otherStars.waitForExistence(timeout: 5))
+        let whyButton = app.buttons["palace.why"]
+        XCTAssertTrue(whyButton.waitForExistence(timeout: 5))
+        whyButton.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["palace.why.content"].exists)
+        let mainStar = app.staticTexts["palace.star.name.tianLiang"]
+        scrollToElement(mainStar)
+        XCTAssertTrue(mainStar.exists)
+
+        let otherStars = app.buttons["palace.otherStars"]
+        scrollToElement(otherStars)
         otherStars.tap()
-        XCTAssertTrue(app.staticTexts["擎羊"].waitForExistence(timeout: 3))
-        attachScreenshot(name: "宮位詳情")
+        let supportingStar = app.staticTexts["palace.star.name.qingYang"]
+        scrollToElement(supportingStar)
+        XCTAssertTrue(supportingStar.waitForExistence(timeout: 3))
+
+        let relations = app.buttons["palace.relations"]
+        scrollToElement(relations)
+        relations.tap()
+        let relationExplanation = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "三方四正")
+        ).firstMatch
+        XCTAssertTrue(relationExplanation.waitForExistence(timeout: 3))
+
+        let rawData = app.buttons["palace.data"]
+        scrollToElement(rawData)
+        rawData.tap()
+        XCTAssertEqual(rawData.value as? String, "已展開")
+        attachScreenshot(name: "宮位探索")
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
@@ -121,21 +146,23 @@ final class MightyZiWeiUITests: XCTestCase {
         generateButton.tap()
         XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
 
-        let askButton = app.buttons["chart.askAI"]
-        scrollToElement(askButton)
-        askButton.tap()
+        app.buttons["chart.startExploring"].tap()
+        XCTAssertTrue(app.navigationBars["命宮"].waitForExistence(timeout: 5))
+
+        let contextualQuestion = app.buttons["palace.question.0"]
+        scrollToElement(contextualQuestion)
+        contextualQuestion.tap()
 
         XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
         let composer = app.textFields["assistant.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
-        app.buttons["assistant.suggestion.0"].tap()
-        XCTAssertEqual(composer.value as? String, "我的工作性格有什麼特色？")
+        XCTAssertEqual(composer.value as? String, "從命盤來看，你的核心性格可能有什麼特色？")
         XCTAssertFalse(app.otherElements["assistant.answer"].exists)
         app.buttons["assistant.send"].tap()
 
         XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["命盤助理"].exists)
-        XCTAssertTrue(app.staticTexts["我的工作性格有什麼特色？"].exists)
+        XCTAssertTrue(app.staticTexts["從命盤來看，你的核心性格可能有什麼特色？"].exists)
 
         composer.tap()
         composer.typeText("可以再說清楚一點嗎？")
@@ -215,26 +242,14 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(configureAPI.isHittable)
     }
 
-    private func assert命盤完整顯示在畫面內() {
-        let palaceButtons = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "chart.palace.")
-        )
-        XCTAssertEqual(palaceButtons.count, 12)
-
-        let visibleFrame = app.frame.insetBy(dx: -1, dy: -1)
-        for index in 0..<palaceButtons.count {
-            let palaceFrame = palaceButtons.element(boundBy: index).frame
-            XCTAssertTrue(
-                visibleFrame.contains(palaceFrame),
-                "第 \(index + 1) 個宮位超出初始畫面：\(palaceFrame)"
-            )
-        }
-    }
-
     private func scrollToElement(_ element: XCUIElement) {
         var attempts = 0
-        while !element.isHittable && attempts < 6 {
-            app.swipeUp()
+        while !element.isHittable && attempts < 10 {
+            if element.exists, element.frame.midY < app.frame.midY {
+                app.swipeDown()
+            } else {
+                app.swipeUp()
+            }
             attempts += 1
         }
         XCTAssertTrue(element.isHittable)

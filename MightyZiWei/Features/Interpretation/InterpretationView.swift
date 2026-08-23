@@ -27,15 +27,31 @@ struct InterpretationView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
-                sourceHeader
-                DisclaimerView()
-
-                ForEach(interpretation.sections) { section in
-                    InterpretationSectionView(
-                        section: section,
-                        factsByID: Dictionary(uniqueKeysWithValues: facts.map { ($0.id, $0) })
+                if let overview = interpretation.sections.first(where: { $0.category == .overview }) {
+                    InterpretationOverviewView(
+                        section: overview,
+                        factsByID: factsByID
                     )
                 }
+
+                DisclaimerView()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("接著想了解什麼？")
+                        .font(.title2.bold())
+                        .accessibilityAddTraits(.isHeader)
+
+                    ForEach(
+                        interpretation.sections.filter { $0.category != .overview }
+                    ) { section in
+                        InterpretationCategoryDisclosure(
+                            section: section,
+                            factsByID: factsByID
+                        )
+                    }
+                }
+
+                sourceHeader
             }
             .padding()
         }
@@ -57,8 +73,15 @@ struct InterpretationView: View {
         }
     }
 
+    private var factsByID: [String: ChartFact] {
+        Dictionary(uniqueKeysWithValues: facts.map { ($0.id, $0) })
+    }
+
     private var sourceHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("解讀方式")
+                .font(.headline)
+
             HStack {
                 Label(
                     interpretation.source.title,
@@ -722,38 +745,111 @@ extension ChartAssistantChart {
     }
 }
 
-private struct InterpretationSectionView: View {
+private struct InterpretationOverviewView: View {
     let section: InterpretationSection
     let factsByID: [String: ChartFact]
+
+    private var leadingSummary: String {
+        section.content
+            .components(separatedBy: "\n\n")
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? section.content
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(section.title)
-                .font(.title3.weight(.semibold))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
 
-            Text(section.content)
-                .font(.body)
+            Text(leadingSummary)
+                .font(.title3.weight(.semibold))
                 .lineSpacing(5)
                 .textSelection(.enabled)
 
-            Divider()
-
-            DisclosureGroup("解讀依據") {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(section.evidenceFactIDs, id: \.self) { identifier in
-                        if let fact = factsByID[identifier] {
-                            Label(fact.displayText, systemImage: "checkmark.seal")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .accessibilityLabel("已驗證依據：\(fact.displayText)")
-                        }
-                    }
+            if leadingSummary != section.content {
+                DisclosureGroup("閱讀完整總覽") {
+                    Text(section.content)
+                        .lineSpacing(5)
+                        .textSelection(.enabled)
+                        .padding(.top, 8)
                 }
-                .padding(.top, 8)
+                .font(.subheadline.weight(.medium))
+                .accessibilityIdentifier("interpretation.overview.details")
             }
-            .font(.subheadline.weight(.medium))
+
+            InterpretationEvidenceDisclosure(
+                evidenceFactIDs: section.evidenceFactIDs,
+                factsByID: factsByID
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+        .accessibilityIdentifier("interpretation.overview")
+    }
+}
+
+private struct InterpretationCategoryDisclosure: View {
+    let section: InterpretationSection
+    let factsByID: [String: ChartFact]
+
+    var body: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(section.content)
+                    .lineSpacing(5)
+                    .textSelection(.enabled)
+
+                InterpretationEvidenceDisclosure(
+                    evidenceFactIDs: section.evidenceFactIDs,
+                    factsByID: factsByID
+                )
+            }
+            .padding(.top, 10)
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(section.title)
+                    .font(.headline)
+                Text(section.category.learningPrompt)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .cardStyle()
+        .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
+    }
+}
+
+private struct InterpretationEvidenceDisclosure: View {
+    let evidenceFactIDs: [String]
+    let factsByID: [String: ChartFact]
+
+    var body: some View {
+        DisclosureGroup("解讀依據") {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(evidenceFactIDs, id: \.self) { identifier in
+                    if let fact = factsByID[identifier] {
+                        Label(fact.displayText, systemImage: "checkmark.seal")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("已驗證依據：\(fact.displayText)")
+                    }
+                }
+            }
+            .padding(.top, 8)
+        }
+        .font(.subheadline.weight(.medium))
+    }
+}
+
+private extension InterpretationCategory {
+    var learningPrompt: String {
+        switch self {
+        case .overview: "先認識這張命盤的整體方向"
+        case .personality: "了解你習慣如何感受與做決定"
+        case .career: "看看你可能偏好的工作方式"
+        case .wealth: "認識你安排資源時的傾向"
+        case .relationships: "看看你重視怎樣的互動"
+        }
     }
 }

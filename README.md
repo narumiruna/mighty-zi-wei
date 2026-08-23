@@ -8,7 +8,8 @@
 
 - 輸入公曆出生日期、當地民用時間與 IANA 時區。
 - 依 `taiwan-traditional-sanhe` v1 計算命宮、身宮、十二宮干支、五行局與 MVP 星曜。
-- 以適合新手的精簡總覽查看十二宮，點選宮位後再漸進顯示主星、四化與進階資料。
+- 排盤後先以生活化摘要帶使用者認識命宮，再逐步探索主星、其他影響、相關生活面向與完整命盤資料。
+- 十二宮、宮位干支、四化與三方四正仍完整保留，但不會早於使用者需要的解釋出現。
 - 顯示附有已驗證依據的五類基本解讀。
 - 使用者可自行設定 HTTPS OpenAI 相容 API base URL 或完整 Responses API endpoint，未以 `/responses` 結尾時 App 會自動補齊路徑，並以非串流請求整理解讀文字。
 - API 設定畫面可發出不含命盤資料的小型 request，確認 endpoint、model、授權與 structured output 是否可用。
@@ -77,6 +78,28 @@ xcodebuild -exportArchive \
 不要在 Xcode Organizer 選擇「TestFlight Internal Only」。
 該選項一旦用於上傳，該建置便不能改供外部測試，必須增加建置版本並重新上傳。
 上傳完成後，仍需在 App Store Connect 填寫測試資訊、建立外部測試群組，並提交 Beta App Review。
+
+## 新手探索方式
+
+每個宮位先回答「這跟我有什麼關係」，再說明 App 為什麼這樣解讀。
+
+主星、其他星曜與三方四正會在使用者主動深入時逐步出現。
+
+原始排盤資料保留在宮位頁底部，熟悉紫微斗數的使用者仍可直接核對。
+
+宮位頁提供的 AI 延伸問題只會填入問題草稿，不會自動送出或產生第三方費用。
+
+```mermaid
+flowchart TD
+    Summary["一句話認識這個宮位"]
+    Reason["了解主星與解讀原因"]
+    Influence["探索其他影響與相關面向"]
+    Data["查看完整命盤資料"]
+
+    Summary --> Reason
+    Reason --> Influence
+    Influence --> Data
+```
 
 ## 架構
 
