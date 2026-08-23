@@ -11,6 +11,7 @@
 - 以適合新手的精簡總覽查看十二宮，點選宮位後再漸進顯示主星、四化與進階資料。
 - 顯示附有已驗證依據的五類基本解讀。
 - 使用者可自行設定完整的 HTTPS OpenAI 相容 Responses API endpoint，並以非串流請求整理解讀文字。
+- API 設定畫面可發出不含命盤資料的小型 request，確認 endpoint、model、授權與 structured output 是否可用。
 - API 未設定、請求失敗或驗證失敗時，自動使用完整的 deterministic 基本解讀。
 - API key 可依服務需求留空；非空 key 只儲存在不可同步的 iOS Keychain，不寫入 SwiftData、記錄或 repository。
 - 使用 SwiftData 儲存、重新命名與刪除命盤。

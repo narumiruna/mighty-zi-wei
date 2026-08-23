@@ -8,20 +8,18 @@ final class AIConfigurationStoreTests: XCTestCase {
     private var credentials: InMemoryCredentialStore!
     private var suiteName: String!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
         suiteName = "AIConfigurationStoreTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
         defaults.removePersistentDomain(forName: suiteName)
         credentials = InMemoryCredentialStore()
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suiteName)
         defaults = nil
         credentials = nil
         suiteName = nil
-        super.tearDown()
     }
 
     func test儲存後可重新載入設定與APIKey() throws {

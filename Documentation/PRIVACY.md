@@ -16,6 +16,8 @@ API key 儲存在不可同步、僅限本裝置且解鎖時可讀的 iOS Keychai
 
 非空的 API key 只會作為 `Authorization` header 傳送到你設定的 endpoint。
 
+你主動使用「測試 API 連線」時，App 會傳送不含命盤資料的小型 structured output request，且第三方服務商仍可能計費。
+
 App 以非串流 HTTPS 請求，將產生解讀所需的命盤 facts、interpretation seeds、prompt 與技術性請求資料直接傳送至你指定的第三方服務商。
 
 這些資料離開裝置後，會依該服務商的服務條款、隱私政策、資料保留設定與所在地法規處理。

@@ -83,6 +83,7 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["AI API 設定"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["ai.endpoint"].exists)
         XCTAssertTrue(app.textFields["ai.model"].exists)
+        XCTAssertTrue(app.buttons["ai.test"].exists)
         app.buttons["取消"].tap()
         XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
 
