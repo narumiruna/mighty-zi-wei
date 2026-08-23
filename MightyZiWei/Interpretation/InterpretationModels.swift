@@ -63,12 +63,12 @@ struct InterpretationSection: Identifiable, Codable, Hashable, Sendable {
 
 struct ChartInterpretation: Codable, Hashable, Sendable {
     enum Source: String, Codable, Sendable {
-        case onDeviceAI
+        case remoteAI
         case deterministic
 
         var title: String {
             switch self {
-            case .onDeviceAI: "裝置端 AI 整理"
+            case .remoteAI: "雲端 AI 整理"
             case .deterministic: "基本解讀"
             }
         }

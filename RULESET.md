@@ -6,7 +6,7 @@
 
 `ZiWeiCore` 必須將本文件視為 `taiwan-traditional-sanhe` v1 的實作規格。
 
-所有規則必須 deterministic、可測試、可追溯、可版本化，而且不得依賴 UI 或 LLM。
+所有規則必須 deterministic、可測試、可追溯、可版本化，而且不得依賴 UI 或外部 AI API。
 
 ## 2. 規則集識別
 
@@ -467,13 +467,19 @@ natal.transformation.lu.star
 
 `InterpretationSeed` 必須引用至少一個存在的 fact ID。
 
-Foundation Models 只能整理 App 已提供的 facts 與 seeds。
+使用者設定的 OpenAI 相容 Responses API 只能整理 App 已提供的 facts 與 seeds。
 
-Foundation Models 不得計算命宮、身宮、星曜、五行局、四化、宮位干支、三方四正或曆法轉換。
+API 請求必須使用完整的 HTTPS endpoint，且 MVP 只允許非串流 Responses API 呼叫。
+
+API key 必須只儲存在 iOS Keychain，不得進入規則資料、SwiftData、記錄或 repository。
+
+Responses API 不得計算命宮、身宮、星曜、五行局、四化、宮位干支、三方四正或曆法轉換。
 
 未知 evidence fact ID 必須拒絕。
 
 顯示 evidence 時必須由 App 依 ID 取回原始文字。
+
+API 未設定、請求失敗、回應無效或驗證失敗時，必須使用 deterministic fallback。
 
 ## 15. Golden fixtures
 
@@ -501,7 +507,7 @@ Fixtures 必須涵蓋十二時辰、子時與午夜、農曆年邊界、閏月�
 
 相同 `BirthProfile`、`ruleset_id` 與 `ruleset_version` 必須永遠得到相同命盤。
 
-排盤不得依賴網路、server、LLM、device locale、current date 或隨機數。
+排盤不得依賴網路、server、外部 AI API、device locale、current date 或隨機數。
 
 任何會改變排盤結果的規則修改都必須 bump `ruleset_version`。
 

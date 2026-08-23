@@ -2,7 +2,7 @@
 
 很牛的紫微斗數是一款 iPhone 原生紫微斗數 App。
 
-第一版以台灣傳統三合派為主、中州派為輔，提供 deterministic 排盤、十二宮閱讀、基本解讀、裝置端 AI 整理與本機儲存。
+第一版以台灣傳統三合派為主、中州派為輔，提供 deterministic 排盤、十二宮閱讀、基本解讀、使用者自行設定的 OpenAI 相容 Responses API 整理與本機儲存。
 
 ## MVP 功能
 
@@ -10,10 +10,12 @@
 - 依 `taiwan-traditional-sanhe` v1 計算命宮、身宮、十二宮干支、五行局與 MVP 星曜。
 - 以適合新手的精簡總覽查看十二宮，點選宮位後再漸進顯示主星、四化與進階資料。
 - 顯示附有已驗證依據的五類基本解讀。
-- Apple Foundation Models 可用時，在裝置端整理解讀文字。
-- Apple Intelligence 不可用、生成失敗或驗證失敗時，自動使用完整基本解讀。
+- 使用者可自行設定完整的 HTTPS OpenAI 相容 Responses API endpoint，並以非串流請求整理解讀文字。
+- API 未設定、請求失敗或驗證失敗時，自動使用完整的 deterministic 基本解讀。
+- API key 可依服務需求留空；非空 key 只儲存在不可同步的 iOS Keychain，不寫入 SwiftData、記錄或 repository。
 - 使用 SwiftData 儲存、重新命名與刪除命盤。
-- 不需要帳號、server、訂閱、API key 或 token。
+- 不需要帳號、開發者後端或訂閱。
+- 第三方 API 可能收費，資料處理與保留受使用者所選服務商的條款及隱私政策約束。
 
 ## 技術需求
 
@@ -82,7 +84,8 @@ flowchart TD
     Chart["ZiWeiChart"]
     Facts["ChartFacts"]
     Seeds["InterpretationSeeds"]
-    AI["Foundation Models"]
+    Settings["API 設定與 Keychain"]
+    AI["OpenAI 相容 Responses API（非串流）"]
     Fallback["Deterministic renderer"]
     UI["SwiftUI"]
     Store["SwiftData"]
@@ -91,6 +94,7 @@ flowchart TD
     Core --> Chart
     Chart --> Facts
     Facts --> Seeds
+    Settings --> AI
     Seeds --> AI
     Seeds --> Fallback
     AI --> UI
@@ -99,13 +103,19 @@ flowchart TD
     Chart --> Store
 ```
 
-`ZiWeiCore` 不依賴 SwiftUI、UIKit、Foundation Models 或 SwiftData。
+`ZiWeiCore` 不依賴 SwiftUI、UIKit、網路 API 或 SwiftData。
 
-Foundation Models 不參與排盤，也不能新增 App 未提供的命理含義。
+Responses API 不參與排盤，也不能新增 App 未提供的命理含義。
 
 ## 隱私
 
 App 不會將出生資料、命盤、prompt 或解讀傳送到開發者控制的伺服器。
+
+只有使用者啟用 AI 解讀時，App 才會將必要的命盤 facts、interpretation seeds 與 prompt 直接傳送到使用者設定的第三方 HTTPS endpoint。
+
+API key 只儲存在 iOS Keychain。
+
+第三方可能依其方案收費，並依其條款與隱私政策處理資料。
 
 詳細內容請參閱 `Documentation/PRIVACY.md`。
 

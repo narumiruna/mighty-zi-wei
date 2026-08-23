@@ -17,8 +17,10 @@ struct AboutView: View {
             }
 
             Section("隱私") {
-                Text("App 不會將你的出生資料或命盤傳送到我們的伺服器。")
-                Text("裝置端 AI 解讀只使用 Apple Intelligence；模型不可用時仍可使用基本解讀。")
+                Text("App 不使用開發者控制的伺服器。")
+                Text("你主動使用雲端 AI 時，已驗證的命盤事實與基礎解讀會傳送到你設定的第三方 API。")
+                Text("第三方服務的隱私政策、資料保存方式與費用規則由你選擇的服務決定。")
+                Text("API key 儲存在這台裝置的 Keychain；基本解讀不需要 API 或網路。")
                 Text("iOS 可能依你的系統設定，將 App 資料納入備份或裝置移轉。")
             }
 

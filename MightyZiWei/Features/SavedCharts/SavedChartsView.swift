@@ -52,7 +52,7 @@ struct SavedChartsView: View {
                 if !charts.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
-                            Button("刪除所有本機資料", systemImage: "trash", role: .destructive) {
+                            Button("刪除所有已儲存命盤", systemImage: "trash", role: .destructive) {
                                 showsDeleteAllConfirmation = true
                             }
                         } label: {
@@ -69,7 +69,7 @@ struct SavedChartsView: View {
                 Text("名稱只會儲存在本機。")
             }
             .confirmationDialog(
-                "刪除所有本機資料？",
+                "刪除所有已儲存命盤？",
                 isPresented: $showsDeleteAllConfirmation,
                 titleVisibility: .visible
             ) {
@@ -121,7 +121,7 @@ struct SavedChartsView: View {
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {
-            errorMessage = "無法刪除所有本機資料。"
+            errorMessage = "無法刪除所有已儲存命盤。"
         }
     }
 
