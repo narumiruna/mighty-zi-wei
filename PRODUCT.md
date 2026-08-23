@@ -402,6 +402,10 @@ API key 不得寫入 SwiftData、`UserDefaults`、記錄、分析事件、錯誤
 
 Endpoint 與模型名稱可保存在本機設定中，但不得包含 secret。
 
+設定畫面必須提供連線測試按鈕，使用目前欄位發出不含命盤資料的小型 structured output request。
+
+連線測試必須驗證 endpoint、model、授權與 Responses API structured output，並提醒使用者可能產生第三方 token 費用。
+
 MVP 使用 `URLSession` 直接呼叫使用者指定的第三方服務，不經過開發者後端。
 
 請求使用 `Content-Type: application/json`。

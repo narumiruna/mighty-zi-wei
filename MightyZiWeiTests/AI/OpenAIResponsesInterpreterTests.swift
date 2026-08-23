@@ -80,6 +80,31 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         )
     }
 
+    func test連線測試會發出小型StructuredOutputRequest() async throws {
+        MockURLProtocol.handler = { request in
+            let body = try XCTUnwrap(Self.requestBody(from: request))
+            let json = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: body) as? [String: Any]
+            )
+            XCTAssertEqual(json["model"] as? String, "test-model")
+            XCTAssertEqual(json["store"] as? Bool, false)
+            XCTAssertEqual(json["stream"] as? Bool, false)
+            XCTAssertFalse((json["input"] as? String)?.contains("natal.") == true)
+            let text = try XCTUnwrap(json["text"] as? [String: Any])
+            let format = try XCTUnwrap(text["format"] as? [String: Any])
+            XCTAssertEqual(format["name"] as? String, "connection_test")
+            return Self.response(
+                request: request,
+                statusCode: 200,
+                object: Self.outputEnvelope(["status": "ok"])
+            )
+        }
+
+        try await makeInterpreter().testConnection(
+            configuration: try makeConfiguration(apiKey: "test-key")
+        )
+    }
+
     func testHTTP錯誤會轉成可判斷的錯誤() async throws {
         let cases: [(Int, OpenAIResponsesInterpreter.InterpreterError)] = [
             (401, .unauthorized),
@@ -315,7 +340,11 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
     }
 
     private nonisolated static func envelope(sections: [[String: Any]]) -> [String: Any] {
-        let generated = try! JSONSerialization.data(withJSONObject: ["sections": sections])
+        outputEnvelope(["sections": sections])
+    }
+
+    private nonisolated static func outputEnvelope(_ object: [String: Any]) -> [String: Any] {
+        let generated = try! JSONSerialization.data(withJSONObject: object)
         let text = String(decoding: generated, as: UTF8.self)
         return [
             "output": [

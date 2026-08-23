@@ -43,6 +43,19 @@ struct InterpretationValidator: Sendable {
         "訴訟策略"
     ]
 
+    private let allowedDisclaimerPhrases = [
+        "不構成任何投資建議",
+        "不構成投資建議",
+        "不是投資建議",
+        "並非投資建議",
+        "不可視為投資建議",
+        "不構成任何法律建議",
+        "不構成法律建議",
+        "不是法律建議",
+        "並非法律建議",
+        "不可視為法律建議"
+    ]
+
     func validate(
         sections: [InterpretationSection],
         facts: [ChartFact]
@@ -73,7 +86,11 @@ struct InterpretationValidator: Sendable {
                     throw ValidationError.unknownEvidence(identifier)
                 }
             }
-            if blockedPhrases.contains(where: section.content.contains) {
+            let contentForSafetyCheck = allowedDisclaimerPhrases.reduce(section.content) {
+                content, disclaimer in
+                content.replacingOccurrences(of: disclaimer, with: "")
+            }
+            if blockedPhrases.contains(where: contentForSafetyCheck.contains) {
                 throw ValidationError.unsafeContent(category)
             }
             validated.append(section)

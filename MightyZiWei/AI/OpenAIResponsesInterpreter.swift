@@ -13,12 +13,126 @@ struct OpenAIResponsesInterpreter: Sendable {
         configuration: OpenAIResponsesConfiguration
     ) async throws -> ChartInterpretation {
         try Task.checkCancellation()
-        let request = try makeRequest(
+        let request = try makeInterpretationRequest(
             facts: facts,
             seeds: seeds,
             configuration: configuration
         )
+        let outputText = try await perform(request)
 
+        let generated: GeneratedChartInterpretation
+        do {
+            generated = try JSONDecoder().decode(
+                GeneratedChartInterpretation.self,
+                from: Data(outputText.utf8)
+            )
+        } catch {
+            throw InterpreterError.invalidGeneratedContent
+        }
+
+        let sections = try generated.sections.map { section in
+            guard let category = InterpretationCategory(rawValue: section.category) else {
+                throw InterpreterError.invalidGeneratedContent
+            }
+            return InterpretationSection(
+                id: "ai.\(category.rawValue)",
+                category: category,
+                title: section.title,
+                content: section.content,
+                evidenceFactIDs: section.evidenceFactIDs
+            )
+        }
+        let validated = try InterpretationValidator().validate(sections: sections, facts: facts)
+        return ChartInterpretation(sections: validated, source: .remoteAI)
+    }
+
+    func testConnection(configuration: OpenAIResponsesConfiguration) async throws {
+        try Task.checkCancellation()
+        let request = try makeConnectionTestRequest(configuration: configuration)
+        let outputText = try await perform(request)
+        let result: ConnectionTestResult
+        do {
+            result = try JSONDecoder().decode(ConnectionTestResult.self, from: Data(outputText.utf8))
+        } catch {
+            throw InterpreterError.invalidGeneratedContent
+        }
+        guard result.status == "ok" else {
+            throw InterpreterError.invalidGeneratedContent
+        }
+    }
+
+    private func makeInterpretationRequest(
+        facts: [ChartFact],
+        seeds: [InterpretationSeed],
+        configuration: OpenAIResponsesConfiguration
+    ) throws -> URLRequest {
+        let body: [String: Any] = [
+            "model": configuration.model,
+            "instructions": Self.instructions,
+            "input": makePrompt(facts: facts, seeds: seeds),
+            "stream": false,
+            "store": false,
+            "text": [
+                "format": [
+                    "type": "json_schema",
+                    "name": "chart_interpretation",
+                    "strict": true,
+                    "schema": outputSchema()
+                ]
+            ]
+        ]
+
+        return try makeRequest(body: body, configuration: configuration)
+    }
+
+    private func makeConnectionTestRequest(
+        configuration: OpenAIResponsesConfiguration
+    ) throws -> URLRequest {
+        let body: [String: Any] = [
+            "model": configuration.model,
+            "instructions": "只執行連線測試。請依 schema 回傳 ok，不要加入其他內容。",
+            "input": "請回傳連線測試結果。",
+            "stream": false,
+            "store": false,
+            "text": [
+                "format": [
+                    "type": "json_schema",
+                    "name": "connection_test",
+                    "strict": true,
+                    "schema": [
+                        "type": "object",
+                        "properties": [
+                            "status": ["type": "string", "enum": ["ok"]]
+                        ],
+                        "required": ["status"],
+                        "additionalProperties": false
+                    ]
+                ]
+            ]
+        ]
+        return try makeRequest(body: body, configuration: configuration)
+    }
+
+    private func makeRequest(
+        body: [String: Any],
+        configuration: OpenAIResponsesConfiguration
+    ) throws -> URLRequest {
+        var request = URLRequest(url: configuration.endpoint)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let apiKey = configuration.apiKey {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            throw InterpreterError.invalidRequest
+        }
+        return request
+    }
+
+    private func perform(_ request: URLRequest) async throws -> String {
         let data: Data
         let response: URLResponse
         do {
@@ -58,7 +172,6 @@ struct OpenAIResponsesInterpreter: Sendable {
         } catch {
             throw InterpreterError.invalidResponse
         }
-
         if responseEnvelope.containsRefusal {
             throw InterpreterError.refusal
         }
@@ -67,67 +180,7 @@ struct OpenAIResponsesInterpreter: Sendable {
         guard !outputText.isEmpty else {
             throw InterpreterError.emptyResponse
         }
-
-        let generated: GeneratedChartInterpretation
-        do {
-            generated = try JSONDecoder().decode(
-                GeneratedChartInterpretation.self,
-                from: Data(outputText.utf8)
-            )
-        } catch {
-            throw InterpreterError.invalidGeneratedContent
-        }
-
-        let sections = try generated.sections.map { section in
-            guard let category = InterpretationCategory(rawValue: section.category) else {
-                throw InterpreterError.invalidGeneratedContent
-            }
-            return InterpretationSection(
-                id: "ai.\(category.rawValue)",
-                category: category,
-                title: section.title,
-                content: section.content,
-                evidenceFactIDs: section.evidenceFactIDs
-            )
-        }
-        let validated = try InterpretationValidator().validate(sections: sections, facts: facts)
-        return ChartInterpretation(sections: validated, source: .remoteAI)
-    }
-
-    private func makeRequest(
-        facts: [ChartFact],
-        seeds: [InterpretationSeed],
-        configuration: OpenAIResponsesConfiguration
-    ) throws -> URLRequest {
-        let body: [String: Any] = [
-            "model": configuration.model,
-            "instructions": Self.instructions,
-            "input": makePrompt(facts: facts, seeds: seeds),
-            "stream": false,
-            "store": false,
-            "text": [
-                "format": [
-                    "type": "json_schema",
-                    "name": "chart_interpretation",
-                    "strict": true,
-                    "schema": outputSchema()
-                ]
-            ]
-        ]
-
-        var request = URLRequest(url: configuration.endpoint)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 120
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = configuration.apiKey {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        } catch {
-            throw InterpreterError.invalidRequest
-        }
-        return request
+        return outputText
     }
 
     private func makePrompt(facts: [ChartFact], seeds: [InterpretationSeed]) -> String {
@@ -242,6 +295,10 @@ extension OpenAIResponsesInterpreter {
             }
         }
     }
+}
+
+private struct ConnectionTestResult: Decodable {
+    let status: String
 }
 
 private struct GeneratedChartInterpretation: Decodable {
