@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-24T04:45:00+08:00",
+  "transformation": {
+    "format": "將固定修訂的維基文庫頁面依主題分檔為 Markdown",
+    "scriptVariant": "zh-hant",
+    "normalization": "保留來源內容與疑似轉錄錯字，只修正明確殘留的簡體字形與換行",
+    "warning": "分檔快照不是校勘定本，內容 hash 只驗證 repository 內檔案未靜默改變"
+  },
+  "snapshotAnchors": {
+    "quanshu-volume-1-foundations.md": "狠吞炭裝啞兮暗狼聲沉俊雅文昌眉清目秀磊落文曲口舌便佞",
+    "quanshu-volume-1-patterns.md": "正曜又兼羊火劫空化忌者更看父母妻子三",
+    "quanshu-volume-1-star-dialogues.md": "聚愈藏其奸以事藏機虛花無實與人交厚者薄而薄者又厚",
+    "quanshu-volume-2-life-palace.md": "旅之流六甲生人命坐寅申者上格丁己生人次之六丙生人",
+    "quanshu-volume-2-palaces-2-3.md": "空劫有克且不和兄弟感情融洽但兄弟不多天府有五人",
+    "quanshu-volume-2-palaces-4-6.md": "天相同有二子天府五人武曲同二人紫微同四五人廉",
+    "quanshu-volume-2-palaces-7-12.md": "家天同天一心天同同末年招得天相末年招得紫微同多奴多婢",
+    "quanshu-volume-2-setup.md": "初初初十十十十十八九十一二三四五巳午未申初初三十十六七十六七"
+  },
+  "volumes": {
+    "volume1": {
+      "revisionId": 7913704,
+      "revisionTimestamp": "2026-08-07T05:47:26Z",
+      "retrievedAt": "2026-08-24T04:45:00+08:00",
+      "revisionApiUrl": "https://zh.wikisource.org/w/api.php?action=query&prop=revisions&revids=7913704&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&formatversion=2",
+      "renderApiUrl": "https://zh.wikisource.org/w/api.php?action=parse&oldid=7913704&prop=text&variant=zh-hant&format=json&formatversion=2",
+      "renderedContentSha256": "f9f8f88db30fe20f4818fcb0f9132287ed5432f54186c38129e882ae9298c7dc",
+      "sourceContentSha256": "9beb8038a8b82154d15d81c8ff822423d4f0c7c006f536a86552adeaa594818a",
+      "snapshots": {
+        "quanshu-volume-1-foundations.md": "b120e56a4d282dde900df317a59e0cf9d7b7e17a8d6c5300d94281a9ed9045e7",
+        "quanshu-volume-1-patterns.md": "0ba88342feaf0aa3e2f2538da5abd4744c4aba989850f896dc21a9a3f35c9e82",
+        "quanshu-volume-1-star-dialogues.md": "65ff2f6f3b506f5967a330b0a19325f3045fe4196a8c6ea1b0fd96a3b87bbb7a"
+      }
+    },
+    "volume2": {
+      "revisionId": 1963110,
+      "revisionTimestamp": "2020-09-04T14:06:27Z",
+      "retrievedAt": "2026-03-01T00:00:00+08:00",
+      "revisionApiUrl": "https://zh.wikisource.org/w/api.php?action=query&prop=revisions&revids=1963110&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&formatversion=2",
+      "renderApiUrl": "https://zh.wikisource.org/w/api.php?action=parse&oldid=1963110&prop=text&variant=zh-hant&format=json&formatversion=2",
+      "renderedContentSha256": "4a33172fdb8ab4a7de667d7d32c6e4a9cac60b19776c4be595a902780f9e1cc6",
+      "sourceContentSha256": "1e255c6ae99e6f89ae124ab342554ef1347fc8e68fb8908cba7290d1a38cbb72",
+      "snapshots": {
+        "quanshu-volume-2-life-palace.md": "3a75a2ace36e1f1763d33f25dd93e0a01b922c905f7d78e12ccd0dee09aca7ca",
+        "quanshu-volume-2-palaces-2-3.md": "0d38cb5be149634fbae58bd128d8a721469f0c496c7021d0ffa9d37a1fb81918",
+        "quanshu-volume-2-palaces-4-6.md": "892484d487a42f47727e1a587766d7195e0c23e4dcf996c871623a0378862136",
+        "quanshu-volume-2-palaces-7-12.md": "1394a0237f7d2cbd132c12a5c6938eeb3ceb11aa73f02e2b9b7ae7abdfb9ce47",
+        "quanshu-volume-2-setup.md": "defcf2893d6674bdc2221f0c0e6d1749ccb68a5cf58d0082d3f4ac1d409444d3"
+      }
+    }
+  }
+}

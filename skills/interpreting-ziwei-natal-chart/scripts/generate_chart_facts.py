@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -17,6 +18,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+SEED_CONTRACT_PATH = REPOSITORY_ROOT / "skills/interpreting-ziwei-natal-chart/references/seed-contract.json"
+
 SWIFT_SOURCE_PATHS = (
     "apps/ios/MightyZiWei/Domain/BirthProfile.swift",
     "apps/ios/MightyZiWei/Domain/Celestial.swift",
@@ -36,13 +39,18 @@ SWIFT_RUNNER = r'''
 import Foundation
 
 struct ScriptOutput: Encodable {
+    let schemaVersion: Int
     let ruleSet: RuleSetIdentity
     let birthDate: String
     let birthTime: String
     let timeZoneIdentifier: String
     let lunarDate: LunarDate
     let hourBranch: String
+    let factsComplete: Bool
+    let expectedFactCount: Int
+    let expectedFactIDs: [String]
     let facts: [ChartFact]
+    let seedSource: String
     let seeds: [InterpretationSeed]
 }
 
@@ -50,6 +58,9 @@ enum ScriptError: Error {
     case invalidArguments
     case unexpectedFactIDs
     case duplicateFactID
+    case unexpectedSeedCount
+    case duplicateSeedID
+    case emptyEvidence(String)
     case missingEvidence(String)
 }
 
@@ -94,18 +105,35 @@ struct Main {
         }
 
         let seeds = InterpretationSeedBuilder().makeSeeds(from: facts)
-        for evidenceID in seeds.flatMap(\.evidenceFactIDs) where !factIDs.contains(evidenceID) {
-            throw ScriptError.missingEvidence(evidenceID)
+        let seedIDs = Set(seeds.map(\.id))
+        guard seeds.count == 19 else {
+            throw ScriptError.unexpectedSeedCount
+        }
+        guard seedIDs.count == seeds.count else {
+            throw ScriptError.duplicateSeedID
+        }
+        for seed in seeds {
+            guard !seed.evidenceFactIDs.isEmpty else {
+                throw ScriptError.emptyEvidence(seed.id)
+            }
+            for evidenceID in seed.evidenceFactIDs where !factIDs.contains(evidenceID) {
+                throw ScriptError.missingEvidence(evidenceID)
+            }
         }
 
         let output = ScriptOutput(
+            schemaVersion: 1,
             ruleSet: chart.ruleSet,
             birthDate: String(format: "%04d-%02d-%02d", year, month, day),
             birthTime: String(format: "%02d:%02d", hour, minute),
             timeZoneIdentifier: timeZoneIdentifier,
             lunarDate: chart.lunarDate,
             hourBranch: chart.hourBranch.displayName,
+            factsComplete: true,
+            expectedFactCount: expectedFactIDs.count,
+            expectedFactIDs: expectedFactIDs.sorted(),
             facts: facts,
+            seedSource: "InterpretationSeedBuilder",
             seeds: seeds
         )
         let encoder = JSONEncoder()
@@ -158,6 +186,77 @@ def validated_inputs(arguments: argparse.Namespace) -> tuple[date, time, str]:
     return local_date, local_time, arguments.timezone
 
 
+def canonical_sha256(value: object) -> str:
+    encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def validated_payload(raw_output: str) -> str:
+    payload = json.loads(raw_output)
+    contract = json.loads(SEED_CONTRACT_PATH.read_text(encoding="utf-8"))
+    builder_path = REPOSITORY_ROOT / contract["builderPath"]
+    builder_hash = hashlib.sha256(builder_path.read_bytes()).hexdigest()
+    if builder_hash != contract["builderSourceSha256"]:
+        raise RuntimeError("InterpretationSeedBuilder 內容已改變，必須先更新並審核 seed contract。")
+
+    facts = payload["facts"]
+    facts_by_id = {fact["id"]: fact for fact in facts}
+    if len(facts_by_id) != len(facts):
+        raise RuntimeError("ChartFact ID 重複。")
+    expected_fact_ids = payload["expectedFactIDs"]
+    if sorted(facts_by_id) != expected_fact_ids or payload["expectedFactCount"] != len(facts):
+        raise RuntimeError("ChartFact 完整集合驗證失敗。")
+
+    seeds = payload["seeds"]
+    seeds_by_id = {seed["id"]: seed for seed in seeds}
+    if len(seeds_by_id) != len(seeds) or len(seeds) != contract["expectedSeedCount"]:
+        raise RuntimeError("InterpretationSeed ID 或數量不符合 contract。")
+
+    expected_seed_ids: set[str] = set()
+    for seed_id, expected in contract["baselineSeeds"].items():
+        expected_seed_ids.add(seed_id)
+        actual = seeds_by_id.get(seed_id)
+        if actual != {"id": seed_id, **expected}:
+            raise RuntimeError(f"Baseline seed 不符合 contract：{seed_id}")
+
+    main_stars = set(contract["mainStarIDs"])
+    seen_stars: set[str] = set()
+    for seed in seeds:
+        if seed["id"] in contract["baselineSeeds"]:
+            continue
+        parts = seed["id"].split(".")
+        if len(parts) != 4 or parts[0] != "seed":
+            raise RuntimeError(f"主星 seed ID 格式錯誤：{seed['id']}")
+        _, category, star_id, palace_id = parts
+        if star_id not in main_stars or star_id in seen_stars:
+            raise RuntimeError(f"主星 seed 集合錯誤：{seed['id']}")
+        if contract["palaceCategories"].get(palace_id) != category or seed["category"] != category:
+            raise RuntimeError(f"主星 seed category 錯誤：{seed['id']}")
+        expected_evidence = [f"natal.star.{star_id}.palace"]
+        fact = facts_by_id.get(expected_evidence[0])
+        if fact is None or fact["value"] != {"kind": "palace", "identifier": palace_id}:
+            raise RuntimeError(f"主星 seed 落宮 evidence 錯誤：{seed['id']}")
+        expected_meaning = contract["mainStarMeanings"][star_id][category]
+        if seed["evidenceFactIDs"] != expected_evidence or seed["meaning"] != expected_meaning:
+            raise RuntimeError(f"主星 seed meaning 或 evidence 錯誤：{seed['id']}")
+        seen_stars.add(star_id)
+        expected_seed_ids.add(seed["id"])
+
+    if seen_stars != main_stars or set(seeds_by_id) != expected_seed_ids:
+        raise RuntimeError("InterpretationSeed 完整集合驗證失敗。")
+
+    fact_manifest = {
+        "schemaVersion": payload["schemaVersion"],
+        "ruleSet": payload["ruleSet"],
+        "expectedFactIDs": expected_fact_ids,
+    }
+    payload["factManifestSha256"] = canonical_sha256(fact_manifest)
+    payload["seedContractSha256"] = canonical_sha256(contract)
+    payload["builderSourceSha256"] = builder_hash
+    payload["seedsValidated"] = True
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
 def generate_chart_json(local_date: date, local_time: time, timezone: str) -> str:
     source_files = [REPOSITORY_ROOT / path for path in SWIFT_SOURCE_PATHS]
     missing_files = [path for path in source_files if not path.is_file()]
@@ -197,8 +296,7 @@ def generate_chart_json(local_date: date, local_time: time, timezone: str) -> st
         if result.returncode != 0:
             raise RuntimeError(f"Swift 排盤器執行失敗：\n{result.stderr.strip()}")
 
-    json.loads(result.stdout)
-    return result.stdout
+    return validated_payload(result.stdout)
 
 
 def main() -> int:

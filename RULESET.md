@@ -461,7 +461,7 @@ Fact ID 必須使用語義穩定的 key。
 
 ```text
 natal.palace.life.branch
-natal.star.ziwei.palace
+natal.star.ziWei.palace
 natal.transformation.lu.star
 ```
 

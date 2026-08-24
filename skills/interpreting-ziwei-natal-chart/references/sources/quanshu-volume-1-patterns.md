@@ -2,7 +2,7 @@
 title: 《紫微鬥數全書》卷一：賦文與格局
 source_url: https://zh.wikisource.org/zh-hant/紫微鬥數全書/卷一
 revision_url: https://zh.wikisource.org/w/index.php?title=紫微鬥數全書/卷一&oldid=7913704
-retrieved_at: 2026-03-01
+retrieved_at: 2026-08-24
 script_variant: zh-hant
 scope: 骨髓賦、十二宮得失與古籍格局
 ---
