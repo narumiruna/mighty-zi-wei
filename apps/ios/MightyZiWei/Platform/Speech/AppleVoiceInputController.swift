@@ -89,19 +89,6 @@ final class AppleVoiceInputController: VoiceInputControlling {
         try await analyzer.prepareToAnalyze(in: analyzerFormat)
         try Task.checkCancellation()
 
-        let audioEngine = AVAudioEngine()
-        let inputNode = audioEngine.inputNode
-        let hardwareFormat = inputNode.inputFormat(forBus: 0)
-        guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 else {
-            throw VoiceInputError.microphoneUnavailable
-        }
-        guard let bufferConverter = VoiceAudioBufferConverter(
-            inputFormat: hardwareFormat,
-            outputFormat: analyzerFormat
-        ) else {
-            throw VoiceInputError.unavailableAudioFormat
-        }
-
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(
             .record,
@@ -110,24 +97,29 @@ final class AppleVoiceInputController: VoiceInputControlling {
         )
         try audioSession.setActive(true)
 
-        let (inputSequence, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
-        inputNode.installTap(
-            onBus: 0,
-            bufferSize: 4_096,
-            format: hardwareFormat
-        ) { [weak self] buffer, _ in
-            do {
-                let convertedBuffer = try bufferConverter.convert(buffer)
-                continuation.yield(AnalyzerInput(buffer: convertedBuffer))
-            } catch {
-                continuation.finish()
-                Task { @MainActor [weak self] in
-                    self?.eventHandler?(
-                        .interrupted(message: "麥克風音訊格式無法轉換，已保留目前文字。")
-                    )
-                }
-            }
+        let audioEngine = AVAudioEngine()
+        let inputNode = audioEngine.inputNode
+        let hardwareFormat = inputNode.inputFormat(forBus: 0)
+        guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 else {
+            deactivateAudioSession()
+            throw VoiceInputError.microphoneUnavailable
         }
+        guard let bufferConverter = VoiceAudioBufferConverter(
+            inputFormat: hardwareFormat,
+            outputFormat: analyzerFormat
+        ) else {
+            deactivateAudioSession()
+            throw VoiceInputError.unavailableAudioFormat
+        }
+
+        let (inputSequence, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        installVoiceInputTap(
+            on: inputNode,
+            format: hardwareFormat,
+            converter: bufferConverter,
+            continuation: continuation,
+            eventHandler: eventHandler
+        )
         hasInstalledTap = true
 
         self.audioEngine = audioEngine
@@ -203,11 +195,7 @@ final class AppleVoiceInputController: VoiceInputControlling {
     }
 
     private func authorizeSpeechRecognition() async throws {
-        let status = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status)
-            }
-        }
+        let status = await requestSpeechRecognitionAuthorization()
         switch status {
         case .authorized:
             return
@@ -223,11 +211,7 @@ final class AppleVoiceInputController: VoiceInputControlling {
     }
 
     private func authorizeMicrophone() async throws {
-        let granted = await withCheckedContinuation { continuation in
-            AVAudioApplication.requestRecordPermission { granted in
-                continuation.resume(returning: granted)
-            }
-        }
+        let granted = await requestMicrophonePermission()
         guard granted else {
             throw VoiceInputError.microphonePermissionDenied
         }
@@ -256,6 +240,50 @@ final class AppleVoiceInputController: VoiceInputControlling {
         analyzer = nil
         audioEngine = nil
         eventHandler = nil
+    }
+}
+
+// 系統權限 API 會在任意佇列回呼，因此不可讓 closure 繼承 Main Actor 隔離。
+private func requestSpeechRecognitionAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
+    await withCheckedContinuation { continuation in
+        SFSpeechRecognizer.requestAuthorization { status in
+            continuation.resume(returning: status)
+        }
+    }
+}
+
+private func requestMicrophonePermission() async -> Bool {
+    await withCheckedContinuation { continuation in
+        AVAudioApplication.requestRecordPermission { granted in
+            continuation.resume(returning: granted)
+        }
+    }
+}
+
+// AVAudioEngine 會在即時音訊佇列呼叫 tap，closure 不可繼承 Main Actor 隔離。
+private func installVoiceInputTap(
+    on inputNode: AVAudioInputNode,
+    format: AVAudioFormat,
+    converter: VoiceAudioBufferConverter,
+    continuation: AsyncStream<AnalyzerInput>.Continuation,
+    eventHandler: @escaping @MainActor @Sendable (VoiceInputEvent) -> Void
+) {
+    inputNode.installTap(
+        onBus: 0,
+        bufferSize: 4_096,
+        format: format
+    ) { buffer, _ in
+        do {
+            let convertedBuffer = try converter.convert(buffer)
+            continuation.yield(AnalyzerInput(buffer: convertedBuffer))
+        } catch {
+            continuation.finish()
+            Task { @MainActor in
+                eventHandler(
+                    .interrupted(message: "麥克風音訊格式無法轉換，已保留目前文字。")
+                )
+            }
+        }
     }
 }
 
