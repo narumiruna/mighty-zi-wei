@@ -34,7 +34,10 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
+                Section("學習") {
+                    NavigationLink("星曜與術語小百科") {
+                        ChartEncyclopediaView()
+                    }
                     NavigationLink("關於與排盤說明") {
                         AboutView()
                     }
@@ -78,6 +81,7 @@ struct SettingsView: View {
 
     private func deleteAll() {
         do {
+            try modelContext.delete(model: SavedInsight.self)
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {

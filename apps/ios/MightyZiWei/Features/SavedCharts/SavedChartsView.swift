@@ -4,6 +4,7 @@ import SwiftUI
 struct SavedChartsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
+    @Query private var insights: [SavedInsight]
 
     @State private var chartToRename: SavedChart?
     @State private var proposedName = ""
@@ -49,15 +50,28 @@ struct SavedChartsView: View {
             }
             .navigationTitle("已儲存命盤")
             .toolbar {
-                if !charts.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if charts.count >= 2 {
+                            NavigationLink {
+                                DualChartComparisonView()
+                            } label: {
+                                Label("雙人互動參考", systemImage: "person.2")
+                            }
+                        }
+                        NavigationLink {
+                            BackupManagementView()
+                        } label: {
+                            Label("加密備份與還原", systemImage: "lock.doc")
+                        }
+                        if !charts.isEmpty {
+                            Divider()
                             Button("刪除所有已儲存命盤", systemImage: "trash", role: .destructive) {
                                 showsDeleteAllConfirmation = true
                             }
-                        } label: {
-                            Label("更多操作", systemImage: "ellipsis.circle")
                         }
+                    } label: {
+                        Label("更多操作", systemImage: "ellipsis.circle")
                     }
                 }
             }
@@ -112,12 +126,14 @@ struct SavedChartsView: View {
     }
 
     private func delete(_ chart: SavedChart) {
+        insights.filter { $0.chartID == chart.id }.forEach(modelContext.delete)
         modelContext.delete(chart)
         saveChanges(errorText: "無法刪除命盤。")
     }
 
     private func deleteAll() {
         do {
+            try modelContext.delete(model: SavedInsight.self)
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {

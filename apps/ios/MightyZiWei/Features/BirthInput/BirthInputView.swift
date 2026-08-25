@@ -44,6 +44,19 @@ struct BirthInputView: View {
                 Text("請輸入出生地當時鐘錶顯示的日期與時間。第一版不支援出生時間未知的排盤。")
             }
 
+            Section {
+                NavigationLink {
+                    AdjacentHourComparisonView(profile: inputProfile)
+                } label: {
+                    Label("比較相鄰時辰", systemImage: "arrow.left.arrow.right")
+                }
+                .accessibilityIdentifier("birthInput.compareHours")
+            } header: {
+                Text("出生時間不確定？")
+            } footer: {
+                Text("只比較盤面位置差異，不會替你選擇或猜測出生時辰。")
+            }
+
             if let validationMessage {
                 Section {
                     Label(validationMessage, systemImage: "exclamationmark.triangle")
@@ -98,6 +111,14 @@ struct BirthInputView: View {
         } message: {
             Text("當地曾因夏令時間調整而重複這個鐘錶時間。v1 會採第一次出現的時間；兩次都屬相同日期與時辰，不影響本命盤星曜位置。")
         }
+    }
+
+    private var inputProfile: BirthProfile {
+        BirthProfile(
+            localDate: localDate,
+            localTime: localTime,
+            timeZoneIdentifier: timeZoneIdentifier
+        )
     }
 
     private var selectedTimeZone: TimeZone {
@@ -166,14 +187,9 @@ struct BirthInputView: View {
 
     private func calculate() {
         validationMessage = nil
-        let profile = BirthProfile(
-            localDate: localDate,
-            localTime: localTime,
-            timeZoneIdentifier: timeZoneIdentifier
-        )
         do {
-            let normalized = try ZiWeiCalculator().normalize(profile)
-            chart = try ZiWeiCalculator().calculate(profile)
+            let normalized = try ZiWeiCalculator().normalize(inputProfile)
+            chart = try ZiWeiCalculator().calculate(inputProfile)
             if normalized.isRepeatedLocalTime {
                 showsRepeatedTimeConfirmation = true
             } else {

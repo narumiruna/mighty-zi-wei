@@ -114,6 +114,31 @@ enum ChartLearningCatalog {
     }
 }
 
+struct PalaceQuestionSuggestionBuilder: Sendable {
+    func make(
+        palaceKind: PalaceKind,
+        mainStars: [Star],
+        facts: [ChartFact],
+        seeds: [InterpretationSeed]
+    ) -> [String] {
+        let learning = ChartLearningCatalog.palace(palaceKind)
+        let validFactIDs = Set(facts.map(\.id))
+        let starFactIDs = Set(mainStars.map { "natal.star.\($0.rawValue).palace" })
+        let hasSupportedMeaning = seeds.contains { seed in
+            !seed.evidenceFactIDs.isEmpty
+                && seed.evidenceFactIDs.allSatisfy(validFactIDs.contains)
+                && seed.evidenceFactIDs.contains(where: starFactIDs.contains)
+        }
+
+        let evidenceQuestion = "關於\(learning.focusTitle)，目前有哪些已驗證的命盤依據？"
+        let meaningQuestion = hasSupportedMeaning
+            ? "只根據 App 已有解讀，\(learning.relatedLabel)有哪些可以自我觀察的傾向？"
+            : "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？"
+        let boundaryQuestion = "請區分盤面事實與解讀，說明\(palaceKind.displayName)目前能回答到什麼範圍。"
+        return [evidenceQuestion, meaningQuestion, boundaryQuestion]
+    }
+}
+
 struct PalaceLearningSummaryBuilder: Sendable {
     func make(
         palaceKind: PalaceKind,

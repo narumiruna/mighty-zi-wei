@@ -13,43 +13,62 @@
 		12B70251E6CBCBA13B163897 /* ZiWeiRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C567EF0828AE669C9B79739 /* ZiWeiRules.swift */; };
 		15E38F9F73DB17F7C87E8B6F /* InterpretationValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */; };
 		1F2F3B8A8BF7AB56672F02B7 /* ChartFactBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */; };
+		24AC73DF96E1DCF2A3E5827F /* PalaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90937BEA13CCA793C63D751E /* PalaceDetailView.swift */; };
 		27E79E39D9D5C1A35BD66B4D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32476896280CD9A6DF081001 /* AboutView.swift */; };
 		2B3C06FAFA75B3A4135E0E47 /* MightyZiWeiUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DB1AE2F8775CC76192AEF9 /* MightyZiWeiUITests.swift */; };
 		2C1E451C5864455CCEDE6CDC /* Palace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44E169F23C465365C17F931 /* Palace.swift */; };
 		2FD092155F1006A5EEC58345 /* ChartLearningContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */; };
 		34698CCE011788503A6E8CEF /* AIConfigurationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD8015906E6B1A5D4A037EEF /* AIConfigurationStoreTests.swift */; };
 		3689D9DD4C5A0F7C91D34FC4 /* chart_011_hour_wei.json in Resources */ = {isa = PBXBuildFile; fileRef = DEB07B8EC61549D16345B2E2 /* chart_011_hour_wei.json */; };
+		3AFE81E685D9E35EA39AD8DB /* AdjacentHourComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9553EFAC40E9D20E84061B75 /* AdjacentHourComparison.swift */; };
 		4512C9F3380861D5A9160279 /* SavedChartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E9E7214FAB09F1CDC5E131 /* SavedChartTests.swift */; };
+		4B118F7E9AEC01848ABB8B30 /* BackupRestoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA1772BF3EF5EA2C29BCB4B /* BackupRestoreService.swift */; };
+		4D242F2CCC9CA04C6542ED53 /* BackupManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE918D554B9AC0A2BE8EAE7E /* BackupManagementView.swift */; };
 		4D430F3BD88648608235B92D /* chart_008_hour_yin.json in Resources */ = {isa = PBXBuildFile; fileRef = 802E2B1F238730FA1BD275CC /* chart_008_hour_yin.json */; };
 		4DC6855301A1A29613631E9F /* chart_004_leap_month.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F835B76EC191B0C90F4FD74 /* chart_004_leap_month.json */; };
 		4DF8DD0C73BC924FB5712213 /* MightyZiWeiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A1E1F7A69B2D28FE44DC8D /* MightyZiWeiApp.swift */; };
 		4EAADCB9D0FF0FE23D4494D3 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD3B6947F9662D390173554 /* DesignSystem.swift */; };
 		4F34923999E919A440F0939B /* OpenAIResponsesInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E805C16803086335B0FA1EFC /* OpenAIResponsesInterpreter.swift */; };
+		50D6DAFAD4EF312A9EF60932 /* ChartEncyclopediaCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1CCACBD3CA56621DE4913A /* ChartEncyclopediaCatalog.swift */; };
 		52B96B2B373B180D2D88B3C6 /* BirthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11937549E0F84C51ADF1EF1E /* BirthProfile.swift */; };
 		559727E9F76947C3EE6C47D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D12FE744C4E5E89927DD0FF /* SettingsView.swift */; };
 		579010C0A86DFD3F3330372F /* chart_009_hour_mao.json in Resources */ = {isa = PBXBuildFile; fileRef = 4B6A47B453849E7528D25DC7 /* chart_009_hour_mao.json */; };
+		58037B4CD027EFC5155F019F /* DualChartComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2192FBB516CC5FC644D563DF /* DualChartComparisonView.swift */; };
+		5861179212E650CF7A22E9F5 /* AdjacentHourComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91BAF8F510039A5580FACE7D /* AdjacentHourComparisonView.swift */; };
+		594F32C26E4B40FAC5BD01F0 /* EncryptedBackupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078AC63291D99571D39AD89C /* EncryptedBackupServiceTests.swift */; };
 		5B1DB5D632C20808500BC081 /* chart_006_1900_boundary.json in Resources */ = {isa = PBXBuildFile; fileRef = 18AABAE834D622A15AB7D45F /* chart_006_1900_boundary.json */; };
 		654F208C3F823850E73D46CB /* chart_005_historical_dst.json in Resources */ = {isa = PBXBuildFile; fileRef = 0D504DB957AC3C401FBD7479 /* chart_005_historical_dst.json */; };
 		68C4ECB4B593B62A703D3083 /* chart_010_hour_chen.json in Resources */ = {isa = PBXBuildFile; fileRef = 02C1298AD9321509D74417EB /* chart_010_hour_chen.json */; };
+		698FE327FEA4864B152B9A27 /* DualChartInteractionReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74723849A1AB0BEDA5C03676 /* DualChartInteractionReference.swift */; };
 		6A459388F32BB28E5BB24ABC /* BirthInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EFE0F1F2C55985916423122 /* BirthInputView.swift */; };
+		6A61F3AE9430E018FA4A567E /* ChartAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08C471A48CC7C3E78AC21F9 /* ChartAssistantView.swift */; };
 		6B1975A150CB510FF1267EA6 /* VoiceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09605540F592AE2403DFDE8B /* VoiceControls.swift */; };
 		6D73B0D0F4A97DF9473B0464 /* Transformation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7A843D5A6D20F2B702F3E7 /* Transformation.swift */; };
 		6F295E1271F152D74D0BEE99 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 297DA83F12C695DCD7F1E554 /* RootView.swift */; };
+		725C6BF5F0C8C6C7521E98F9 /* ChartEncyclopediaCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39A959B7DEE0A8A36091BEA5 /* ChartEncyclopediaCatalogTests.swift */; };
 		7317FC9CD6390C23ABE260D6 /* SavedChartsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBA09C8A1F6791610F43B020 /* SavedChartsView.swift */; };
 		7336FB82FB629E85BDAF7B8E /* chart_012_hour_shen.json in Resources */ = {isa = PBXBuildFile; fileRef = 5952F0C28AEB29C0531E015F /* chart_012_hour_shen.json */; };
+		75ACB7D63DFD2A9F8D3C83F0 /* ChartEncyclopediaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC61923675FBB482E967559F /* ChartEncyclopediaView.swift */; };
+		78EE09BEFE2BC8F3988A669A /* AdjacentHourComparisonBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */; };
 		7E67812BD2E12AA9B6990304 /* chart_001_normal.json in Resources */ = {isa = PBXBuildFile; fileRef = 034ACE4FDF7CBF7A8A3FB51C /* chart_001_normal.json */; };
 		7E954F686A83DD6184AADD93 /* InterpretationSeedBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C389AE52A85ED6C0C074EF /* InterpretationSeedBuilder.swift */; };
+		7FB2BF58884A14E8A1BAD51E /* ChartSharingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7AF4EF700334C34F2261BEA /* ChartSharingView.swift */; };
+		8608035441A8D686A0843D5B /* SavedInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873BDF01B1D332DB57D5B156 /* SavedInsight.swift */; };
 		8D54D3EE65DA39D0F83A2959 /* chart_007_2099_boundary.json in Resources */ = {isa = PBXBuildFile; fileRef = 6CFE44509E5BE1052BE94427 /* chart_007_2099_boundary.json */; };
 		92D2115C7E6BB6EA9F1E1AA6 /* ZiWeiChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB955C7DF656FDC943976E73 /* ZiWeiChart.swift */; };
 		96C5BF79F91DF992D48C18CE /* InterpretationValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */; };
 		9DE3AC8EAF227B8CF9654AA5 /* CalendarNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBBCDC45378DE1542584A162 /* CalendarNormalizer.swift */; };
 		A358EA97D679804CEC760488 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BB733B679E4CC1FAC918ED /* HomeView.swift */; };
+		A780A7BB053C036AD90F2065 /* SavedInsightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B137F15DE4C1DFBDD7512 /* SavedInsightTests.swift */; };
 		A975D4C60A3039ECB3D71A0B /* TimeZonePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C62A38C5D80DA4046E9E59 /* TimeZonePickerView.swift */; };
+		AA2809A40F4BE97CFC7AFD6E /* EncryptedBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */; };
+		B6973CE82B56262EFED846B2 /* DualChartInteractionReferenceBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */; };
 		B9F3FDD5B321E77DC67D6814 /* Star.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43B88E143C001404E0389BC /* Star.swift */; };
 		BA6AAAA51FFFB71856E1A23C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED3EF7B33865609E6022E471 /* Assets.xcassets */; };
 		BAB9B1BAC6436967C026FA9C /* InterpretationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */; };
 		BBFC7F29C250D32C01527485 /* Celestial.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */; };
 		C4ADD957C4D02683CF71C968 /* RuleBasedInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E127D15AFEDE522FA72941 /* RuleBasedInterpreter.swift */; };
+		C5025C73AFA6918B7CF6D948 /* ChartSharingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6484A79DA0CD399368BBE6 /* ChartSharingTests.swift */; };
 		C52F8275E81188A8ECC57FB5 /* InterpretationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED571056EA26DE2392D57DF /* InterpretationModels.swift */; };
 		C8B9C8E91BFF07A45B68C25C /* chart_013_hour_you.json in Resources */ = {isa = PBXBuildFile; fileRef = 2D227946A31E4946C3AB4358 /* chart_013_hour_you.json */; };
 		CB305A656B8CD50DB66FDC2A /* VoiceCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43CB632168EA90C22A43E2D /* VoiceCoordinatorTests.swift */; };
@@ -59,11 +78,13 @@
 		D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */; };
 		D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */; };
 		D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */; };
+		D9EF6E38788E178FFCC290B2 /* ChartJournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 839272541C7ED25F0FBCA768 /* ChartJournalView.swift */; };
 		E40C3D0F7D9F72BE3EC5614C /* SavedChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */; };
 		EAC13B032EF813E1FDE19405 /* UITestVoiceControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA807418C099CED157D4DD8 /* UITestVoiceControllers.swift */; };
 		F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */; };
 		F3F83E81941E68E065CFFB63 /* AIConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE9EC7A6106AD1114964AEE /* AIConfigurationView.swift */; };
 		F5997911028DF894884879E5 /* chart_015_hour_hai.json in Resources */ = {isa = PBXBuildFile; fileRef = B66C62B7608BB514A7D0274E /* chart_015_hour_hai.json */; };
+		F5AD6B59616539FFB4F4E59E /* BackupPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = E26E9269141F6F7F626FDDDF /* BackupPayload.swift */; };
 		F7BADA33F8F331FCDB7B6EF0 /* chart_002_zi_hour.json in Resources */ = {isa = PBXBuildFile; fileRef = 7D8E7D1B6F2CDFF95477BAF7 /* chart_002_zi_hour.json */; };
 		F8EF326921C0E66BFA373FFE /* ChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76E7E54747FAB806EA300947 /* ChartView.swift */; };
 		FDBC2F9789913CDF91AC7FB9 /* ZiWeiCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87669742859912449A36CAF5 /* ZiWeiCalculator.swift */; };
@@ -92,6 +113,7 @@
 		034ACE4FDF7CBF7A8A3FB51C /* chart_001_normal.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_001_normal.json; sourceTree = "<group>"; };
 		05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContentTests.swift; sourceTree = "<group>"; };
 		05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		078AC63291D99571D39AD89C /* EncryptedBackupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBackupServiceTests.swift; sourceTree = "<group>"; };
 		09605540F592AE2403DFDE8B /* VoiceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceControls.swift; sourceTree = "<group>"; };
 		0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiCoreTests.swift; sourceTree = "<group>"; };
 		0D12FE744C4E5E89927DD0FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -100,14 +122,18 @@
 		11937549E0F84C51ADF1EF1E /* BirthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthProfile.swift; sourceTree = "<group>"; };
 		18AABAE834D622A15AB7D45F /* chart_006_1900_boundary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_006_1900_boundary.json; sourceTree = "<group>"; };
 		1A41747DB3EB2606F350F913 /* AppleVoiceInputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVoiceInputController.swift; sourceTree = "<group>"; };
+		2192FBB516CC5FC644D563DF /* DualChartComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartComparisonView.swift; sourceTree = "<group>"; };
+		227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartInteractionReferenceBuilderTests.swift; sourceTree = "<group>"; };
 		297DA83F12C695DCD7F1E554 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIResponsesInterpreterTests.swift; sourceTree = "<group>"; };
 		2D227946A31E4946C3AB4358 /* chart_013_hour_you.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_013_hour_you.json; sourceTree = "<group>"; };
 		2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedChart.swift; sourceTree = "<group>"; };
 		32476896280CD9A6DF081001 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		32E9E7214FAB09F1CDC5E131 /* SavedChartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedChartTests.swift; sourceTree = "<group>"; };
+		39A959B7DEE0A8A36091BEA5 /* ChartEncyclopediaCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartEncyclopediaCatalogTests.swift; sourceTree = "<group>"; };
 		3AD3B6947F9662D390173554 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidatorTests.swift; sourceTree = "<group>"; };
+		4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjacentHourComparisonBuilderTests.swift; sourceTree = "<group>"; };
 		4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContent.swift; sourceTree = "<group>"; };
 		47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationView.swift; sourceTree = "<group>"; };
 		4B6A47B453849E7528D25DC7 /* chart_009_hour_mao.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_009_hour_mao.json; sourceTree = "<group>"; };
@@ -115,16 +141,24 @@
 		5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationSeedBuilderTests.swift; sourceTree = "<group>"; };
 		5952F0C28AEB29C0531E015F /* chart_012_hour_shen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_012_hour_shen.json; sourceTree = "<group>"; };
 		5DA807418C099CED157D4DD8 /* UITestVoiceControllers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestVoiceControllers.swift; sourceTree = "<group>"; };
+		5E6484A79DA0CD399368BBE6 /* ChartSharingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSharingTests.swift; sourceTree = "<group>"; };
 		6CFE44509E5BE1052BE94427 /* chart_007_2099_boundary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_007_2099_boundary.json; sourceTree = "<group>"; };
 		6EE69DB39BC996ED000FCCC4 /* AIConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationStore.swift; sourceTree = "<group>"; };
+		74723849A1AB0BEDA5C03676 /* DualChartInteractionReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartInteractionReference.swift; sourceTree = "<group>"; };
 		76E7E54747FAB806EA300947 /* ChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartView.swift; sourceTree = "<group>"; };
 		7D8E7D1B6F2CDFF95477BAF7 /* chart_002_zi_hour.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_002_zi_hour.json; sourceTree = "<group>"; };
 		802E2B1F238730FA1BD275CC /* chart_008_hour_yin.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_008_hour_yin.json; sourceTree = "<group>"; };
+		839272541C7ED25F0FBCA768 /* ChartJournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartJournalView.swift; sourceTree = "<group>"; };
+		872B137F15DE4C1DFBDD7512 /* SavedInsightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedInsightTests.swift; sourceTree = "<group>"; };
+		873BDF01B1D332DB57D5B156 /* SavedInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedInsight.swift; sourceTree = "<group>"; };
 		87669742859912449A36CAF5 /* ZiWeiCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiCalculator.swift; sourceTree = "<group>"; };
 		88CC4B5EAD24028B5FC725E1 /* VoiceCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCoordinator.swift; sourceTree = "<group>"; };
 		8F5C44BDBCC4F068F53F6930 /* chart_014_hour_xu.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_014_hour_xu.json; sourceTree = "<group>"; };
 		8F835B76EC191B0C90F4FD74 /* chart_004_leap_month.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_004_leap_month.json; sourceTree = "<group>"; };
+		90937BEA13CCA793C63D751E /* PalaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalaceDetailView.swift; sourceTree = "<group>"; };
+		91BAF8F510039A5580FACE7D /* AdjacentHourComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjacentHourComparisonView.swift; sourceTree = "<group>"; };
 		92A1E1F7A69B2D28FE44DC8D /* MightyZiWeiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiApp.swift; sourceTree = "<group>"; };
+		9553EFAC40E9D20E84061B75 /* AdjacentHourComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjacentHourComparison.swift; sourceTree = "<group>"; };
 		97DB1AE2F8775CC76192AEF9 /* MightyZiWeiUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiUITests.swift; sourceTree = "<group>"; };
 		9A7A843D5A6D20F2B702F3E7 /* Transformation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transformation.swift; sourceTree = "<group>"; };
 		9C567EF0828AE669C9B79739 /* ZiWeiRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiRules.swift; sourceTree = "<group>"; };
@@ -132,11 +166,16 @@
 		9FE9EC7A6106AD1114964AEE /* AIConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationView.swift; sourceTree = "<group>"; };
 		A5E127D15AFEDE522FA72941 /* RuleBasedInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleBasedInterpreter.swift; sourceTree = "<group>"; };
 		AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB1CCACBD3CA56621DE4913A /* ChartEncyclopediaCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartEncyclopediaCatalog.swift; sourceTree = "<group>"; };
 		AB955C7DF656FDC943976E73 /* ZiWeiChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiChart.swift; sourceTree = "<group>"; };
+		AC61923675FBB482E967559F /* ChartEncyclopediaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartEncyclopediaView.swift; sourceTree = "<group>"; };
 		AD8015906E6B1A5D4A037EEF /* AIConfigurationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationStoreTests.swift; sourceTree = "<group>"; };
 		B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Celestial.swift; sourceTree = "<group>"; };
 		B5C389AE52A85ED6C0C074EF /* InterpretationSeedBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationSeedBuilder.swift; sourceTree = "<group>"; };
 		B66C62B7608BB514A7D0274E /* chart_015_hour_hai.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_015_hour_hai.json; sourceTree = "<group>"; };
+		BE918D554B9AC0A2BE8EAE7E /* BackupManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManagementView.swift; sourceTree = "<group>"; };
+		C08C471A48CC7C3E78AC21F9 /* ChartAssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartAssistantView.swift; sourceTree = "<group>"; };
+		C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBackupService.swift; sourceTree = "<group>"; };
 		C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidator.swift; sourceTree = "<group>"; };
 		C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartFactBuilderTests.swift; sourceTree = "<group>"; };
 		C7BB733B679E4CC1FAC918ED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -148,10 +187,13 @@
 		DBA09C8A1F6791610F43B020 /* SavedChartsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedChartsView.swift; sourceTree = "<group>"; };
 		DEB07B8EC61549D16345B2E2 /* chart_011_hour_wei.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_011_hour_wei.json; sourceTree = "<group>"; };
 		E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartFactBuilder.swift; sourceTree = "<group>"; };
+		E26E9269141F6F7F626FDDDF /* BackupPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupPayload.swift; sourceTree = "<group>"; };
 		E805C16803086335B0FA1EFC /* OpenAIResponsesInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIResponsesInterpreter.swift; sourceTree = "<group>"; };
 		ED3EF7B33865609E6022E471 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EED571056EA26DE2392D57DF /* InterpretationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationModels.swift; sourceTree = "<group>"; };
+		F7AF4EF700334C34F2261BEA /* ChartSharingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSharingView.swift; sourceTree = "<group>"; };
 		FBBCDC45378DE1542584A162 /* CalendarNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarNormalizer.swift; sourceTree = "<group>"; };
+		FDA1772BF3EF5EA2C29BCB4B /* BackupRestoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRestoreService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -204,6 +246,9 @@
 		29E7DBC79E52BF6D6B3F6026 /* SavedCharts */ = {
 			isa = PBXGroup;
 			children = (
+				BE918D554B9AC0A2BE8EAE7E /* BackupManagementView.swift */,
+				839272541C7ED25F0FBCA768 /* ChartJournalView.swift */,
+				2192FBB516CC5FC644D563DF /* DualChartComparisonView.swift */,
 				DBA09C8A1F6791610F43B020 /* SavedChartsView.swift */,
 			);
 			path = SavedCharts;
@@ -242,6 +287,7 @@
 		43A424EDF0319B408EDD18F6 /* Interpretation */ = {
 			isa = PBXGroup;
 			children = (
+				C08C471A48CC7C3E78AC21F9 /* ChartAssistantView.swift */,
 				47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */,
 			);
 			path = Interpretation;
@@ -260,12 +306,32 @@
 			path = Features;
 			sourceTree = "<group>";
 		};
+		4A296215250DA24BC2C8639D /* ChartTools */ = {
+			isa = PBXGroup;
+			children = (
+				9553EFAC40E9D20E84061B75 /* AdjacentHourComparison.swift */,
+				74723849A1AB0BEDA5C03676 /* DualChartInteractionReference.swift */,
+			);
+			path = ChartTools;
+			sourceTree = "<group>";
+		};
 		4B95E42FA8D1CA5B42027DAC /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				078AC63291D99571D39AD89C /* EncryptedBackupServiceTests.swift */,
 				32E9E7214FAB09F1CDC5E131 /* SavedChartTests.swift */,
+				872B137F15DE4C1DFBDD7512 /* SavedInsightTests.swift */,
 			);
 			path = Persistence;
+			sourceTree = "<group>";
+		};
+		5B4213FDC45779729892193B /* ChartTools */ = {
+			isa = PBXGroup;
+			children = (
+				4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */,
+				227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */,
+			);
+			path = ChartTools;
 			sourceTree = "<group>";
 		};
 		673A3BA999DB7B3E683C2F06 /* AI */ = {
@@ -344,7 +410,9 @@
 		9DC2716039176B98C4C27187 /* Chart */ = {
 			isa = PBXGroup;
 			children = (
+				39A959B7DEE0A8A36091BEA5 /* ChartEncyclopediaCatalogTests.swift */,
 				05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */,
+				5E6484A79DA0CD399368BBE6 /* ChartSharingTests.swift */,
 			);
 			path = Chart;
 			sourceTree = "<group>";
@@ -368,7 +436,11 @@
 		AF8D8086D0DD5A5B348B6829 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
+				E26E9269141F6F7F626FDDDF /* BackupPayload.swift */,
+				FDA1772BF3EF5EA2C29BCB4B /* BackupRestoreService.swift */,
+				C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */,
 				2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */,
+				873BDF01B1D332DB57D5B156 /* SavedInsight.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -391,6 +463,7 @@
 				0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */,
 				673A3BA999DB7B3E683C2F06 /* AI */,
 				9DC2716039176B98C4C27187 /* Chart */,
+				5B4213FDC45779729892193B /* ChartTools */,
 				3456EFCB9F8D183CE321EE9B /* Fixtures */,
 				73B34818678329B034C77083 /* Interpretation */,
 				4B95E42FA8D1CA5B42027DAC /* Persistence */,
@@ -404,6 +477,7 @@
 			children = (
 				0B504566D4E21E9299162AAA /* AI */,
 				C516DE0D83F77A41BF7669CA /* App */,
+				4A296215250DA24BC2C8639D /* ChartTools */,
 				DD7D5B1E8B023271B6C74B7A /* Domain */,
 				48EEF64FBAD9B08119A03D44 /* Features */,
 				167930394ABDE5D38A38212E /* Interpretation */,
@@ -428,8 +502,13 @@
 		DD5EAD5FEF106EA91B4364F7 /* Chart */ = {
 			isa = PBXGroup;
 			children = (
+				91BAF8F510039A5580FACE7D /* AdjacentHourComparisonView.swift */,
+				AB1CCACBD3CA56621DE4913A /* ChartEncyclopediaCatalog.swift */,
+				AC61923675FBB482E967559F /* ChartEncyclopediaView.swift */,
 				4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */,
+				F7AF4EF700334C34F2261BEA /* ChartSharingView.swift */,
 				76E7E54747FAB806EA300947 /* ChartView.swift */,
+				90937BEA13CCA793C63D751E /* PalaceDetailView.swift */,
 			);
 			path = Chart;
 			sourceTree = "<group>";
@@ -609,16 +688,29 @@
 				0B99698802F197747C75B731 /* AIConfigurationStore.swift in Sources */,
 				F3F83E81941E68E065CFFB63 /* AIConfigurationView.swift in Sources */,
 				27E79E39D9D5C1A35BD66B4D /* AboutView.swift in Sources */,
+				3AFE81E685D9E35EA39AD8DB /* AdjacentHourComparison.swift in Sources */,
+				5861179212E650CF7A22E9F5 /* AdjacentHourComparisonView.swift in Sources */,
 				0B33B52236D70B500B35C29E /* AppleVoiceInputController.swift in Sources */,
 				CD57EA7976BC8FF7240B76D5 /* AppleVoiceOutputController.swift in Sources */,
+				4D242F2CCC9CA04C6542ED53 /* BackupManagementView.swift in Sources */,
+				F5AD6B59616539FFB4F4E59E /* BackupPayload.swift in Sources */,
+				4B118F7E9AEC01848ABB8B30 /* BackupRestoreService.swift in Sources */,
 				6A459388F32BB28E5BB24ABC /* BirthInputView.swift in Sources */,
 				52B96B2B373B180D2D88B3C6 /* BirthProfile.swift in Sources */,
 				9DE3AC8EAF227B8CF9654AA5 /* CalendarNormalizer.swift in Sources */,
 				BBFC7F29C250D32C01527485 /* Celestial.swift in Sources */,
+				6A61F3AE9430E018FA4A567E /* ChartAssistantView.swift in Sources */,
+				50D6DAFAD4EF312A9EF60932 /* ChartEncyclopediaCatalog.swift in Sources */,
+				75ACB7D63DFD2A9F8D3C83F0 /* ChartEncyclopediaView.swift in Sources */,
 				D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */,
+				D9EF6E38788E178FFCC290B2 /* ChartJournalView.swift in Sources */,
 				2FD092155F1006A5EEC58345 /* ChartLearningContent.swift in Sources */,
+				7FB2BF58884A14E8A1BAD51E /* ChartSharingView.swift in Sources */,
 				F8EF326921C0E66BFA373FFE /* ChartView.swift in Sources */,
 				4EAADCB9D0FF0FE23D4494D3 /* DesignSystem.swift in Sources */,
+				58037B4CD027EFC5155F019F /* DualChartComparisonView.swift in Sources */,
+				698FE327FEA4864B152B9A27 /* DualChartInteractionReference.swift in Sources */,
+				AA2809A40F4BE97CFC7AFD6E /* EncryptedBackupService.swift in Sources */,
 				A358EA97D679804CEC760488 /* HomeView.swift in Sources */,
 				C52F8275E81188A8ECC57FB5 /* InterpretationModels.swift in Sources */,
 				7E954F686A83DD6184AADD93 /* InterpretationSeedBuilder.swift in Sources */,
@@ -627,10 +719,12 @@
 				4DF8DD0C73BC924FB5712213 /* MightyZiWeiApp.swift in Sources */,
 				4F34923999E919A440F0939B /* OpenAIResponsesInterpreter.swift in Sources */,
 				2C1E451C5864455CCEDE6CDC /* Palace.swift in Sources */,
+				24AC73DF96E1DCF2A3E5827F /* PalaceDetailView.swift in Sources */,
 				6F295E1271F152D74D0BEE99 /* RootView.swift in Sources */,
 				C4ADD957C4D02683CF71C968 /* RuleBasedInterpreter.swift in Sources */,
 				E40C3D0F7D9F72BE3EC5614C /* SavedChart.swift in Sources */,
 				7317FC9CD6390C23ABE260D6 /* SavedChartsView.swift in Sources */,
+				8608035441A8D686A0843D5B /* SavedInsight.swift in Sources */,
 				559727E9F76947C3EE6C47D1 /* SettingsView.swift in Sources */,
 				B9F3FDD5B321E77DC67D6814 /* Star.swift in Sources */,
 				A975D4C60A3039ECB3D71A0B /* TimeZonePickerView.swift in Sources */,
@@ -649,12 +743,18 @@
 			buildActionMask = 2147483647;
 			files = (
 				34698CCE011788503A6E8CEF /* AIConfigurationStoreTests.swift in Sources */,
+				78EE09BEFE2BC8F3988A669A /* AdjacentHourComparisonBuilderTests.swift in Sources */,
+				725C6BF5F0C8C6C7521E98F9 /* ChartEncyclopediaCatalogTests.swift in Sources */,
 				1F2F3B8A8BF7AB56672F02B7 /* ChartFactBuilderTests.swift in Sources */,
 				D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */,
+				C5025C73AFA6918B7CF6D948 /* ChartSharingTests.swift in Sources */,
+				B6973CE82B56262EFED846B2 /* DualChartInteractionReferenceBuilderTests.swift in Sources */,
+				594F32C26E4B40FAC5BD01F0 /* EncryptedBackupServiceTests.swift in Sources */,
 				D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */,
 				96C5BF79F91DF992D48C18CE /* InterpretationValidatorTests.swift in Sources */,
 				F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */,
 				4512C9F3380861D5A9160279 /* SavedChartTests.swift in Sources */,
+				A780A7BB053C036AD90F2065 /* SavedInsightTests.swift in Sources */,
 				CB305A656B8CD50DB66FDC2A /* VoiceCoordinatorTests.swift in Sources */,
 				117F7E9D16F29C60C2F31508 /* ZiWeiCoreTests.swift in Sources */,
 			);

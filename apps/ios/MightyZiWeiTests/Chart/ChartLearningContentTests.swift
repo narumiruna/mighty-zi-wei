@@ -77,6 +77,34 @@ final class ChartLearningContentTests: XCTestCase {
         XCTAssertFalse(summary.contains("武曲"))
     }
 
+    func test宮位建議問題只填入已驗證範圍() {
+        let fact = makeStarFact(star: .ziWei, palace: .life)
+        let supported = PalaceQuestionSuggestionBuilder().make(
+            palaceKind: .life,
+            mainStars: [.ziWei],
+            facts: [fact],
+            seeds: [InterpretationSeed(
+                id: "seed.personality.ziwei.life",
+                category: .personality,
+                meaning: "可能重視整體方向。",
+                evidenceFactIDs: [fact.id]
+            )]
+        )
+        XCTAssertEqual(supported.count, 3)
+        XCTAssertTrue(supported[0].contains("已驗證"))
+        XCTAssertTrue(supported[1].contains("只根據 App 已有解讀"))
+        XCTAssertTrue(supported[2].contains("區分盤面事實與解讀"))
+
+        let unsupported = PalaceQuestionSuggestionBuilder().make(
+            palaceKind: .life,
+            mainStars: [.ziWei],
+            facts: [fact],
+            seeds: []
+        )
+        XCTAssertTrue(unsupported[1].contains("只能確認位置"))
+        XCTAssertFalse(unsupported.joined().contains("預測"))
+    }
+
     func test無主星與缺少Seed時提供誠實的部分狀態() {
         let noMainStar = PalaceLearningSummaryBuilder().make(
             palaceKind: .life,
