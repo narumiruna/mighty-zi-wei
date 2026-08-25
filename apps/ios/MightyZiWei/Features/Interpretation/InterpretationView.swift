@@ -7,6 +7,7 @@ struct InterpretationView: View {
     let seeds: [InterpretationSeed]
 
     @Environment(AIConfigurationStore.self) private var aiConfigurationStore
+    @Environment(VoiceCoordinator.self) private var voiceCoordinator
     @State private var interpretation: ChartInterpretation
     @State private var isGenerating = false
     @State private var statusMessage: String?
@@ -67,6 +68,7 @@ struct InterpretationView: View {
         }
         .onDisappear {
             generationTask?.cancel()
+            voiceCoordinator.stopAll()
         }
         .sheet(isPresented: $showsAPIConfiguration) {
             APIConfigurationSheet()
@@ -119,7 +121,7 @@ struct InterpretationView: View {
                     .foregroundStyle(.secondary)
 
                 Button {
-                    showsAPIConfiguration = true
+                    presentAPIConfiguration()
                 } label: {
                     Label("設定 AI API", systemImage: "gearshape")
                         .frame(maxWidth: .infinity)
@@ -129,6 +131,12 @@ struct InterpretationView: View {
             }
         }
         .cardStyle()
+    }
+
+    private func presentAPIConfiguration() {
+        voiceCoordinator.stopAll {
+            showsAPIConfiguration = true
+        }
     }
 
     private func generateWithAI() {
@@ -147,6 +155,7 @@ struct InterpretationView: View {
                 )
                 try Task.checkCancellation()
                 guard generationID == identifier else { return }
+                voiceCoordinator.stopOutput()
                 interpretation = result
                 statusMessage = "內容已通過命盤依據驗證。"
             } catch is CancellationError {
@@ -154,6 +163,7 @@ struct InterpretationView: View {
                 statusMessage = "已停止整理，保留目前內容。"
             } catch {
                 guard generationID == identifier else { return }
+                voiceCoordinator.stopOutput()
                 interpretation = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
                 statusMessage = generationFailureMessage(for: error)
             }
@@ -214,6 +224,7 @@ struct ChartAssistantView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AIConfigurationStore.self) private var configurationStore
     @Environment(ChartAssistantStore.self) private var assistantStore
+    @Environment(VoiceCoordinator.self) private var voiceCoordinator
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var savedCharts: [SavedChart]
 
     @FocusState private var composerIsFocused: Bool
@@ -275,15 +286,35 @@ struct ChartAssistantView: View {
             .task {
                 loadDefaultChartIfNeeded()
             }
+            .onChange(of: voiceCoordinator.inputState) { previousState, state in
+                switch state {
+                case .recording:
+                    AccessibilityNotification.Announcement("已開始語音輸入。")
+                        .post()
+                case .finalizing:
+                    AccessibilityNotification.Announcement("正在結束語音輸入。")
+                        .post()
+                case .failed(let message):
+                    AccessibilityNotification.Announcement(message)
+                        .post()
+                case .idle where previousState == .finalizing:
+                    AccessibilityNotification.Announcement("語音輸入已結束，文字仍可編輯。")
+                        .post()
+                case .idle, .preparing:
+                    break
+                }
+            }
             .onChange(of: savedCharts.map(\.id)) { _, identifiers in
                 guard let selectedID = assistantStore.selectedChart?.savedChartID,
                       !identifiers.contains(selectedID)
                 else { return }
+                voiceCoordinator.stopAll()
                 assistantStore.clearSelection()
                 loadDefaultChartIfNeeded()
             }
             .onDisappear {
                 assistantStore.cancelRequest()
+                voiceCoordinator.stopAll()
             }
             .sheet(isPresented: $showsAPIConfiguration) {
                 APIConfigurationSheet()
@@ -295,6 +326,7 @@ struct ChartAssistantView: View {
             ) {
                 Button("切換並清除本次對話", role: .destructive) {
                     guard let pendingChart else { return }
+                    voiceCoordinator.stopAll()
                     assistantStore.select(pendingChart)
                     self.pendingChart = nil
                 }
@@ -310,6 +342,7 @@ struct ChartAssistantView: View {
                 titleVisibility: .visible
             ) {
                 Button("清除對話", role: .destructive) {
+                    voiceCoordinator.stopAll()
                     assistantStore.clearConversation()
                 }
                 Button("取消", role: .cancel) {}
@@ -447,7 +480,7 @@ struct ChartAssistantView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button {
-                showsAPIConfiguration = true
+                presentAPIConfiguration()
             } label: {
                 Text("設定 AI API")
                     .frame(maxWidth: .infinity)
@@ -491,6 +524,7 @@ struct ChartAssistantView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.bordered)
+                .disabled(voiceCoordinator.isInputActive)
                 .accessibilityHint("將問題填入輸入框，不會立即送出")
                 .accessibilityIdentifier("assistant.suggestion.\(index)")
             }
@@ -543,8 +577,9 @@ struct ChartAssistantView: View {
                 HStack {
                     Button("再試一次") { sendQuestion() }
                         .buttonStyle(.borderedProminent)
+                        .disabled(voiceCoordinator.isInputActive)
                     Button("檢查 API 設定") {
-                        showsAPIConfiguration = true
+                        presentAPIConfiguration()
                     }
                     .buttonStyle(.bordered)
                 }
@@ -573,8 +608,29 @@ struct ChartAssistantView: View {
                 )
                     .lineLimit(1...5)
                     .focused($composerIsFocused)
-                    .disabled(assistantStore.isRequesting || assistantStore.hasReachedRoundLimit)
+                    .disabled(
+                        assistantStore.isRequesting
+                            || assistantStore.hasReachedRoundLimit
+                            || voiceCoordinator.isInputActive
+                    )
                     .accessibilityIdentifier("assistant.composer")
+
+                Button {
+                    toggleVoiceInput()
+                } label: {
+                    Image(systemName: voiceCoordinator.inputControl.systemImage)
+                        .font(.title)
+                }
+                .disabled(
+                    !voiceCoordinator.inputControl.isEnabled
+                        || (!voiceCoordinator.isInputActive
+                            && (assistantStore.isRequesting
+                                || assistantStore.hasReachedRoundLimit))
+                )
+                .accessibilityLabel(voiceCoordinator.inputControl.label)
+                .accessibilityHint(voiceCoordinator.inputControl.hint)
+                .accessibilityValue(voiceCoordinator.inputControl.value)
+                .accessibilityIdentifier("voice.input.toggle")
 
                 Button {
                     sendQuestion()
@@ -585,6 +641,14 @@ struct ChartAssistantView: View {
                 .disabled(!canSend)
                 .accessibilityLabel("送出問題")
                 .accessibilityIdentifier("assistant.send")
+            }
+
+            if let statusMessage = voiceCoordinator.inputStatusMessage {
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(inputStatusColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("voice.input.status")
             }
 
             if assistantStore.draft.count > 450 {
@@ -604,14 +668,48 @@ struct ChartAssistantView: View {
         .background(.bar)
     }
 
+    private var inputStatusColor: Color {
+        if case .failed = voiceCoordinator.inputState {
+            return .red
+        }
+        return .secondary
+    }
+
     private var canSend: Bool {
         !assistantStore.trimmedDraft.isEmpty
             && assistantStore.draft.count <= ChartAssistantStore.maximumQuestionLength
             && !assistantStore.isRequesting
             && !assistantStore.hasReachedRoundLimit
+            && !voiceCoordinator.isInputActive
+    }
+
+    private func toggleVoiceInput() {
+        switch voiceCoordinator.inputState {
+        case .idle, .failed:
+            composerIsFocused = false
+            voiceCoordinator.startInput(
+                initialDraft: assistantStore.draft,
+                limit: ChartAssistantStore.maximumQuestionLength
+            ) { draft in
+                assistantStore.draft = draft
+            }
+        case .preparing:
+            voiceCoordinator.cancelInput(restoresInitialDraft: true)
+        case .recording:
+            voiceCoordinator.finishInput()
+        case .finalizing:
+            break
+        }
+    }
+
+    private func presentAPIConfiguration() {
+        voiceCoordinator.stopAll {
+            showsAPIConfiguration = true
+        }
     }
 
     private func sendQuestion() {
+        guard !voiceCoordinator.isInputActive else { return }
         do {
             assistantStore.send(configuration: try configurationStore.configuration())
             composerIsFocused = false
@@ -638,6 +736,7 @@ struct ChartAssistantView: View {
             if assistantStore.requiresConfirmation(toSelect: chart) {
                 pendingChart = chart
             } else {
+                voiceCoordinator.stopAll()
                 assistantStore.select(chart)
             }
         } catch {
@@ -647,6 +746,7 @@ struct ChartAssistantView: View {
 
     private func select(savedChart: SavedChart) {
         do {
+            voiceCoordinator.stopAll()
             assistantStore.select(try makeAssistantChart(savedChart: savedChart))
         } catch {
             errorMessage = "目前無法準備最近的命盤，請回到已儲存命盤重新建立。"
@@ -689,6 +789,11 @@ private struct ConversationTurnView: View {
                 Text(turn.answer)
                     .lineSpacing(5)
                     .textSelection(.enabled)
+
+                VoicePlaybackControls(
+                    contentID: "assistant.\(turn.id.uuidString)",
+                    text: turn.answer
+                )
 
                 if !turn.evidenceFactIDs.isEmpty {
                     Divider()
@@ -778,6 +883,11 @@ private struct InterpretationOverviewView: View {
                 .accessibilityIdentifier("interpretation.overview.details")
             }
 
+            VoicePlaybackControls(
+                contentID: "interpretation.\(section.id)",
+                text: "\(section.title)。\(section.content)"
+            )
+
             InterpretationEvidenceDisclosure(
                 evidenceFactIDs: section.evidenceFactIDs,
                 factsByID: factsByID
@@ -793,30 +903,51 @@ private struct InterpretationCategoryDisclosure: View {
     let section: InterpretationSection
     let factsByID: [String: ChartFact]
 
-    var body: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(section.content)
-                    .lineSpacing(5)
-                    .textSelection(.enabled)
+    @Environment(VoiceCoordinator.self) private var voiceCoordinator
+    @State private var isExpanded = false
 
-                InterpretationEvidenceDisclosure(
-                    evidenceFactIDs: section.evidenceFactIDs,
-                    factsByID: factsByID
-                )
+    private var playbackContentID: String {
+        "interpretation.\(section.id)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup(isExpanded: $isExpanded) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(section.content)
+                        .lineSpacing(5)
+                        .textSelection(.enabled)
+
+                    VoicePlaybackControls(
+                        contentID: playbackContentID,
+                        text: "\(section.title)。\(section.content)"
+                    )
+
+                    InterpretationEvidenceDisclosure(
+                        evidenceFactIDs: section.evidenceFactIDs,
+                        factsByID: factsByID
+                    )
+                }
+                .padding(.top, 10)
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(section.title)
+                        .font(.headline)
+                    Text(section.category.learningPrompt)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .padding(.top, 10)
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(section.title)
-                    .font(.headline)
-                Text(section.category.learningPrompt)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
+
+            if !isExpanded, voiceCoordinator.outputStatusContentID == playbackContentID {
+                VoicePlaybackControls(
+                    contentID: playbackContentID,
+                    text: "\(section.title)。\(section.content)"
+                )
             }
         }
         .cardStyle()
-        .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
     }
 }
 

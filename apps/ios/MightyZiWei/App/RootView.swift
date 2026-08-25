@@ -1,3 +1,5 @@
+import AVFAudio
+import Combine
 import Observation
 import SwiftUI
 
@@ -222,6 +224,9 @@ private struct UITestChartConversationAnswerer: ChartConversationAnswering {
 }
 
 struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(VoiceCoordinator.self) private var voiceCoordinator
+
     @State private var navigation = AppNavigationState()
     @State private var assistantStore: ChartAssistantStore
 
@@ -251,5 +256,34 @@ struct RootView: View {
         }
         .environment(navigation)
         .environment(assistantStore)
+        .onChange(of: scenePhase) { _, phase in
+            if shouldStopVoice(for: phase) {
+                voiceCoordinator.stopAll()
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: AVAudioSession.interruptionNotification
+            )
+        ) { _ in
+            voiceCoordinator.stopAll()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: AVAudioSession.routeChangeNotification
+            )
+        ) { notification in
+            guard let rawReason = notification.userInfo?[
+                AVAudioSessionRouteChangeReasonKey
+            ] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason),
+                  reason != .categoryChange
+            else { return }
+            voiceCoordinator.stopAll()
+        }
     }
+}
+
+func shouldStopVoice(for phase: ScenePhase) -> Bool {
+    phase == .background
 }

@@ -9,9 +9,22 @@ private struct UITestCredentialStore: APICredentialStoring {
 @main
 struct MightyZiWeiApp: App {
     @State private var aiConfigurationStore: AIConfigurationStore
+    @State private var voiceCoordinator: VoiceCoordinator
 
     init() {
-        if ProcessInfo.processInfo.arguments.contains("-UITestMockAI") {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-UITestMockSpeech") {
+            _voiceCoordinator = State(
+                initialValue: VoiceCoordinator(
+                    inputController: UITestVoiceInputController(),
+                    outputController: UITestVoiceOutputController()
+                )
+            )
+        } else {
+            _voiceCoordinator = State(initialValue: VoiceCoordinator())
+        }
+
+        if arguments.contains("-UITestMockAI") {
             let defaults = UserDefaults(suiteName: "MightyZiWei.UITesting.AI")!
             defaults.removePersistentDomain(forName: "MightyZiWei.UITesting.AI")
             let store = AIConfigurationStore(
@@ -33,6 +46,7 @@ struct MightyZiWeiApp: App {
         WindowGroup {
             RootView()
                 .environment(aiConfigurationStore)
+                .environment(voiceCoordinator)
         }
         .modelContainer(for: SavedChart.self)
     }
