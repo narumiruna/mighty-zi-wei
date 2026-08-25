@@ -230,7 +230,13 @@ final class MightyZiWeiUITests: XCTestCase {
         stopPlayback.tap()
         XCTAssertTrue(readButton.waitForExistence(timeout: 5))
 
-        let personality = app.buttons["interpretation.category.personality"]
+        let personality = app.buttons.matching(
+            NSPredicate(
+                format: "identifier == %@ AND label CONTAINS %@",
+                "interpretation.category.personality",
+                "個性"
+            )
+        ).firstMatch
         scrollToElement(personality)
         personality.tap()
         let categoryReadButton = app.buttons.matching(
@@ -238,8 +244,15 @@ final class MightyZiWeiUITests: XCTestCase {
         ).element(boundBy: 1)
         scrollToElement(categoryReadButton)
         categoryReadButton.tap()
-        XCTAssertTrue(app.buttons["暫停"].firstMatch.waitForExistence(timeout: 5))
-        app.buttons["停止"].firstMatch.tap()
+        let categoryPauseButton = app.buttons["暫停"].firstMatch
+        XCTAssertTrue(categoryPauseButton.waitForExistence(timeout: 5))
+        scrollToElement(personality)
+        personality.tap()
+        let collapsedPauseButton = app.buttons["暫停"].firstMatch
+        let collapsedStopButton = app.buttons["停止"].firstMatch
+        XCTAssertTrue(collapsedPauseButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(collapsedStopButton.waitForExistence(timeout: 5))
+        collapsedStopButton.tap()
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let askAIButton = app.buttons["chart.askAI"]
@@ -248,22 +261,31 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
 
         let microphone = app.buttons["voice.input.toggle"]
-        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
-        microphone.tap()
-
         let composer = app.textFields["assistant.composer"]
+        let sendButton = app.buttons["assistant.send"]
+        let suggestion = app.buttons["assistant.suggestion.0"]
+        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
+        microphone.tap()
+
+        XCTAssertEqual(microphone.label, "取消語音輸入")
+        XCTAssertEqual(microphone.value as? String, "正在準備語音辨識")
+        XCTAssertFalse(composer.isEnabled)
+        XCTAssertFalse(suggestion.isEnabled)
+        XCTAssertTrue(waitForLabel(microphone, label: "停止語音輸入", timeout: 5))
+        XCTAssertEqual(microphone.value as? String, "正在收音")
         XCTAssertEqual(composer.value as? String, "語音輸入的命盤問題")
+        XCTAssertFalse(composer.isEnabled)
+        XCTAssertFalse(sendButton.isEnabled)
         XCTAssertFalse(app.otherElements["assistant.answer"].exists)
-        XCTAssertEqual(microphone.label, "停止語音輸入")
 
         microphone.tap()
-        let microphoneStopped = app.buttons["voice.input.toggle"]
-        XCTAssertTrue(microphoneStopped.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForLabel(microphone, label: "開始語音輸入", timeout: 5))
+        XCTAssertTrue(composer.isEnabled)
         XCTAssertEqual(composer.value as? String, "語音輸入的命盤問題。")
         XCTAssertFalse(app.otherElements["assistant.answer"].exists)
 
-        app.buttons["assistant.send"].tap()
+        sendButton.tap()
         let answer = app.otherElements["assistant.answer"]
         XCTAssertTrue(answer.waitForExistence(timeout: 5))
         let answerReadButton = app.buttons["朗讀"].firstMatch
@@ -336,6 +358,18 @@ final class MightyZiWeiUITests: XCTestCase {
         let microphone = app.buttons["voice.input.toggle"]
         scrollToElement(microphone)
         XCTAssertTrue(microphone.isHittable)
+    }
+
+    private func waitForLabel(
+        _ element: XCUIElement,
+        label: String,
+        timeout: TimeInterval
+    ) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", label),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func scrollToElement(_ element: XCUIElement) {

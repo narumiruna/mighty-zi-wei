@@ -77,6 +77,14 @@ final class VoiceCoordinator {
         case failed(contentID: String?, message: String)
     }
 
+    struct InputControl: Equatable, Sendable {
+        let systemImage: String
+        let label: String
+        let hint: String
+        let value: String
+        let isEnabled: Bool
+    }
+
     private let inputController: any VoiceInputControlling
     private let outputController: any VoiceOutputControlling
     private var inputTask: Task<Void, Never>?
@@ -119,9 +127,54 @@ final class VoiceCoordinator {
         case .recording:
             "正在聆聽，點一下停止並保留文字。"
         case .finalizing:
-            "正在完成語音辨識…"
+            "正在結束語音輸入…"
         case .failed(let message):
             message
+        }
+    }
+
+    var inputControl: InputControl {
+        switch inputState {
+        case .idle:
+            InputControl(
+                systemImage: "mic.circle.fill",
+                label: "開始語音輸入",
+                hint: "將說出的問題填入草稿，不會自動送出",
+                value: "未收音",
+                isEnabled: true
+            )
+        case .preparing:
+            InputControl(
+                systemImage: "xmark.circle.fill",
+                label: "取消語音輸入",
+                hint: "取消語音辨識準備並保留原有草稿",
+                value: "正在準備語音辨識",
+                isEnabled: true
+            )
+        case .recording:
+            InputControl(
+                systemImage: "stop.circle.fill",
+                label: "停止語音輸入",
+                hint: "停止聆聽並保留已辨識文字",
+                value: "正在收音",
+                isEnabled: true
+            )
+        case .finalizing:
+            InputControl(
+                systemImage: "hourglass.circle.fill",
+                label: "正在結束語音輸入",
+                hint: "請稍候，結束後即可編輯或送出草稿",
+                value: "正在結束語音輸入",
+                isEnabled: false
+            )
+        case .failed:
+            InputControl(
+                systemImage: "mic.circle.fill",
+                label: "重新開始語音輸入",
+                hint: "再次嘗試將說出的問題填入草稿",
+                value: "語音輸入未完成",
+                isEnabled: true
+            )
         }
     }
 

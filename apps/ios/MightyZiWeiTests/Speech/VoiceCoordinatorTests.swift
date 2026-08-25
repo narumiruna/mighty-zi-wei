@@ -1,3 +1,4 @@
+import AVFAudio
 import CoreMedia
 import XCTest
 @testable import MightyZiWei
@@ -76,6 +77,32 @@ final class VoiceCoordinatorTests: XCTestCase {
         )
     }
 
+    func test相同格式的麥克風Buffer會建立獨立副本() throws {
+        let format = AVAudioFormat(
+            standardFormatWithSampleRate: 44_100,
+            channels: 1
+        )!
+        let input = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4)!
+        input.frameLength = 4
+        let samples = input.floatChannelData![0]
+        for index in 0..<4 {
+            samples[index] = Float(index + 1)
+        }
+        let converter = VoiceAudioBufferConverter(
+            inputFormat: format,
+            outputFormat: format
+        )!
+
+        let output = try converter.convert(input)
+
+        XCTAssertFalse(output === input)
+        XCTAssertEqual(output.frameLength, input.frameLength)
+        XCTAssertEqual(output.floatChannelData![0][0], 1)
+        XCTAssertEqual(output.floatChannelData![0][3], 4)
+        samples[0] = 99
+        XCTAssertEqual(output.floatChannelData![0][0], 1)
+    }
+
     func test語音輸入只更新草稿且停止後保留文字() async {
         let input = FakeVoiceInputController()
         let output = FakeVoiceOutputController()
@@ -95,6 +122,32 @@ final class VoiceCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(input.finishCount, 1)
         XCTAssertEqual(draft, "原本 命盤問題")
+    }
+
+    func test語音控制會分別描述準備收音與結束狀態() async {
+        let input = FakeVoiceInputController()
+        input.startDelay = .milliseconds(100)
+        input.finishDelay = .milliseconds(100)
+        let coordinator = VoiceCoordinator(
+            inputController: input,
+            outputController: FakeVoiceOutputController()
+        )
+
+        coordinator.startInput(initialDraft: "", limit: 500) { _ in }
+        XCTAssertEqual(coordinator.inputControl.label, "取消語音輸入")
+        XCTAssertEqual(coordinator.inputControl.value, "正在準備語音辨識")
+        XCTAssertTrue(coordinator.inputControl.isEnabled)
+
+        await waitUntil { coordinator.inputState == .recording }
+        XCTAssertEqual(coordinator.inputControl.label, "停止語音輸入")
+        XCTAssertEqual(coordinator.inputControl.value, "正在收音")
+        XCTAssertTrue(coordinator.inputControl.isEnabled)
+
+        coordinator.finishInput()
+        XCTAssertEqual(coordinator.inputControl.label, "正在結束語音輸入")
+        XCTAssertEqual(coordinator.inputControl.value, "正在結束語音輸入")
+        XCTAssertFalse(coordinator.inputControl.isEnabled)
+        await waitUntil { coordinator.inputState == .idle }
     }
 
     func test取消可選擇恢復錄音前草稿() async {
@@ -366,6 +419,7 @@ private struct TestVoiceError: LocalizedError {
 private final class FakeVoiceInputController: VoiceInputControlling {
     var startError: Error?
     var startDelay: Duration?
+    var finishDelay: Duration?
     var cancelDelay: Duration?
     private var eventHandler: (@MainActor @Sendable (VoiceInputEvent) -> Void)?
     private(set) var startCount = 0
@@ -384,6 +438,9 @@ private final class FakeVoiceInputController: VoiceInputControlling {
     }
 
     func finish() async {
+        if let finishDelay {
+            try? await Task.sleep(for: finishDelay)
+        }
         finishCount += 1
         eventHandler = nil
     }

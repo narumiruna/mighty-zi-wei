@@ -8,6 +8,7 @@ final class UITestVoiceInputController: VoiceInputControlling {
         eventHandler: @escaping @MainActor @Sendable (VoiceInputEvent) -> Void
     ) async throws {
         self.eventHandler = eventHandler
+        try await Task.sleep(for: .milliseconds(300))
         eventHandler(
             .transcription(
                 text: "語音輸入的命盤問題",
@@ -17,6 +18,7 @@ final class UITestVoiceInputController: VoiceInputControlling {
     }
 
     func finish() async {
+        try? await Task.sleep(for: .milliseconds(300))
         eventHandler?(
             .transcription(
                 text: "語音輸入的命盤問題。",

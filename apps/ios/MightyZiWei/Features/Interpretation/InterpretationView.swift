@@ -284,13 +284,13 @@ struct ChartAssistantView: View {
                     AccessibilityNotification.Announcement("已開始語音輸入。")
                         .post()
                 case .finalizing:
-                    AccessibilityNotification.Announcement("正在完成語音辨識。")
+                    AccessibilityNotification.Announcement("正在結束語音輸入。")
                         .post()
                 case .failed(let message):
                     AccessibilityNotification.Announcement(message)
                         .post()
                 case .idle where previousState == .finalizing:
-                    AccessibilityNotification.Announcement("語音輸入已完成，文字仍可編輯。")
+                    AccessibilityNotification.Announcement("語音輸入已結束，文字仍可編輯。")
                         .post()
                 case .idle, .preparing:
                     break
@@ -516,6 +516,7 @@ struct ChartAssistantView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.bordered)
+                .disabled(voiceCoordinator.isInputActive)
                 .accessibilityHint("將問題填入輸入框，不會立即送出")
                 .accessibilityIdentifier("assistant.suggestion.\(index)")
             }
@@ -568,6 +569,7 @@ struct ChartAssistantView: View {
                 HStack {
                     Button("再試一次") { sendQuestion() }
                         .buttonStyle(.borderedProminent)
+                        .disabled(voiceCoordinator.isInputActive)
                     Button("檢查 API 設定") {
                         showsAPIConfiguration = true
                     }
@@ -598,32 +600,28 @@ struct ChartAssistantView: View {
                 )
                     .lineLimit(1...5)
                     .focused($composerIsFocused)
-                    .disabled(assistantStore.isRequesting || assistantStore.hasReachedRoundLimit)
+                    .disabled(
+                        assistantStore.isRequesting
+                            || assistantStore.hasReachedRoundLimit
+                            || voiceCoordinator.isInputActive
+                    )
                     .accessibilityIdentifier("assistant.composer")
 
                 Button {
                     toggleVoiceInput()
                 } label: {
-                    Image(
-                        systemName: voiceCoordinator.isInputActive
-                            ? "stop.circle.fill"
-                            : "mic.circle.fill"
-                    )
-                    .font(.title)
+                    Image(systemName: voiceCoordinator.inputControl.systemImage)
+                        .font(.title)
                 }
                 .disabled(
-                    !voiceCoordinator.isInputActive
-                        && (assistantStore.isRequesting || assistantStore.hasReachedRoundLimit)
+                    !voiceCoordinator.inputControl.isEnabled
+                        || (!voiceCoordinator.isInputActive
+                            && (assistantStore.isRequesting
+                                || assistantStore.hasReachedRoundLimit))
                 )
-                .accessibilityLabel(
-                    voiceCoordinator.isInputActive ? "停止語音輸入" : "開始語音輸入"
-                )
-                .accessibilityHint(
-                    voiceCoordinator.isInputActive
-                        ? "停止聆聽並保留已辨識文字"
-                        : "將說出的問題填入草稿，不會自動送出"
-                )
-                .accessibilityValue(voiceCoordinator.isInputActive ? "正在收音" : "未收音")
+                .accessibilityLabel(voiceCoordinator.inputControl.label)
+                .accessibilityHint(voiceCoordinator.inputControl.hint)
+                .accessibilityValue(voiceCoordinator.inputControl.value)
                 .accessibilityIdentifier("voice.input.toggle")
 
                 Button {
@@ -674,12 +672,12 @@ struct ChartAssistantView: View {
             && assistantStore.draft.count <= ChartAssistantStore.maximumQuestionLength
             && !assistantStore.isRequesting
             && !assistantStore.hasReachedRoundLimit
+            && !voiceCoordinator.isInputActive
     }
 
     private func toggleVoiceInput() {
-        if voiceCoordinator.isInputActive {
-            voiceCoordinator.finishInput()
-        } else {
+        switch voiceCoordinator.inputState {
+        case .idle, .failed:
             composerIsFocused = false
             voiceCoordinator.startInput(
                 initialDraft: assistantStore.draft,
@@ -687,11 +685,17 @@ struct ChartAssistantView: View {
             ) { draft in
                 assistantStore.draft = draft
             }
+        case .preparing:
+            voiceCoordinator.cancelInput(restoresInitialDraft: true)
+        case .recording:
+            voiceCoordinator.finishInput()
+        case .finalizing:
+            break
         }
     }
 
     private func sendQuestion() {
-        voiceCoordinator.cancelInput(restoresInitialDraft: false)
+        guard !voiceCoordinator.isInputActive else { return }
         do {
             assistantStore.send(configuration: try configurationStore.configuration())
             composerIsFocused = false
@@ -885,35 +889,51 @@ private struct InterpretationCategoryDisclosure: View {
     let section: InterpretationSection
     let factsByID: [String: ChartFact]
 
-    var body: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(section.content)
-                    .lineSpacing(5)
-                    .textSelection(.enabled)
+    @Environment(VoiceCoordinator.self) private var voiceCoordinator
+    @State private var isExpanded = false
 
+    private var playbackContentID: String {
+        "interpretation.\(section.id)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup(isExpanded: $isExpanded) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(section.content)
+                        .lineSpacing(5)
+                        .textSelection(.enabled)
+
+                    VoicePlaybackControls(
+                        contentID: playbackContentID,
+                        text: "\(section.title)。\(section.content)"
+                    )
+
+                    InterpretationEvidenceDisclosure(
+                        evidenceFactIDs: section.evidenceFactIDs,
+                        factsByID: factsByID
+                    )
+                }
+                .padding(.top, 10)
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(section.title)
+                        .font(.headline)
+                    Text(section.category.learningPrompt)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
+
+            if !isExpanded, voiceCoordinator.outputContentID == playbackContentID {
                 VoicePlaybackControls(
-                    contentID: "interpretation.\(section.id)",
+                    contentID: playbackContentID,
                     text: "\(section.title)。\(section.content)"
                 )
-
-                InterpretationEvidenceDisclosure(
-                    evidenceFactIDs: section.evidenceFactIDs,
-                    factsByID: factsByID
-                )
-            }
-            .padding(.top, 10)
-        } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(section.title)
-                    .font(.headline)
-                Text(section.category.learningPrompt)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .cardStyle()
-        .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
     }
 }
 

@@ -304,9 +304,10 @@ struct VoiceTranscriptAccumulator: Equatable, Sendable {
 }
 
 // AVAudioEngine 會依序呼叫同一個 tap，converter 不會被多個執行緒同時使用。
-private final class VoiceAudioBufferConverter: @unchecked Sendable {
+final class VoiceAudioBufferConverter: @unchecked Sendable {
     enum ConversionError: Error {
         case cannotCreateBuffer
+        case bufferCopyFailed
         case conversionFailed
     }
 
@@ -329,7 +330,9 @@ private final class VoiceAudioBufferConverter: @unchecked Sendable {
     }
 
     func convert(_ inputBuffer: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
-        guard let converter else { return inputBuffer }
+        guard let converter else {
+            return try copy(inputBuffer)
+        }
         let ratio = outputFormat.sampleRate / inputBuffer.format.sampleRate
         let capacity = AVAudioFrameCount(
             max(1, ceil(Double(inputBuffer.frameLength) * ratio))
@@ -354,6 +357,44 @@ private final class VoiceAudioBufferConverter: @unchecked Sendable {
               outputBuffer.frameLength > 0
         else {
             throw conversionError ?? ConversionError.conversionFailed
+        }
+        return outputBuffer
+    }
+
+    private func copy(_ inputBuffer: AVAudioPCMBuffer) throws -> AVAudioPCMBuffer {
+        guard let outputBuffer = AVAudioPCMBuffer(
+            pcmFormat: outputFormat,
+            frameCapacity: max(1, inputBuffer.frameLength)
+        ) else {
+            throw ConversionError.cannotCreateBuffer
+        }
+        outputBuffer.frameLength = inputBuffer.frameLength
+
+        let inputBuffers = UnsafeMutableAudioBufferListPointer(
+            inputBuffer.mutableAudioBufferList
+        )
+        let outputBuffers = UnsafeMutableAudioBufferListPointer(
+            outputBuffer.mutableAudioBufferList
+        )
+        guard inputBuffers.count == outputBuffers.count else {
+            throw ConversionError.bufferCopyFailed
+        }
+
+        for index in inputBuffers.indices {
+            let sourceBuffer = inputBuffers[index]
+            let byteCount = Int(sourceBuffer.mDataByteSize)
+            guard byteCount <= Int(outputBuffers[index].mDataByteSize) else {
+                throw ConversionError.bufferCopyFailed
+            }
+            if byteCount > 0 {
+                guard let source = sourceBuffer.mData,
+                      let destination = outputBuffers[index].mData
+                else {
+                    throw ConversionError.bufferCopyFailed
+                }
+                destination.copyMemory(from: source, byteCount: byteCount)
+            }
+            outputBuffers[index].mDataByteSize = sourceBuffer.mDataByteSize
         }
         return outputBuffer
     }

@@ -85,8 +85,8 @@ flowchart LR
 
 ### 1. 建立可測試的語音狀態與邊界
 
-- [x] 定義 `VoiceInputControlling`、`VoiceOutputControlling` 與 UI 所需的 idle、preparing、recording、finalizing、speaking、paused、failed 狀態，並先加入狀態轉換測試；預期結果是 SwiftUI 不直接依賴 Apple concrete class，驗證方式是執行新增的語音 controller 單元測試並確認 Swift 6 concurrency 無警告或錯誤。證據：`VoiceCoordinatorTests` 18 項通過，Release build 沒有 Swift concurrency warning。
-- [x] 定義草稿合併規則，區分錄音前文字、已 final 的辨識文字與可被替換的 volatile 文字；預期結果是逐步結果不重複、不覆蓋既有草稿且保持 500 字限制，驗證方式是以 fake result sequence 測試新增、替換、停止、取消、空白與超限案例。證據：`VoiceDraftComposer` 與 `VoiceTranscriptAccumulator` 測試涵蓋替換、final 保護、取消與超限且全數通過。
+- [x] 定義 `VoiceInputControlling`、`VoiceOutputControlling` 與 UI 所需的 idle、preparing、recording、finalizing、speaking、paused、failed 狀態，並先加入狀態轉換測試；預期結果是 SwiftUI 不直接依賴 Apple concrete class，驗證方式是執行新增的語音 controller 單元測試並確認 Swift 6 concurrency 無警告或錯誤。證據：`VoiceCoordinatorTests` 20 項通過，Release build 沒有 Swift concurrency warning。
+- [x] 定義草稿合併規則，區分錄音前文字、已 final 的辨識文字與可被替換的 volatile 文字；預期結果是逐步結果不重複、不覆蓋既有草稿且保持 500 字限制，驗證方式是以 fake result sequence 測試新增、替換、停止、取消、空白與超限案例。證據：`VoiceDraftComposer` 與 `VoiceTranscriptAccumulator` 測試涵蓋替換、final 保護、取消與超限且全數通過；PR 回饋修正後，語音 session 期間的輸入框與建議問題會停用，UI test 驗證使用者無法以鍵盤或建議按鈕產生會被下一筆辨識覆寫的競態。
 - [x] 定義朗讀內容 ID 與控制規則，確保同一時間只朗讀一個段落或回答；預期結果是切換內容會先停止舊內容且狀態指向新內容，驗證方式是以 fake synthesizer 驗證呼叫順序與狀態。證據：切換、完成 callback、延遲取消與停止等待中朗讀測試全數通過。
 
 ### 2. 設定權限與 Xcode project
@@ -106,8 +106,8 @@ flowchart LR
 
 - [x] 在 `ChartAssistantView.composer` 加入一個清楚的麥克風按鈕，錄音中改為停止按鈕並顯示可見狀態；預期結果是按鈕不擠掉文字欄位或送出按鈕，且一般、最大 Dynamic Type、Dark Mode 都能操作，驗證方式是 SwiftUI UI test 與人工外觀檢查。證據：語音 UI test 在 Dark Mode 通過，最大 Dynamic Type UI test 確認麥克風與朗讀按鈕可操作。
 - [x] 將辨識結果寫入 `assistantStore.draft` 而不呼叫 `send`，保留使用者錄音前的文字並允許鍵盤修改；預期結果是停止錄音後只得到可編輯草稿且不新增對話輪次、不產生第三方 API 請求，驗證方式是 fake speech UI test 檢查 draft、turn count 與 mock answerer invocation count。證據：UI test 確認停止前後草稿更新且 `assistant.answer` 不存在，只有手動點擊送出後才產生回答。
-- [x] 在送出、清除對話、切換命盤、達十輪上限、AI request 進行中或 composer disabled 時停止或停用錄音；預期結果是語音狀態與既有對話狀態不互相競爭，驗證方式是針對每個既有狀態執行 controller/UI 測試。證據：既有 AI 狀態 UI tests、語音 draft UI test與 coordinator cancellation regression tests 全數通過。
-- [ ] 為錄音、準備、停止、權限拒絕、超限與失敗狀態加入正體中文文字、accessibility label、hint、value 與 announcement；預期結果是 VoiceOver 使用者能知道是否正在收音及如何停止，驗證方式是 Accessibility Inspector 或實機 VoiceOver 檢查並由 UI test 驗證固定 identifier 與主要 label。
+- [x] 在送出、清除對話、切換命盤、達十輪上限、AI request 進行中或 composer disabled 時停止或停用錄音；預期結果是語音狀態與既有對話狀態不互相競爭，驗證方式是針對每個既有狀態執行 controller/UI 測試。證據：既有 AI 狀態 UI tests、語音 draft UI test與 coordinator cancellation regression tests 全數通過；PR 回饋修正後，錄音、準備與 finalizing 期間的送出按鈕會停用，`sendQuestion` 也有防禦性 guard，UI test 驗證部分草稿不會送出。
+- [ ] 為錄音、準備、停止、權限拒絕、超限與失敗狀態加入正體中文文字、accessibility label、hint、value 與 announcement；預期結果是 VoiceOver 使用者能知道是否正在收音及如何停止，驗證方式是 Accessibility Inspector 或實機 VoiceOver 檢查並由 UI test 驗證固定 identifier 與主要 label。自動化證據：`VoiceCoordinatorTests` 已驗證準備、收音與結束狀態分別提供正確 label、value 與 enabled 狀態，語音 UI test 已驗證準備與收音狀態；實機 VoiceOver 仍待驗證。
 
 ### 5. 實作語音輸出服務
 
@@ -117,16 +117,16 @@ flowchart LR
 
 ### 6. 將朗讀控制整合至解讀與回答
 
-- [x] 在命盤總覽與每個已展開的解讀分類加入一致的「朗讀」控制，朗讀內容只包含段落標題與 `section.content`；預期結果是收合內容不增加第一屏資訊負擔，且不朗讀 evidence、免責說明或隱私文字，驗證方式是 fake output UI test 比對送入文字與目前內容 ID。證據：程式資料流只傳入 title 與 content，UI test 分別啟動總覽與個性分類的 mock 朗讀。
+- [x] 在命盤總覽與每個已展開的解讀分類加入一致的「朗讀」控制，朗讀內容只包含段落標題與 `section.content`；預期結果是收合內容不增加第一屏資訊負擔，且不朗讀 evidence、免責說明或隱私文字，驗證方式是 fake output UI test 比對送入文字與目前內容 ID。證據：程式資料流只傳入 title 與 content，UI test 分別啟動總覽與個性分類的 mock 朗讀；PR 回饋修正後，收合正在朗讀的分類仍會在卡片外層保留暫停與停止控制，UI test 已驗證兩個控制可見且可停止。
 - [x] 在每個 `ConversationTurnView` 的助理回答加入相同朗讀控制，朗讀內容只包含回答本文；預期結果是使用者可指定單則回答且問題與回答依據不被加入 utterance，驗證方式是 UI test 選取不同回答並比對 fake output 收到的文字。證據：程式資料流只傳入 `turn.answer`，語音 UI test 產生回答後成功啟動與停止該回答朗讀。
 - [ ] 朗讀進行時才揭露暫停或繼續與停止操作，並為狀態變化提供 VoiceOver announcement；預期結果是平常介面維持極簡，播放中仍有完整控制與可理解狀態，驗證方式是一般字級、最大 Dynamic Type 與 VoiceOver 人工檢查。
 - [ ] 確保開始錄音會停止朗讀、開始朗讀會停止錄音，且導覽離開目前內容時不持續朗讀；預期結果是麥克風不會收進 App 自己的語音，也不會跨畫面失去控制，驗證方式是 coordinator 單元測試及實機快速切換操作。
 
 ### 7. 補齊自動化與實機驗證
 
-- [x] 新增語音 permission、asset、transcription、draft merge、字數上限、清理與 audio exclusivity 單元測試；預期結果是所有可確定的成功與失敗路徑不依賴真實硬體，驗證方式是執行 MightyZiWeiTests 並確認新增測試全數通過。證據：`VoiceCoordinatorTests` 18 項通過，涵蓋錯誤訊息、transcript、上限、取消競態、清理與 input/output 互斥。
+- [x] 新增語音 permission、asset、transcription、draft merge、字數上限、清理與 audio exclusivity 單元測試；預期結果是所有可確定的成功與失敗路徑不依賴真實硬體，驗證方式是執行 MightyZiWeiTests 並確認新增測試全數通過。證據：`VoiceCoordinatorTests` 20 項通過，涵蓋錯誤訊息、transcript、上限、取消競態、清理、input/output 互斥、分階段無障礙狀態，以及相同格式 audio tap buffer 的獨立副本。
 - [x] 新增 mock speech launch argument 與 UI tests，涵蓋「錄音只填草稿不送出」、「停止或取消」、「朗讀、暫停、繼續、停止」、「切換朗讀內容」及主要 accessibility identifier；預期結果是 CI 不觸發系統權限提示或播放聲音，驗證方式是執行 MightyZiWeiUITests 並確認測試全數通過。證據：`-UITestMockSpeech` 不要求權限或播放聲音，語音 UI test 及完整 5 項 UI suite 通過。
-- [x] 以 iPhone Simulator 驗證既有首頁、排盤、命盤、基本解讀、AI 多輪問答、Dark Mode 與最大 Dynamic Type 沒有回歸；預期結果是所有既有單元與 UI tests 通過，驗證方式是執行 `cd apps/ios && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer just test` 並保存文字結果，不將 `.xcresult` 圖片加入 repository。證據：`just test` 通過 71 個單元測試與 5 個 UI tests；後續新增的完成 callback 與分類朗讀分別以 18 個 focused tests 與 1 個 focused UI test 通過。
+- [x] 以 iPhone Simulator 驗證既有首頁、排盤、命盤、基本解讀、AI 多輪問答、Dark Mode 與最大 Dynamic Type 沒有回歸；預期結果是所有既有單元與 UI tests 通過，驗證方式是執行 `cd apps/ios && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer just test` 並保存文字結果，不將 `.xcresult` 圖片加入 repository。證據：PR 回饋修正後重新執行 `just test`，74 個單元測試與 5 個 UI tests 全數通過；focused 語音 UI test 亦單獨通過。
 - [ ] 以至少一台 iOS 26 實機驗證首次資產準備、允許與拒絕權限、`zh-TW` 辨識、500 字上限、喇叭與耳機或藍牙輸出、來電或音訊中斷、背景切換及重新啟動；預期結果是所有流程可恢復且無音訊檔案被保存，驗證方式是依本項清單逐項記錄裝置、OS 版本與結果。
 
 ### 8. 更新產品與隱私文件
@@ -137,7 +137,7 @@ flowchart LR
 
 ### 9. 最終整合與安全檢查
 
-- [x] 重新執行 `xcodegen generate`、Debug simulator build、完整測試與 Release generic device build；預期結果是 iOS 26.0 deployment target、Swift 6 strict concurrency 與 signing-independent build 均維持成功，驗證方式是保存四個命令的 exit code 與測試摘要。證據：XcodeGen、Debug、`just test` 與乾淨 Release generic iOS build 均 exit 0，Release 沒有程式碼 warning。
+- [x] 重新執行 `xcodegen generate`、Debug simulator build、完整測試與 Release generic device build；預期結果是 iOS 26.0 deployment target、Swift 6 strict concurrency 與 signing-independent build 均維持成功，驗證方式是保存四個命令的 exit code 與測試摘要。證據：XcodeGen、Debug、`just test` 與乾淨 Release generic iOS build 均 exit 0；PR 回饋修正後再次完成 74 個單元測試、5 個 UI tests 與乾淨 Release generic iOS build，Release 沒有程式碼 warning。
 - [x] 檢查最終 diff，只包含計畫內 Swift、XcodeGen project、測試與正體中文文件，且沒有音訊、圖片、`.xcresult`、secret 或非預期 generated setting 變更；預期結果是 repository 符合檔案傳送與 Git 規則，驗證方式是執行 `git status --short`、`git diff --check`、檔案類型搜尋與逐檔 diff review。證據：`git diff --check` 通過，binary extension 與 secret pattern 搜尋無結果，scheme 生成噪音已回復。
 - [x] 將本文件每個已驗證項目附上簡短證據並勾選，任何失敗、跳過或只在 simulator 驗證的項目保持未勾選；預期結果是執行紀錄可追溯，驗證方式是重新閱讀本文件並確認每個勾選項都有命令、測試結果或實機紀錄。證據：所有勾選項均附命令、測試或 inspected artifact；實機相依項目保持未勾選。
 
@@ -174,5 +174,5 @@ flowchart LR
 - [ ] 語音控制在 VoiceOver、最大 Dynamic Type、Dark Mode 下可理解且可操作；驗證方式是 UI test 與實機 accessibility audit 通過。
 - [x] 用途說明、產品文件、隱私文件與支援文件和實際 framework 行為一致；驗證方式是 generated Info.plist 與四份文件逐項審查通過。證據：Release Info.plist 與 `PRODUCT.md`、`README.md`、`docs/PRIVACY.md`、`docs/SUPPORT.md` 已逐項審查。
 - [x] App 未保存音訊、未新增第三方語音服務、未把未送出的草稿傳給 AI endpoint，也未新增二進位產物；驗證方式是程式碼資料流審查、網路 mock assertion 與最終 Git diff 檢查通過。證據：僅使用 Apple framework 與記憶體 buffer，UI test 證明未手動送出前沒有回答，binary 與 secret 搜尋無結果。
-- [x] Debug build、Release generic device build、所有單元測試與所有 UI tests 通過；驗證方式是附上最終命令、exit code 與測試摘要。證據：`just test` exit 0（71 unit、5 UI），後續 affected checks exit 0（18 speech unit、1 voice UI），乾淨 Release generic iOS build exit 0。
+- [x] Debug build、Release generic device build、所有單元測試與所有 UI tests 通過；驗證方式是附上最終命令、exit code 與測試摘要。證據：PR 回饋修正後 `just test` exit 0（74 unit、5 UI），focused voice UI test exit 0，乾淨 Release generic iOS build exit 0。
 - [ ] 本計畫所有必要 checkbox 均有驗證證據且已勾選後，才將頂端狀態改為 `DONE`；驗證方式是最終逐項稽核沒有未完成、失敗、跳過或未驗證項目。
