@@ -10,6 +10,18 @@ iOS 仍可能依使用者的系統設定，將 App 資料納入裝置備份或�
 
 AI 解讀是選用功能。
 
+語音輸入也是選用功能，而且只用於建立「命盤 AI」的可編輯問題草稿。
+
+首次使用語音輸入時，iOS 會要求語音辨識與麥克風權限。
+
+正體中文語音資產可能需要由 Apple 下載到裝置，下載行為與資產由 iOS 管理。
+
+App 不會錄製成音訊檔案，也不會保存、匯出或分享麥克風音訊。
+
+辨識結果只會先更新裝置上的問題草稿，不會自動送出或產生第三方 API 費用。
+
+朗讀命盤解讀或回答時，App 使用 Apple 提供的裝置語音，而且只有你主動點擊朗讀後才會播放。
+
 使用 AI 解讀前，你必須自行設定 HTTPS OpenAI 相容 API base URL 或完整 Responses API endpoint 與模型名稱；未以 `/responses` 結尾時 App 會自動補齊路徑，不要求 Bearer token 的相容服務可將 API key 留空。
 
 API key 儲存在不可同步、僅限本裝置且解鎖時可讀的 iOS Keychain item，不會寫入 SwiftData、診斷記錄或 repository。
@@ -18,7 +30,7 @@ API key 儲存在不可同步、僅限本裝置且解鎖時可讀的 iOS Keychai
 
 你主動使用「測試 API 連線」時，App 會傳送不含命盤資料的小型 structured output request，且第三方服務商仍可能計費。
 
-App 以非串流 HTTPS 請求，將產生解讀或回答所需的命盤 facts、interpretation seeds、你的問題、本次對話、prompt 與技術性請求資料直接傳送至你指定的第三方服務商。
+只有你最後主動按下送出後，App 才會以非串流 HTTPS 請求，將產生解讀或回答所需的命盤 facts、interpretation seeds、文字問題、本次對話、prompt 與技術性請求資料直接傳送至你指定的第三方服務商。
 
 這些資料離開裝置後，會依該服務商的服務條款、隱私政策、資料保留設定與所在地法規處理。
 

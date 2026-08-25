@@ -185,6 +185,94 @@ final class MightyZiWeiUITests: XCTestCase {
         )
     }
 
+    func test語音輸入只填草稿且解讀朗讀可控制() {
+        app.terminate()
+        XCUIDevice.shared.appearance = .dark
+        app = XCUIApplication()
+        app.launchArguments = localizationArguments + [
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryL",
+            "-UITestMockAI",
+            "-UITestMockSpeech"
+        ]
+        app.launch()
+
+        let createButton = app.buttons["home.createChart"]
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5))
+        createButton.tap()
+        let generateButton = app.buttons["birthInput.generate"]
+        if !generateButton.waitForExistence(timeout: 5), createButton.exists {
+            createButton.tap()
+        }
+        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        generateButton.tap()
+        XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
+
+        let interpretationButton = app.buttons["chart.interpretation"]
+        scrollToElement(interpretationButton)
+        interpretationButton.tap()
+        XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
+
+        let readButton = app.buttons["朗讀"].firstMatch
+        scrollToElement(readButton)
+        readButton.tap()
+
+        let playbackToggle = app.buttons["暫停"].firstMatch
+        XCTAssertTrue(playbackToggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(playbackToggle.label, "暫停")
+        playbackToggle.tap()
+        let resumePlayback = app.buttons["繼續"].firstMatch
+        XCTAssertTrue(resumePlayback.waitForExistence(timeout: 5))
+        resumePlayback.tap()
+
+        let stopPlayback = app.buttons["停止"].firstMatch
+        XCTAssertTrue(stopPlayback.exists)
+        stopPlayback.tap()
+        XCTAssertTrue(readButton.waitForExistence(timeout: 5))
+
+        let personality = app.buttons["interpretation.category.personality"]
+        scrollToElement(personality)
+        personality.tap()
+        let categoryReadButton = app.buttons.matching(
+            NSPredicate(format: "label == %@", "朗讀")
+        ).element(boundBy: 1)
+        scrollToElement(categoryReadButton)
+        categoryReadButton.tap()
+        XCTAssertTrue(app.buttons["暫停"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["停止"].firstMatch.tap()
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let askAIButton = app.buttons["chart.askAI"]
+        scrollToElement(askAIButton)
+        askAIButton.tap()
+        XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
+
+        let microphone = app.buttons["voice.input.toggle"]
+        XCTAssertTrue(microphone.waitForExistence(timeout: 5))
+        microphone.tap()
+
+        let composer = app.textFields["assistant.composer"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 5))
+        XCTAssertEqual(composer.value as? String, "語音輸入的命盤問題")
+        XCTAssertFalse(app.otherElements["assistant.answer"].exists)
+        XCTAssertEqual(microphone.label, "停止語音輸入")
+
+        microphone.tap()
+        let microphoneStopped = app.buttons["voice.input.toggle"]
+        XCTAssertTrue(microphoneStopped.waitForExistence(timeout: 5))
+        XCTAssertEqual(composer.value as? String, "語音輸入的命盤問題。")
+        XCTAssertFalse(app.otherElements["assistant.answer"].exists)
+
+        app.buttons["assistant.send"].tap()
+        let answer = app.otherElements["assistant.answer"]
+        XCTAssertTrue(answer.waitForExistence(timeout: 5))
+        let answerReadButton = app.buttons["朗讀"].firstMatch
+        scrollToElement(answerReadButton)
+        answerReadButton.tap()
+        XCTAssertTrue(app.buttons["暫停"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["停止"].firstMatch.tap()
+    }
+
     func test深色模式與宮位無障礙標籤() {
         app.terminate()
         XCUIDevice.shared.appearance = .dark
@@ -210,7 +298,9 @@ final class MightyZiWeiUITests: XCTestCase {
         app.terminate()
         app.launchArguments = localizationArguments + [
             "-UIPreferredContentSizeCategoryName",
-            "UICTContentSizeCategoryAccessibilityXXXL"
+            "UICTContentSizeCategoryAccessibilityXXXL",
+            "-UITestMockAI",
+            "-UITestMockSpeech"
         ]
         app.launch()
 
@@ -233,13 +323,19 @@ final class MightyZiWeiUITests: XCTestCase {
         let interpretationButton = app.buttons["chart.interpretation"]
         scrollToElement(interpretationButton)
         XCTAssertTrue(interpretationButton.isHittable)
+        interpretationButton.tap()
+        XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
+        let readButton = app.buttons["朗讀"].firstMatch
+        scrollToElement(readButton)
+        XCTAssertTrue(readButton.isHittable)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         attachScreenshot(name: "最大動態字級命盤")
 
         app.tabBars.buttons["AI"].tap()
         XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
-        let configureAPI = app.buttons["assistant.configureAPI"]
-        scrollToElement(configureAPI)
-        XCTAssertTrue(configureAPI.isHittable)
+        let microphone = app.buttons["voice.input.toggle"]
+        scrollToElement(microphone)
+        XCTAssertTrue(microphone.isHittable)
     }
 
     private func scrollToElement(_ element: XCUIElement) {
