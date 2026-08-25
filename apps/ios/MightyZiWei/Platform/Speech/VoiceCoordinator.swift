@@ -187,6 +187,17 @@ final class VoiceCoordinator {
         }
     }
 
+    var outputStatusContentID: String? {
+        switch outputState {
+        case .speaking(let contentID), .paused(let contentID):
+            contentID
+        case .failed(let contentID, _):
+            contentID
+        case .idle:
+            nil
+        }
+    }
+
     func startInput(
         initialDraft: String,
         limit: Int,
@@ -327,11 +338,18 @@ final class VoiceCoordinator {
         outputState = .idle
     }
 
-    func stopAll() {
-        if isInputActive {
-            cancelInput(restoresInitialDraft: false)
-        }
+    func stopAll(
+        completion: (@MainActor @Sendable () -> Void)? = nil
+    ) {
         stopOutput()
+        if isInputActive {
+            cancelInput(
+                restoresInitialDraft: false,
+                completion: completion
+            )
+        } else {
+            completion?()
+        }
     }
 
     private func receiveInput(_ event: VoiceInputEvent) {

@@ -1,10 +1,17 @@
 import AVFAudio
 import CoreMedia
+import SwiftUI
 import XCTest
 @testable import MightyZiWei
 
 @MainActor
 final class VoiceCoordinatorTests: XCTestCase {
+    func test語音生命週期只在進入背景時停止() {
+        XCTAssertFalse(shouldStopVoice(for: .active))
+        XCTAssertFalse(shouldStopVoice(for: .inactive))
+        XCTAssertTrue(shouldStopVoice(for: .background))
+    }
+
     func test草稿保留既有文字並替換逐步辨識結果() {
         var composer = VoiceDraftComposer(initialDraft: "原本問題", limit: 20)
 
@@ -336,6 +343,25 @@ final class VoiceCoordinatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(output.stopCount, 2)
     }
 
+    func test停止所有語音會在輸入清理完成後執行Completion() async {
+        let input = FakeVoiceInputController()
+        input.cancelDelay = .milliseconds(50)
+        let coordinator = VoiceCoordinator(
+            inputController: input,
+            outputController: FakeVoiceOutputController()
+        )
+        var didComplete = false
+
+        coordinator.startInput(initialDraft: "", limit: 500) { _ in }
+        await waitUntil { coordinator.inputState == .recording }
+        coordinator.stopAll { didComplete = true }
+
+        XCTAssertFalse(didComplete)
+        await waitUntil { didComplete }
+        XCTAssertEqual(coordinator.inputState, .idle)
+        XCTAssertEqual(input.cancelCount, 1)
+    }
+
     func test朗讀失敗顯示在指定內容且文字流程不受影響() {
         let output = FakeVoiceOutputController()
         output.speakError = TestVoiceError(message: "沒有正體中文語音。")
@@ -350,6 +376,27 @@ final class VoiceCoordinatorTests: XCTestCase {
             coordinator.outputState,
             .failed(contentID: "section", message: "沒有正體中文語音。")
         )
+        XCTAssertNil(coordinator.outputContentID)
+        XCTAssertEqual(coordinator.outputStatusContentID, "section")
+    }
+
+    func test朗讀中途失敗仍保留內容識別() {
+        let output = FakeVoiceOutputController()
+        let coordinator = VoiceCoordinator(
+            inputController: FakeVoiceInputController(),
+            outputController: output
+        )
+
+        coordinator.speak(contentID: "section", text: "仍可閱讀")
+        coordinator.pauseOutput()
+        output.emit(.failed(message: "目前無法暫停朗讀。"))
+
+        XCTAssertEqual(
+            coordinator.outputState,
+            .failed(contentID: "section", message: "目前無法暫停朗讀。")
+        )
+        XCTAssertNil(coordinator.outputContentID)
+        XCTAssertEqual(coordinator.outputStatusContentID, "section")
     }
 
     func test所有系統語音輸入錯誤都有正體中文說明() {

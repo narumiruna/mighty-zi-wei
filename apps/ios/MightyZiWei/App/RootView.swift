@@ -257,7 +257,7 @@ struct RootView: View {
         .environment(navigation)
         .environment(assistantStore)
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active {
+            if shouldStopVoice(for: phase) {
                 voiceCoordinator.stopAll()
             }
         }
@@ -282,4 +282,8 @@ struct RootView: View {
             voiceCoordinator.stopAll()
         }
     }
+}
+
+func shouldStopVoice(for phase: ScenePhase) -> Bool {
+    phase == .background
 }

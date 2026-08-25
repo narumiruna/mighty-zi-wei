@@ -121,7 +121,7 @@ struct InterpretationView: View {
                     .foregroundStyle(.secondary)
 
                 Button {
-                    showsAPIConfiguration = true
+                    presentAPIConfiguration()
                 } label: {
                     Label("設定 AI API", systemImage: "gearshape")
                         .frame(maxWidth: .infinity)
@@ -131,6 +131,12 @@ struct InterpretationView: View {
             }
         }
         .cardStyle()
+    }
+
+    private func presentAPIConfiguration() {
+        voiceCoordinator.stopAll {
+            showsAPIConfiguration = true
+        }
     }
 
     private func generateWithAI() {
@@ -149,6 +155,7 @@ struct InterpretationView: View {
                 )
                 try Task.checkCancellation()
                 guard generationID == identifier else { return }
+                voiceCoordinator.stopOutput()
                 interpretation = result
                 statusMessage = "內容已通過命盤依據驗證。"
             } catch is CancellationError {
@@ -156,6 +163,7 @@ struct InterpretationView: View {
                 statusMessage = "已停止整理，保留目前內容。"
             } catch {
                 guard generationID == identifier else { return }
+                voiceCoordinator.stopOutput()
                 interpretation = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
                 statusMessage = generationFailureMessage(for: error)
             }
@@ -472,7 +480,7 @@ struct ChartAssistantView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button {
-                showsAPIConfiguration = true
+                presentAPIConfiguration()
             } label: {
                 Text("設定 AI API")
                     .frame(maxWidth: .infinity)
@@ -571,7 +579,7 @@ struct ChartAssistantView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(voiceCoordinator.isInputActive)
                     Button("檢查 API 設定") {
-                        showsAPIConfiguration = true
+                        presentAPIConfiguration()
                     }
                     .buttonStyle(.bordered)
                 }
@@ -691,6 +699,12 @@ struct ChartAssistantView: View {
             voiceCoordinator.finishInput()
         case .finalizing:
             break
+        }
+    }
+
+    private func presentAPIConfiguration() {
+        voiceCoordinator.stopAll {
+            showsAPIConfiguration = true
         }
     }
 
@@ -926,7 +940,7 @@ private struct InterpretationCategoryDisclosure: View {
             }
             .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
 
-            if !isExpanded, voiceCoordinator.outputContentID == playbackContentID {
+            if !isExpanded, voiceCoordinator.outputStatusContentID == playbackContentID {
                 VoicePlaybackControls(
                     contentID: playbackContentID,
                     text: "\(section.title)。\(section.content)"
