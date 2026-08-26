@@ -32,6 +32,13 @@ final class MightyZiWeiUITests: XCTestCase {
             createButton.tap()
         }
         XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        let compareHours = app.buttons["birthInput.compareHours"]
+        XCTAssertTrue(compareHours.exists)
+        compareHours.tap()
+        XCTAssertTrue(app.navigationBars["時辰比較"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["目前輸入"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
         generateButton.tap()
 
         XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
@@ -96,6 +103,27 @@ final class MightyZiWeiUITests: XCTestCase {
         saveButton.tap()
         XCTAssertTrue(app.staticTexts["命盤已儲存在這台裝置。"].waitForExistence(timeout: 3))
 
+        let journalButton = app.buttons["chart.journal"]
+        scrollToElement(journalButton)
+        journalButton.tap()
+        XCTAssertTrue(app.buttons["journal.addNote"].waitForExistence(timeout: 5))
+        app.buttons["journal.addNote"].tap()
+        let noteContent = app.textFields["journal.noteContent"]
+        XCTAssertTrue(noteContent.waitForExistence(timeout: 5))
+        noteContent.tap()
+        noteContent.typeText("之後再觀察這個傾向")
+        app.buttons["journal.saveNote"].tap()
+        XCTAssertTrue(app.staticTexts["之後再觀察這個傾向"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let shareButton = app.buttons["chart.share"]
+        XCTAssertTrue(shareButton.waitForExistence(timeout: 5))
+        shareButton.tap()
+        XCTAssertTrue(app.navigationBars["隱私分享"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.switches["包含名稱"].value as? String, "0")
+        XCTAssertEqual(app.switches["包含完整出生資料"].value as? String, "0")
+        app.buttons["關閉"].tap()
+
         let interpretationButton = app.buttons["chart.interpretation"]
         scrollToElement(interpretationButton)
         interpretationButton.tap()
@@ -104,6 +132,30 @@ final class MightyZiWeiUITests: XCTestCase {
         let configureAIButton = app.buttons["interpretation.configureAI"]
         XCTAssertTrue(configureAIButton.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["基本解讀"].exists)
+        let bookmark = app.buttons["收藏"].firstMatch
+        scrollToElement(bookmark)
+        bookmark.tap()
+        XCTAssertTrue(app.buttons["已收藏"].firstMatch.waitForExistence(timeout: 3))
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
+        scrollToElement(journalButton)
+        journalButton.tap()
+        let savedBookmark = app.descendants(matching: .any)["journal.bookmark"].firstMatch
+        XCTAssertTrue(savedBookmark.waitForExistence(timeout: 5))
+        savedBookmark.tap()
+        XCTAssertTrue(app.navigationBars["收藏內容"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["journal.bookmarkDetail.content"]
+                .waitForExistence(timeout: 5)
+        )
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        scrollToElement(interpretationButton)
+        interpretationButton.tap()
+        XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
+        scrollToElement(configureAIButton)
         configureAIButton.tap()
         XCTAssertTrue(app.navigationBars["AI API 設定"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["ai.endpoint"].exists)
@@ -156,13 +208,13 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
         let composer = app.textFields["assistant.composer"]
         XCTAssertTrue(composer.waitForExistence(timeout: 5))
-        XCTAssertEqual(composer.value as? String, "從命盤來看，你的核心性格可能有什麼特色？")
+        XCTAssertEqual(composer.value as? String, "關於你的核心性格，目前有哪些已驗證的命盤依據？")
         XCTAssertFalse(app.otherElements["assistant.answer"].exists)
         app.buttons["assistant.send"].tap()
 
         XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["命盤助理"].exists)
-        XCTAssertTrue(app.staticTexts["從命盤來看，你的核心性格可能有什麼特色？"].exists)
+        XCTAssertTrue(app.staticTexts["關於你的核心性格，目前有哪些已驗證的命盤依據？"].exists)
 
         composer.tap()
         composer.typeText("可以再說清楚一點嗎？")

@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AIConfigurationStore.self) private var aiConfigurationStore
     @Query private var charts: [SavedChart]
+    @Query private var insights: [SavedInsight]
     @State private var showsDeleteAllConfirmation = false
     @State private var errorMessage: String?
 
@@ -34,7 +35,10 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
+                Section("學習") {
+                    NavigationLink("星曜與術語小百科") {
+                        ChartEncyclopediaView()
+                    }
                     NavigationLink("關於與排盤說明") {
                         AboutView()
                     }
@@ -56,10 +60,10 @@ struct SettingsView: View {
                 isPresented: $showsDeleteAllConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("全部刪除", role: .destructive) { deleteAll() }
+                Button("刪除所有命盤、筆記與收藏", role: .destructive) { deleteAll() }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("所有已儲存命盤都會刪除，而且無法復原。")
+                Text(SavedInsightDeletionSummary(insights: insights).message)
             }
             .alert("刪除未完成", isPresented: errorIsPresented) {
                 Button("好", role: .cancel) {}
@@ -78,9 +82,11 @@ struct SettingsView: View {
 
     private func deleteAll() {
         do {
+            try modelContext.delete(model: SavedInsight.self)
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {
+            modelContext.rollback()
             errorMessage = "目前無法刪除已儲存命盤，請稍後再試。"
         }
     }

@@ -762,9 +762,10 @@ Narumi
 
 ```swift
 SavedChart
+SavedInsight
 ```
 
-包含：
+`SavedChart` 包含：
 
 * UUID。
 * 名稱。
@@ -783,8 +784,21 @@ SavedChart
 不得在規則修正後靜默顯示舊的錯誤 cache。
 如果重新計算可能改變結果，應在 release notes 或命盤畫面向使用者說明。
 
-MVP 不永久保存 AI interpretation 或命盤 AI 對話。
-AI 或 fallback interpretation 由目前命盤重新產生。
+`SavedInsight` 保存使用者主動建立的私人筆記、自我觀察標記與單則收藏。
+
+收藏必須保留顯示內容、來源位置與 `evidenceFactIDs`。
+
+MVP 不永久保存完整 AI interpretation 或命盤 AI 對話。
+
+使用者可以主動收藏單一解讀段落或單則 AI 回答，但收藏不得成為新的命盤 fact 或 interpretation seed。
+
+AI 或 fallback interpretation 仍由目前命盤重新產生。
+
+使用者可以建立 AES-GCM 加密備份。
+
+備份只包含 `SavedChart` source-of-truth 與 `SavedInsight`，不得包含 API key、endpoint、模型名稱、完整 AI 對話或 `ZiWeiChart` cache。
+
+每份備份使用新的隨機 256-bit 復原金鑰，App 不保存金鑰，還原前必須驗證封裝版本、演算法、大小、完整性、資料 schema、重複 ID 與跨資料引用。
 
 ---
 
@@ -801,6 +815,9 @@ MVP：
 * API key 儲存在不可同步、僅限本裝置且解鎖時可讀的 Keychain item。
 * 不加入第三方 analytics 或 crash reporting SDK。
 * 提供刪除單張命盤、刪除所有已儲存命盤與清除 API 設定的功能。
+* 私人筆記、自我觀察標記與收藏只有在使用者主動建立加密備份時才會離開 App；命盤文字分享不包含這些內容。
+* 命盤文字分享預設隱藏姓名、出生日期、時間與時區。
+* 加密備份不得包含 API 設定、AI 對話或衍生命盤快取。
 
 第三方服務的隱私政策、資料保存方式、所在地法規與費用規則由使用者選擇的服務決定。
 
@@ -855,7 +872,7 @@ Subscription
 * Cloud sync。
 * 社群。
 * 命盤分享圖片。
-* 合盤。
+* 合盤或適配度判定；facts-only 雙命盤並列不屬於合盤解讀。
 * 每日運勢。
 * 流日。
 * Push notification。
@@ -994,6 +1011,13 @@ ZiWeiChart
 * Rename。
 * Rule set and schema versioning。
 * Derived chart cache regeneration。
+* 私人筆記與自我觀察標記。
+* 保留 evidence 的單則解讀與 AI 回答收藏。
+* AES-GCM 加密備份與還原。
+* 相鄰時辰 facts-only 比較。
+* 雙命盤 facts-only 互動參考。
+* 星曜與術語小百科。
+* 預設隱藏個資的純文字分享。
 
 ---
 

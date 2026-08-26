@@ -52,6 +52,32 @@ final class ChartLearningContentTests: XCTestCase {
         XCTAssertFalse(summary.contains("不應出現"))
     }
 
+    func test未支援宮位摘要不會挪用其他分類Seed() {
+        let cases: [(PalaceKind, InterpretationCategory, String)] = [
+            (.travel, .career, "工作內容不能解讀外在環境。"),
+            (.property, .wealth, "資源內容不能解讀家庭與安定感。"),
+            (.health, .overview, "總覽內容不能解讀身心節奏。")
+        ]
+
+        for (palace, category, unsupportedMeaning) in cases {
+            let fact = makeStarFact(star: .ziWei, palace: palace)
+            let summary = PalaceLearningSummaryBuilder().make(
+                palaceKind: palace,
+                mainStars: [.ziWei],
+                facts: [fact],
+                seeds: [InterpretationSeed(
+                    id: "seed.\(category.rawValue).ziwei.\(palace.rawValue)",
+                    category: category,
+                    meaning: unsupportedMeaning,
+                    evidenceFactIDs: [fact.id]
+                )]
+            )
+
+            XCTAssertFalse(summary.contains(unsupportedMeaning), "\(palace) 誤用了 \(category) seed")
+            XCTAssertTrue(summary.contains("已驗證位置"), "\(palace) 應退回 facts-only 摘要")
+        }
+    }
+
     func test雙主星摘要最多使用兩段已驗證內容() {
         let stars: [Star] = [.ziWei, .tanLang, .wuQu]
         let facts = stars.map { makeStarFact(star: $0, palace: .life) }
@@ -75,6 +101,53 @@ final class ChartLearningContentTests: XCTestCase {
         XCTAssertTrue(summary.contains("紫微"))
         XCTAssertTrue(summary.contains("貪狼"))
         XCTAssertFalse(summary.contains("武曲"))
+    }
+
+    func test宮位建議問題只填入已驗證範圍() {
+        let fact = makeStarFact(star: .ziWei, palace: .life)
+        let supported = PalaceQuestionSuggestionBuilder().make(
+            palaceKind: .life,
+            mainStars: [.ziWei],
+            facts: [fact],
+            seeds: [InterpretationSeed(
+                id: "seed.personality.ziwei.life",
+                category: .personality,
+                meaning: "可能重視整體方向。",
+                evidenceFactIDs: [fact.id]
+            )]
+        )
+        XCTAssertEqual(supported.count, 3)
+        XCTAssertTrue(supported[0].contains("已驗證"))
+        XCTAssertTrue(supported[1].contains("只根據 App 已有解讀"))
+        XCTAssertTrue(supported[2].contains("區分盤面事實與解讀"))
+
+        let mismatchedCategory = PalaceQuestionSuggestionBuilder().make(
+            palaceKind: .life,
+            mainStars: [.ziWei],
+            facts: [fact],
+            seeds: [InterpretationSeed(
+                id: "seed.overview.ziwei.life",
+                category: .overview,
+                meaning: "這個分類不能支持命宮主題。",
+                evidenceFactIDs: [fact.id]
+            )]
+        )
+        XCTAssertTrue(mismatchedCategory[1].contains("只能確認位置"))
+
+        let healthFact = makeStarFact(star: .ziWei, palace: .health)
+        let unsupportedPalace = PalaceQuestionSuggestionBuilder().make(
+            palaceKind: .health,
+            mainStars: [.ziWei],
+            facts: [healthFact],
+            seeds: [InterpretationSeed(
+                id: "seed.overview.ziwei.health",
+                category: .overview,
+                meaning: "只能用於總覽，不能解讀身心節奏。",
+                evidenceFactIDs: [healthFact.id]
+            )]
+        )
+        XCTAssertTrue(unsupportedPalace[1].contains("只能確認位置"))
+        XCTAssertFalse(unsupportedPalace.joined().contains("預測"))
     }
 
     func test無主星與缺少Seed時提供誠實的部分狀態() {

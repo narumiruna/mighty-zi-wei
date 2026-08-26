@@ -48,6 +48,6 @@ struct MightyZiWeiApp: App {
                 .environment(aiConfigurationStore)
                 .environment(voiceCoordinator)
         }
-        .modelContainer(for: SavedChart.self)
+        .modelContainer(for: [SavedChart.self, SavedInsight.self])
     }
 }

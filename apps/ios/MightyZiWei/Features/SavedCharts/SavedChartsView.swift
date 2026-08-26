@@ -1,11 +1,27 @@
 import SwiftData
 import SwiftUI
 
+struct SavedInsightDeletionSummary: Equatable {
+    let noteCount: Int
+    let bookmarkCount: Int
+
+    init(insights: [SavedInsight]) {
+        noteCount = insights.count { $0.kind == .note }
+        bookmarkCount = insights.count { $0.kind == .bookmark }
+    }
+
+    var message: String {
+        "將一併永久刪除 \(noteCount) 則私人筆記與 \(bookmarkCount) 則收藏。這個動作無法復原。"
+    }
+}
+
 struct SavedChartsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
+    @Query private var insights: [SavedInsight]
 
     @State private var chartToRename: SavedChart?
+    @State private var chartToDelete: SavedChart?
     @State private var proposedName = ""
     @State private var showsDeleteAllConfirmation = false
     @State private var errorMessage: String?
@@ -36,9 +52,9 @@ struct SavedChartsView: View {
                                 }
                                 .tint(.accentColor)
                             }
-                            .swipeActions(edge: .trailing) {
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
-                                    delete(chart)
+                                    chartToDelete = chart
                                 } label: {
                                     Label("刪除", systemImage: "trash")
                                 }
@@ -49,15 +65,28 @@ struct SavedChartsView: View {
             }
             .navigationTitle("已儲存命盤")
             .toolbar {
-                if !charts.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if charts.count >= 2 {
+                            NavigationLink {
+                                DualChartComparisonView()
+                            } label: {
+                                Label("雙人互動參考", systemImage: "person.2")
+                            }
+                        }
+                        NavigationLink {
+                            BackupManagementView()
+                        } label: {
+                            Label("加密備份與還原", systemImage: "lock.doc")
+                        }
+                        if !charts.isEmpty {
+                            Divider()
                             Button("刪除所有已儲存命盤", systemImage: "trash", role: .destructive) {
                                 showsDeleteAllConfirmation = true
                             }
-                        } label: {
-                            Label("更多操作", systemImage: "ellipsis.circle")
                         }
+                    } label: {
+                        Label("更多操作", systemImage: "ellipsis.circle")
                     }
                 }
             }
@@ -69,14 +98,30 @@ struct SavedChartsView: View {
                 Text("名稱只會儲存在本機。")
             }
             .confirmationDialog(
+                "刪除這張命盤？",
+                isPresented: deleteIsPresented,
+                titleVisibility: .visible
+            ) {
+                Button("刪除命盤、筆記與收藏", role: .destructive) {
+                    guard let chartToDelete else { return }
+                    delete(chartToDelete)
+                    self.chartToDelete = nil
+                }
+                Button("取消", role: .cancel) {
+                    chartToDelete = nil
+                }
+            } message: {
+                Text(singleDeletionSummary.message)
+            }
+            .confirmationDialog(
                 "刪除所有已儲存命盤？",
                 isPresented: $showsDeleteAllConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("全部刪除", role: .destructive) { deleteAll() }
+                Button("刪除所有命盤、筆記與收藏", role: .destructive) { deleteAll() }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("這個動作無法復原。")
+                Text(SavedInsightDeletionSummary(insights: insights).message)
             }
             .alert("操作未完成", isPresented: errorIsPresented) {
                 Button("好", role: .cancel) {}
@@ -90,6 +135,22 @@ struct SavedChartsView: View {
         Binding(
             get: { chartToRename != nil },
             set: { if !$0 { chartToRename = nil } }
+        )
+    }
+
+    private var deleteIsPresented: Binding<Bool> {
+        Binding(
+            get: { chartToDelete != nil },
+            set: { if !$0 { chartToDelete = nil } }
+        )
+    }
+
+    private var singleDeletionSummary: SavedInsightDeletionSummary {
+        guard let chartToDelete else {
+            return SavedInsightDeletionSummary(insights: [])
+        }
+        return SavedInsightDeletionSummary(
+            insights: insights.filter { $0.chartID == chartToDelete.id }
         )
     }
 
@@ -112,15 +173,18 @@ struct SavedChartsView: View {
     }
 
     private func delete(_ chart: SavedChart) {
+        insights.filter { $0.chartID == chart.id }.forEach(modelContext.delete)
         modelContext.delete(chart)
         saveChanges(errorText: "無法刪除命盤。")
     }
 
     private func deleteAll() {
         do {
+            try modelContext.delete(model: SavedInsight.self)
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {
+            modelContext.rollback()
             errorMessage = "無法刪除所有已儲存命盤。"
         }
     }
@@ -129,6 +193,7 @@ struct SavedChartsView: View {
         do {
             try modelContext.save()
         } catch {
+            modelContext.rollback()
             errorMessage = errorText
         }
     }
@@ -161,6 +226,20 @@ struct SavedChartRow: View {
     }
 }
 
+struct SavedChartContentRevision: Hashable, Sendable {
+    let birthProfileData: Data
+    let ruleSetID: String
+    let ruleSetVersion: Int
+    let appSchemaVersion: Int
+
+    init(savedChart: SavedChart) {
+        birthProfileData = savedChart.birthProfileData
+        ruleSetID = savedChart.ruleSetID
+        ruleSetVersion = savedChart.ruleSetVersion
+        appSchemaVersion = savedChart.appSchemaVersion
+    }
+}
+
 struct SavedChartLoaderView: View {
     let savedChart: SavedChart
     @Environment(\.modelContext) private var modelContext
@@ -188,10 +267,13 @@ struct SavedChartLoaderView: View {
                 ProgressView("正在準備命盤…")
             }
         }
-        .task { load() }
+        .task(id: SavedChartContentRevision(savedChart: savedChart)) {
+            load()
+        }
     }
 
     private func load() {
+        errorMessage = nil
         let current = RuleSetIdentity.taiwanTraditionalSanheV1
         let needsRecalculation = savedChart.ruleSetID != current.id
             || savedChart.ruleSetVersion != current.version

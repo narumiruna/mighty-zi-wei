@@ -48,6 +48,7 @@ final class ChartAssistantStore {
     private let defaults: UserDefaults
     private var requestTask: Task<Void, Never>?
     private var requestID: UUID?
+    private var unsavedSelectionFallback: ChartAssistantChart?
 
     private(set) var selectedChart: ChartAssistantChart?
     private(set) var turns: [ChartConversationTurn] = []
@@ -104,8 +105,37 @@ final class ChartAssistantStore {
         applySelection(chart, clearsConversation: shouldClear)
     }
 
+    func migrateSelection(from previousID: UUID, to chart: ChartAssistantChart) {
+        guard let previousChart = selectedChart,
+              previousChart.id == previousID else { return }
+        let fallback = previousChart.savedChartID == nil && chart.savedChartID != nil
+            ? previousChart
+            : nil
+        applySelection(chart, clearsConversation: false)
+        unsavedSelectionFallback = fallback
+    }
+
+    func reconcileDeletedSavedChart(_ savedChartID: UUID) {
+        guard selectedChart?.savedChartID == savedChartID else { return }
+        if let fallback = unsavedSelectionFallback {
+            applySelection(fallback, clearsConversation: false)
+            unsavedSelectionFallback = nil
+        } else {
+            clearSelection()
+        }
+    }
+
+    func reconcileSelection(with chart: ChartAssistantChart) {
+        guard let selectedChart, selectedChart.id == chart.id else { return }
+        let sourceChanged = selectedChart.detail != chart.detail
+            || selectedChart.facts != chart.facts
+            || selectedChart.seeds != chart.seeds
+        applySelection(chart, clearsConversation: sourceChanged)
+    }
+
     func clearSelection() {
         cancelRequest()
+        unsavedSelectionFallback = nil
         selectedChart = nil
         turns = []
         draft = ""
@@ -174,9 +204,12 @@ final class ChartAssistantStore {
     ) {
         if clearsConversation {
             cancelRequest()
+            unsavedSelectionFallback = nil
             turns = []
             draft = ""
             requestState = .idle
+        } else if selectedChart?.id != chart.id {
+            unsavedSelectionFallback = nil
         }
         selectedChart = chart
         if let savedChartID = chart.savedChartID {
