@@ -251,6 +251,39 @@ final class EncryptedBackupServiceTests: XCTestCase {
         }
     }
 
+    func test拒絕同一命盤與來源位置的重複收藏() throws {
+        let fixture = try makeValidPayloadFixture()
+        var object = fixture.object
+        var first = try XCTUnwrap(
+            try XCTUnwrap(object["insights"] as? [[String: Any]]).first
+        )
+        first["kind"] = SavedInsight.Kind.bookmark.rawValue
+        var duplicate = first
+        duplicate["id"] = UUID().uuidString
+        object["insights"] = [first, duplicate]
+        let backupData = try seal(
+            JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+            recoveryKey: fixture.recoveryKey
+        )
+
+        XCTAssertThrowsError(try EncryptedBackupService.restore(
+            from: backupData,
+            recoveryKey: fixture.recoveryKey
+        )) { error in
+            guard case let .duplicateBookmarkLocation(chartID, locationID) = error as? BackupError else {
+                return XCTFail("預期拒絕重複收藏位置，實際為 \(error)")
+            }
+            XCTAssertEqual(chartID.uuidString, "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+            XCTAssertEqual(locationID, "palace.life")
+        }
+    }
+
+    func test還原前警告會說明整本內容與較新資料可能刪除() {
+        XCTAssertTrue(BackupRestoreWarning.message.contains("整本筆記與收藏"))
+        XCTAssertTrue(BackupRestoreWarning.message.contains("本機較新的內容"))
+        XCTAssertTrue(BackupRestoreWarning.message.contains("永久刪除"))
+    }
+
     func test還原會原子更新同ID資料並移除該命盤舊Insight() throws {
         let incomingChart = try makeSavedChart()
         incomingChart.name = "備份名稱"

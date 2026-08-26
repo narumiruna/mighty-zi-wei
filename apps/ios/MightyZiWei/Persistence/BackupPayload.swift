@@ -150,6 +150,21 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     }
 }
 
+struct BackupExportSnapshot: Sendable {
+    let charts: [BackupChartDTO]
+    let insights: [BackupInsightDTO]
+
+    init(savedCharts: [SavedChart], insights: [BackupInsightDTO] = []) throws {
+        charts = try savedCharts.map(BackupChartDTO.init(savedChart:))
+        self.insights = insights
+    }
+
+    init(savedCharts: [SavedChart], savedInsights: [SavedInsight]) throws {
+        charts = try savedCharts.map(BackupChartDTO.init(savedChart:))
+        insights = savedInsights.map(BackupInsightDTO.init(savedInsight:))
+    }
+}
+
 struct BackupPayload: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
 
@@ -161,25 +176,26 @@ struct BackupPayload: Codable, Equatable, Sendable {
         schemaVersion: Int = BackupPayload.currentSchemaVersion,
         charts: [BackupChartDTO],
         insights: [BackupInsightDTO]
-    ) throws {
+    ) {
         self.schemaVersion = schemaVersion
         self.charts = charts
         self.insights = insights
-        try validate()
     }
 
     init(savedCharts: [SavedChart], insights: [BackupInsightDTO] = []) throws {
-        try self.init(
-            charts: savedCharts.map(BackupChartDTO.init(savedChart:)),
+        let snapshot = try BackupExportSnapshot(
+            savedCharts: savedCharts,
             insights: insights
         )
+        self.init(charts: snapshot.charts, insights: snapshot.insights)
     }
 
     init(savedCharts: [SavedChart], savedInsights: [SavedInsight]) throws {
-        try self.init(
-            charts: savedCharts.map(BackupChartDTO.init(savedChart:)),
-            insights: savedInsights.map(BackupInsightDTO.init(savedInsight:))
+        let snapshot = try BackupExportSnapshot(
+            savedCharts: savedCharts,
+            savedInsights: savedInsights
         )
+        self.init(charts: snapshot.charts, insights: snapshot.insights)
     }
 
     func validate() throws {
@@ -217,6 +233,7 @@ struct BackupPayload: Codable, Equatable, Sendable {
         }
 
         var insightIDs = Set<UUID>()
+        var bookmarkLocations = Set<BackupBookmarkLocation>()
         for insight in insights {
             guard insightIDs.insert(insight.id).inserted else {
                 throw BackupError.duplicateInsightID(insight.id)
@@ -227,8 +244,20 @@ struct BackupPayload: Codable, Equatable, Sendable {
                     chartID: insight.chartID
                 )
             }
-            guard SavedInsight.Kind(rawValue: insight.kind) != nil else {
+            guard let kind = SavedInsight.Kind(rawValue: insight.kind) else {
                 throw BackupError.invalidInsightKind(insight.kind)
+            }
+            if kind == .bookmark {
+                let location = BackupBookmarkLocation(
+                    chartID: insight.chartID,
+                    locationID: insight.locationID
+                )
+                guard bookmarkLocations.insert(location).inserted else {
+                    throw BackupError.duplicateBookmarkLocation(
+                        chartID: insight.chartID,
+                        locationID: insight.locationID
+                    )
+                }
             }
             guard SavedInsight.Marker(rawValue: insight.marker) != nil else {
                 throw BackupError.invalidInsightMarker(insight.marker)
@@ -249,15 +278,20 @@ struct BackupPayload: Codable, Equatable, Sendable {
     }
 }
 
+private struct BackupBookmarkLocation: Hashable {
+    let chartID: UUID
+    let locationID: String
+}
+
 struct ValidatedBackupPayload: Sendable {
-    let schemaVersion: Int
-    let charts: [BackupChartDTO]
-    let insights: [BackupInsightDTO]
+    let payload: BackupPayload
+
+    var schemaVersion: Int { payload.schemaVersion }
+    var charts: [BackupChartDTO] { payload.charts }
+    var insights: [BackupInsightDTO] { payload.insights }
 
     fileprivate init(payload: BackupPayload) {
-        schemaVersion = payload.schemaVersion
-        charts = payload.charts
-        insights = payload.insights
+        self.payload = payload
     }
 
     func makeSavedCharts() throws -> [SavedChart] {

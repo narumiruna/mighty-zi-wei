@@ -2,6 +2,10 @@ import SwiftData
 import SwiftUI
 
 struct SavedChartPickerLabelBuilder: Sendable {
+    static func make(savedChart: SavedChart) -> String {
+        make(name: savedChart.name, profile: try? savedChart.birthProfile())
+    }
+
     static func make(name: String, profile: BirthProfile?) -> String {
         guard let profile else { return name }
         let date = profile.localDate
@@ -93,11 +97,8 @@ struct DualChartComparisonView: View {
     private func chartPicker(title: String, selection: Binding<UUID?>) -> some View {
         Picker(title, selection: selection) {
             ForEach(charts) { chart in
-                Text(SavedChartPickerLabelBuilder.make(
-                    name: chart.name,
-                    profile: try? chart.birthProfile()
-                ))
-                .tag(Optional(chart.id))
+                Text(SavedChartPickerLabelBuilder.make(savedChart: chart))
+                    .tag(Optional(chart.id))
             }
         }
         .pickerStyle(.menu)

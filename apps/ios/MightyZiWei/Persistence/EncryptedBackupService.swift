@@ -65,6 +65,7 @@ enum BackupError: Error, Equatable {
     case authenticationFailed
     case duplicateChartID(UUID)
     case duplicateInsightID(UUID)
+    case duplicateBookmarkLocation(chartID: UUID, locationID: String)
     case missingInsightChart(insightID: UUID, chartID: UUID)
     case invalidInsightKind(String)
     case invalidInsightMarker(String)
@@ -99,6 +100,8 @@ extension BackupError: LocalizedError {
             "備份包含重複的命盤識別碼。"
         case .duplicateInsightID:
             "備份包含重複的筆記或收藏識別碼。"
+        case .duplicateBookmarkLocation:
+            "備份包含同一命盤與來源位置的重複收藏。"
         case .missingInsightChart:
             "收藏或筆記引用了備份中不存在的命盤。"
         case .invalidInsightKind:
@@ -121,19 +124,32 @@ enum EncryptedBackupService {
         savedCharts: [SavedChart],
         insights: [BackupInsightDTO] = []
     ) throws -> EncryptedBackup {
-        try encrypt(BackupPayload(savedCharts: savedCharts, insights: insights))
+        try makeBackup(BackupExportSnapshot(
+            savedCharts: savedCharts,
+            insights: insights
+        ))
     }
 
     static func makeBackup(
         savedCharts: [SavedChart],
         savedInsights: [SavedInsight]
     ) throws -> EncryptedBackup {
-        try encrypt(BackupPayload(savedCharts: savedCharts, savedInsights: savedInsights))
+        try makeBackup(BackupExportSnapshot(
+            savedCharts: savedCharts,
+            savedInsights: savedInsights
+        ))
     }
 
-    static func encrypt(_ payload: BackupPayload) throws -> EncryptedBackup {
-        try payload.validate()
-        let payloadData = try BackupJSONCoding.encoder().encode(payload)
+    static func makeBackup(_ snapshot: BackupExportSnapshot) throws -> EncryptedBackup {
+        let payload = BackupPayload(
+            charts: snapshot.charts,
+            insights: snapshot.insights
+        )
+        return try encrypt(payload.validated())
+    }
+
+    static func encrypt(_ payload: ValidatedBackupPayload) throws -> EncryptedBackup {
+        let payloadData = try BackupJSONCoding.encoder().encode(payload.payload)
         try validateSize(payloadData)
 
         let recoveryKey = BackupRecoveryKey()

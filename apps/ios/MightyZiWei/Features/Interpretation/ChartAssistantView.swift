@@ -239,7 +239,7 @@ struct ChartAssistantView: View {
                     prepareSelection(savedChart)
                 } label: {
                     Label(
-                        savedChart.name,
+                        SavedChartPickerLabelBuilder.make(savedChart: savedChart),
                         systemImage: savedChart.id == chart.savedChartID
                             ? "checkmark.circle.fill"
                             : "circle"

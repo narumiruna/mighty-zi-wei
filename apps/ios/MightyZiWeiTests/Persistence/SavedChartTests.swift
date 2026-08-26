@@ -37,24 +37,60 @@ final class SavedChartTests: XCTestCase {
         XCTAssertNotNil(try JSONDecoder().decode(ZiWeiChart.self, from: XCTUnwrap(saved.chartCacheData)))
     }
 
-    func test雙命盤選單以出生時間區分同名命盤() {
-        let first = BirthProfile(
+    func test所有命盤選單以出生時間區分同名命盤() throws {
+        let firstProfile = BirthProfile(
             localDate: LocalDate(year: 1990, month: 6, day: 15),
             localTime: LocalTime(hour: 10, minute: 30),
             timeZoneIdentifier: "Asia/Taipei"
         )
-        let second = BirthProfile(
+        let secondProfile = BirthProfile(
+            localDate: LocalDate(year: 1992, month: 8, day: 20),
+            localTime: LocalTime(hour: 18, minute: 30),
+            timeZoneIdentifier: "Asia/Taipei"
+        )
+        let first = try SavedChart.make(
+            name: "同名命盤",
+            profile: firstProfile,
+            chart: ZiWeiCalculator().calculate(firstProfile)
+        )
+        let second = try SavedChart.make(
+            name: "同名命盤",
+            profile: secondProfile,
+            chart: ZiWeiCalculator().calculate(secondProfile)
+        )
+
+        let firstLabel = SavedChartPickerLabelBuilder.make(savedChart: first)
+        let secondLabel = SavedChartPickerLabelBuilder.make(savedChart: second)
+
+        XCTAssertEqual(firstLabel, "同名命盤・1990/06/15 10:30")
+        XCTAssertEqual(secondLabel, "同名命盤・1992/08/20 18:30")
+        XCTAssertNotEqual(firstLabel, secondLabel)
+    }
+
+    func test已開啟命盤的來源資料變更時內容Revision也會更新() throws {
+        let originalProfile = BirthProfile(
+            localDate: LocalDate(year: 1990, month: 6, day: 15),
+            localTime: LocalTime(hour: 10, minute: 30),
+            timeZoneIdentifier: "Asia/Taipei"
+        )
+        let savedChart = try SavedChart.make(
+            name: "測試命盤",
+            profile: originalProfile,
+            chart: ZiWeiCalculator().calculate(originalProfile)
+        )
+        let originalRevision = SavedChartContentRevision(savedChart: savedChart)
+        let restoredProfile = BirthProfile(
             localDate: LocalDate(year: 1992, month: 8, day: 20),
             localTime: LocalTime(hour: 18, minute: 30),
             timeZoneIdentifier: "Asia/Taipei"
         )
 
-        let firstLabel = SavedChartPickerLabelBuilder.make(name: "同名命盤", profile: first)
-        let secondLabel = SavedChartPickerLabelBuilder.make(name: "同名命盤", profile: second)
+        savedChart.birthProfileData = try JSONEncoder().encode(restoredProfile)
 
-        XCTAssertEqual(firstLabel, "同名命盤・1990/06/15 10:30")
-        XCTAssertEqual(secondLabel, "同名命盤・1992/08/20 18:30")
-        XCTAssertNotEqual(firstLabel, secondLabel)
+        XCTAssertNotEqual(
+            SavedChartContentRevision(savedChart: savedChart),
+            originalRevision
+        )
     }
 
     func test命盤識別只在對應SwiftData紀錄仍存在時有效() {

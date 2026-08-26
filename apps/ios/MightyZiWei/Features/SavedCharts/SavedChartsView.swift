@@ -226,6 +226,20 @@ struct SavedChartRow: View {
     }
 }
 
+struct SavedChartContentRevision: Hashable, Sendable {
+    let birthProfileData: Data
+    let ruleSetID: String
+    let ruleSetVersion: Int
+    let appSchemaVersion: Int
+
+    init(savedChart: SavedChart) {
+        birthProfileData = savedChart.birthProfileData
+        ruleSetID = savedChart.ruleSetID
+        ruleSetVersion = savedChart.ruleSetVersion
+        appSchemaVersion = savedChart.appSchemaVersion
+    }
+}
+
 struct SavedChartLoaderView: View {
     let savedChart: SavedChart
     @Environment(\.modelContext) private var modelContext
@@ -253,10 +267,13 @@ struct SavedChartLoaderView: View {
                 ProgressView("正在準備命盤…")
             }
         }
-        .task { load() }
+        .task(id: SavedChartContentRevision(savedChart: savedChart)) {
+            load()
+        }
     }
 
     private func load() {
+        errorMessage = nil
         let current = RuleSetIdentity.taiwanTraditionalSanheV1
         let needsRecalculation = savedChart.ruleSetID != current.id
             || savedChart.ruleSetVersion != current.version

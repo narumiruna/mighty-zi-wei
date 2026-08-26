@@ -24,6 +24,11 @@ struct BackupDocument: FileDocument {
     }
 }
 
+enum BackupRestoreWarning {
+    static let message =
+        "還原會以備份取代相同識別碼命盤的整本筆記與收藏。本機較新的內容若不在備份中，也會永久刪除。"
+}
+
 struct BackupManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
@@ -36,7 +41,9 @@ struct BackupManagementView: View {
     @State private var showsImporter = false
     @State private var importedData: Data?
     @State private var importedFilename: String?
+    @State private var isExporting = false
     @State private var isRestoring = false
+    @State private var showsRestoreConfirmation = false
     @State private var statusMessage: String?
     @State private var errorMessage: String?
 
@@ -53,9 +60,13 @@ struct BackupManagementView: View {
                 Button {
                     prepareExport()
                 } label: {
-                    Label("建立 AES-GCM 加密備份", systemImage: "lock.doc")
+                    if isExporting {
+                        ProgressView("正在建立加密備份…")
+                    } else {
+                        Label("建立 AES-GCM 加密備份", systemImage: "lock.doc")
+                    }
                 }
-                .disabled(charts.isEmpty)
+                .disabled(charts.isEmpty || isExporting)
                 .accessibilityIdentifier("backup.export")
 
                 if !exportRecoveryKey.isEmpty {
@@ -89,7 +100,7 @@ struct BackupManagementView: View {
                         .font(.footnote.monospaced())
                         .accessibilityIdentifier("backup.importKey")
                     Button {
-                        restore()
+                        showsRestoreConfirmation = true
                     } label: {
                         if isRestoring {
                             ProgressView("正在驗證備份…")
@@ -103,7 +114,7 @@ struct BackupManagementView: View {
                             || importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     )
                     .accessibilityIdentifier("backup.restore")
-                    Text("相同識別碼的本機命盤、筆記與收藏會由備份內容取代；其他本機資料會保留。")
+                    Text(BackupRestoreWarning.message)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -135,6 +146,18 @@ struct BackupManagementView: View {
         ) { result in
             selectImport(result)
         }
+        .confirmationDialog(
+            "還原並取代整本內容？",
+            isPresented: $showsRestoreConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("還原並取代", role: .destructive) {
+                restore()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(BackupRestoreWarning.message)
+        }
         .alert("備份操作未完成", isPresented: errorIsPresented) {
             Button("好", role: .cancel) {}
         } message: {
@@ -150,17 +173,30 @@ struct BackupManagementView: View {
     }
 
     private func prepareExport() {
+        guard !isExporting else { return }
         do {
             let chartIDs = Set(charts.map(\.id))
             let includedInsights = insights.filter { chartIDs.contains($0.chartID) }
-            let backup = try EncryptedBackupService.makeBackup(
+            let snapshot = try BackupExportSnapshot(
                 savedCharts: charts,
                 savedInsights: includedInsights
             )
-            exportDocument = BackupDocument(data: backup.data)
-            exportRecoveryKey = backup.recoveryKey.encoded
-            statusMessage = nil
-            showsExporter = true
+            isExporting = true
+
+            Task {
+                do {
+                    let backup = try await Task.detached(priority: .userInitiated) {
+                        try EncryptedBackupService.makeBackup(snapshot)
+                    }.value
+                    exportDocument = BackupDocument(data: backup.data)
+                    exportRecoveryKey = backup.recoveryKey.encoded
+                    statusMessage = nil
+                    showsExporter = true
+                } catch {
+                    errorMessage = safeMessage(for: error)
+                }
+                isExporting = false
+            }
         } catch {
             errorMessage = safeMessage(for: error)
         }
