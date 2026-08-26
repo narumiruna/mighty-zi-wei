@@ -47,4 +47,42 @@ final class SavedInsightTests: XCTestCase {
         XCTAssertEqual(bookmark.evidenceFactIDs, evidence)
         XCTAssertEqual(bookmark.marker, .none)
     }
+
+    func test重新產生內容後可辨識並更新同一收藏() {
+        let bookmark = SavedInsight.bookmark(
+            chartID: UUID(),
+            locationID: "interpretation.ai.overview",
+            title: "原始標題",
+            content: "原始內容",
+            evidenceFactIDs: ["fact.original"]
+        )
+        let originalID = bookmark.id
+
+        XCTAssertTrue(bookmark.matchesBookmark(
+            title: "原始標題",
+            content: "原始內容",
+            evidenceFactIDs: ["fact.original"]
+        ))
+        XCTAssertFalse(bookmark.matchesBookmark(
+            title: "更新標題",
+            content: "更新內容",
+            evidenceFactIDs: ["fact.updated"]
+        ))
+
+        bookmark.updateBookmark(
+            title: "更新標題",
+            content: "更新內容",
+            evidenceFactIDs: ["fact.updated"]
+        )
+
+        XCTAssertEqual(bookmark.id, originalID)
+        XCTAssertEqual(bookmark.title, "更新標題")
+        XCTAssertEqual(bookmark.content, "更新內容")
+        XCTAssertEqual(bookmark.evidenceFactIDs, ["fact.updated"])
+        XCTAssertTrue(bookmark.matchesBookmark(
+            title: "更新標題",
+            content: "更新內容",
+            evidenceFactIDs: ["fact.updated"]
+        ))
+    }
 }

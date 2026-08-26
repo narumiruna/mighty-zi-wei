@@ -322,13 +322,26 @@ struct InsightBookmarkButton: View {
         }
     }
 
+    private var matchesCurrentContent: Bool {
+        existing?.matchesBookmark(
+            title: title,
+            content: content,
+            evidenceFactIDs: evidenceFactIDs
+        ) == true
+    }
+
+    private var buttonTitle: String {
+        guard existing != nil else { return "收藏" }
+        return matchesCurrentContent ? "已收藏" : "更新收藏"
+    }
+
     var body: some View {
         Button {
             toggle()
         } label: {
             Label(
-                existing == nil ? "收藏" : "已收藏",
-                systemImage: existing == nil ? "bookmark" : "bookmark.fill"
+                buttonTitle,
+                systemImage: matchesCurrentContent ? "bookmark.fill" : "bookmark"
             )
         }
         .disabled(validChartID == nil)
@@ -350,7 +363,15 @@ struct InsightBookmarkButton: View {
     private func toggle() {
         guard let chartID = validChartID else { return }
         if let existing {
-            modelContext.delete(existing)
+            if matchesCurrentContent {
+                modelContext.delete(existing)
+            } else {
+                existing.updateBookmark(
+                    title: title,
+                    content: content,
+                    evidenceFactIDs: evidenceFactIDs
+                )
+            }
         } else {
             modelContext.insert(SavedInsight.bookmark(
                 chartID: chartID,

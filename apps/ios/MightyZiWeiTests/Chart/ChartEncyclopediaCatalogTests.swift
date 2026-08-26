@@ -45,7 +45,10 @@ final class ChartEncyclopediaCatalogTests: XCTestCase {
             $0.explanatorySource == ChartEncyclopediaEntry.currentProductLanguageSource
         })
         XCTAssertTrue(editorialEntries.allSatisfy {
-            $0.explanatorySource?.contains("current-product-language") == true
+            $0.explanatorySource?.contains("現行產品文案") == true
+        })
+        XCTAssertTrue(editorialEntries.allSatisfy {
+            $0.explanatorySource?.contains("current-product-language") == false
         })
         XCTAssertTrue(ChartEncyclopediaCatalog.transformationEntries.allSatisfy {
             $0.explanatorySource == nil

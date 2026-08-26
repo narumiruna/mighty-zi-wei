@@ -65,9 +65,7 @@ final class SavedInsight {
         self.title = title
         self.content = content
         self.markerRawValue = marker.rawValue
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        self.evidenceFactIDsData = (try? encoder.encode(evidenceFactIDs)) ?? Data("[]".utf8)
+        self.evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -76,6 +74,28 @@ final class SavedInsight {
         self.title = Self.normalized(title, fallback: "私人筆記")
         self.content = content.trimmingCharacters(in: .whitespacesAndNewlines)
         self.marker = marker
+        updatedAt = .now
+    }
+
+    func matchesBookmark(
+        title: String,
+        content: String,
+        evidenceFactIDs: [String]
+    ) -> Bool {
+        kind == .bookmark
+            && self.title == Self.normalized(title, fallback: "收藏內容")
+            && self.content == content.trimmingCharacters(in: .whitespacesAndNewlines)
+            && self.evidenceFactIDs == evidenceFactIDs
+    }
+
+    func updateBookmark(
+        title: String,
+        content: String,
+        evidenceFactIDs: [String]
+    ) {
+        self.title = Self.normalized(title, fallback: "收藏內容")
+        self.content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
         updatedAt = .now
     }
 
@@ -99,5 +119,11 @@ final class SavedInsight {
     private static func normalized(_ value: String, fallback: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    private static func encodeEvidenceFactIDs(_ identifiers: [String]) -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return (try? encoder.encode(identifiers)) ?? Data("[]".utf8)
     }
 }

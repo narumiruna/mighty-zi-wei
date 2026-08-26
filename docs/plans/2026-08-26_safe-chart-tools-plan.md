@@ -36,7 +36,7 @@
 
 2026-08-26 使用 iPhone 17 Pro simulator 執行 repository 完整 `xcodebuild test`。
 
-單元測試共 110 個，UI 測試共 5 個，全部通過且沒有失敗。
+單元測試共 111 個，UI 測試共 5 個，全部通過且沒有失敗。
 
 加密備份測試涵蓋隨機金鑰與 nonce、錯誤金鑰、竄改、10 MiB 限制、schema、演算法、重複 ID、無效 evidence、跨資料引用與原子更新。
 

@@ -16,7 +16,7 @@ enum ChartEncyclopediaReference: Hashable, Sendable {
 
 struct ChartEncyclopediaEntry: Identifiable, Equatable, Sendable {
     static let currentProductLanguageSource =
-        "ChartLearningContent.swift（current-product-language，待專家與內容安全審核）"
+        "ChartLearningContent.swift（現行產品文案，待專家與內容安全審核）"
 
     let id: String
     let title: String
