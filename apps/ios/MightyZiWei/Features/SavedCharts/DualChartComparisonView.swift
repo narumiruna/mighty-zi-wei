@@ -1,6 +1,23 @@
 import SwiftData
 import SwiftUI
 
+struct SavedChartPickerLabelBuilder: Sendable {
+    static func make(name: String, profile: BirthProfile?) -> String {
+        guard let profile else { return name }
+        let date = profile.localDate
+        let time = profile.localTime
+        let birthDateTime = String(
+            format: "%04d/%02d/%02d %02d:%02d",
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute
+        )
+        return "\(name)・\(birthDateTime)"
+    }
+}
+
 struct DualChartComparisonView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
@@ -76,7 +93,11 @@ struct DualChartComparisonView: View {
     private func chartPicker(title: String, selection: Binding<UUID?>) -> some View {
         Picker(title, selection: selection) {
             ForEach(charts) { chart in
-                Text(chart.name).tag(Optional(chart.id))
+                Text(SavedChartPickerLabelBuilder.make(
+                    name: chart.name,
+                    profile: try? chart.birthProfile()
+                ))
+                .tag(Optional(chart.id))
             }
         }
         .pickerStyle(.menu)

@@ -224,6 +224,13 @@ final class EncryptedBackupServiceTests: XCTestCase {
         }
     }
 
+    func test重複筆記或收藏錯誤使用正體中文() {
+        let error = BackupError.duplicateInsightID(UUID())
+
+        XCTAssertEqual(error.errorDescription, "備份包含重複的筆記或收藏識別碼。")
+        XCTAssertFalse(error.errorDescription?.contains("insight") == true)
+    }
+
     func test拒絕重複ChartID() throws {
         let fixture = try makeValidPayloadFixture()
         var object = fixture.object

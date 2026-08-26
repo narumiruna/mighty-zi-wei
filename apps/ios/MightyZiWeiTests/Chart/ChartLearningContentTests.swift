@@ -52,6 +52,32 @@ final class ChartLearningContentTests: XCTestCase {
         XCTAssertFalse(summary.contains("不應出現"))
     }
 
+    func test未支援宮位摘要不會挪用其他分類Seed() {
+        let cases: [(PalaceKind, InterpretationCategory, String)] = [
+            (.travel, .career, "工作內容不能解讀外在環境。"),
+            (.property, .wealth, "資源內容不能解讀家庭與安定感。"),
+            (.health, .overview, "總覽內容不能解讀身心節奏。")
+        ]
+
+        for (palace, category, unsupportedMeaning) in cases {
+            let fact = makeStarFact(star: .ziWei, palace: palace)
+            let summary = PalaceLearningSummaryBuilder().make(
+                palaceKind: palace,
+                mainStars: [.ziWei],
+                facts: [fact],
+                seeds: [InterpretationSeed(
+                    id: "seed.\(category.rawValue).ziwei.\(palace.rawValue)",
+                    category: category,
+                    meaning: unsupportedMeaning,
+                    evidenceFactIDs: [fact.id]
+                )]
+            )
+
+            XCTAssertFalse(summary.contains(unsupportedMeaning), "\(palace) 誤用了 \(category) seed")
+            XCTAssertTrue(summary.contains("已驗證位置"), "\(palace) 應退回 facts-only 摘要")
+        }
+    }
+
     func test雙主星摘要最多使用兩段已驗證內容() {
         let stars: [Star] = [.ziWei, .tanLang, .wuQu]
         let facts = stars.map { makeStarFact(star: $0, palace: .life) }

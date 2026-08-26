@@ -98,7 +98,7 @@ extension BackupError: LocalizedError {
         case .duplicateChartID:
             "備份包含重複的命盤識別碼。"
         case .duplicateInsightID:
-            "備份包含重複的 insight 識別碼。"
+            "備份包含重複的筆記或收藏識別碼。"
         case .missingInsightChart:
             "收藏或筆記引用了備份中不存在的命盤。"
         case .invalidInsightKind:

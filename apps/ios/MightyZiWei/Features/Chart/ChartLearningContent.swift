@@ -114,6 +114,19 @@ enum ChartLearningCatalog {
     }
 }
 
+private enum PalaceInterpretationSupport {
+    static func category(for palaceKind: PalaceKind) -> InterpretationCategory? {
+        switch palaceKind {
+        case .life: .personality
+        case .spouse: .relationships
+        case .wealth: .wealth
+        case .career: .career
+        case .siblings, .children, .health, .travel, .friends, .property, .fortune, .parents:
+            nil
+        }
+    }
+}
+
 struct PalaceQuestionSuggestionBuilder: Sendable {
     func make(
         palaceKind: PalaceKind,
@@ -124,7 +137,7 @@ struct PalaceQuestionSuggestionBuilder: Sendable {
         let learning = ChartLearningCatalog.palace(palaceKind)
         let validFactIDs = Set(facts.map(\.id))
         let starFactIDs = Set(mainStars.map { "natal.star.\($0.rawValue).palace" })
-        let supportedCategory = supportedCategory(for: palaceKind)
+        let supportedCategory = PalaceInterpretationSupport.category(for: palaceKind)
         let hasSupportedMeaning = seeds.contains { seed in
             seed.category == supportedCategory
                 && !seed.evidenceFactIDs.isEmpty
@@ -139,17 +152,6 @@ struct PalaceQuestionSuggestionBuilder: Sendable {
         let boundaryQuestion = "請區分盤面事實與解讀，說明\(palaceKind.displayName)目前能回答到什麼範圍。"
         return [evidenceQuestion, meaningQuestion, boundaryQuestion]
     }
-
-    private func supportedCategory(for palaceKind: PalaceKind) -> InterpretationCategory? {
-        switch palaceKind {
-        case .life: .personality
-        case .spouse: .relationships
-        case .wealth: .wealth
-        case .career: .career
-        case .siblings, .children, .health, .travel, .friends, .property, .fortune, .parents:
-            nil
-        }
-    }
 }
 
 struct PalaceLearningSummaryBuilder: Sendable {
@@ -161,9 +163,13 @@ struct PalaceLearningSummaryBuilder: Sendable {
     ) -> String {
         let validFactIDs = Set(facts.map(\.id))
         let mainStarFactIDs = Set(mainStars.map { "natal.star.\($0.rawValue).palace" })
+        let supportedCategory = PalaceInterpretationSupport.category(for: palaceKind)
         let meanings = seeds
             .filter { seed in
-                seed.evidenceFactIDs.contains { mainStarFactIDs.contains($0) && validFactIDs.contains($0) }
+                seed.category == supportedCategory
+                    && !seed.evidenceFactIDs.isEmpty
+                    && seed.evidenceFactIDs.allSatisfy(validFactIDs.contains)
+                    && seed.evidenceFactIDs.contains(where: mainStarFactIDs.contains)
             }
             .map(\.meaning)
             .uniqued()
