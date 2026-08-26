@@ -6,7 +6,8 @@ final class MightyZiWeiUITests: XCTestCase {
 
     private let localizationArguments = [
         "-AppleLanguages", "(zh-Hant)",
-        "-AppleLocale", "zh_TW"
+        "-AppleLocale", "zh_TW",
+        "-UITestResetData"
     ]
 
     override func setUp() async throws {
@@ -195,6 +196,7 @@ final class MightyZiWeiUITests: XCTestCase {
             createButton.tap()
         }
         XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        scrollToElement(generateButton)
         generateButton.tap()
         XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
 
@@ -358,13 +360,16 @@ final class MightyZiWeiUITests: XCTestCase {
         app.launch()
 
         app.buttons["home.createChart"].tap()
-        app.buttons["birthInput.generate"].tap()
+        let generateButton = app.buttons["birthInput.generate"]
+        scrollToElement(generateButton)
+        generateButton.tap()
         XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
 
         let lifePalaceButton = app.buttons["chart.palace.life"]
         XCTAssertTrue(lifePalaceButton.waitForExistence(timeout: 5))
         XCTAssertTrue(lifePalaceButton.label.contains("命宮"))
-        XCTAssertFalse(lifePalaceButton.label.contains("星曜"))
+        XCTAssertTrue(lifePalaceButton.label.contains("宮位干支"))
+        XCTAssertTrue(lifePalaceButton.label.contains("主星"))
         attachScreenshot(name: "深色模式命盤")
     }
 
@@ -410,6 +415,76 @@ final class MightyZiWeiUITests: XCTestCase {
         let microphone = app.buttons["voice.input.toggle"]
         scrollToElement(microphone)
         XCTAssertTrue(microphone.isHittable)
+    }
+
+    func test實用功能的出生檢查個資確認傳送預覽與本機對話保存() {
+        app.terminate()
+        app = XCUIApplication()
+        app.launchArguments = localizationArguments + [
+            "-UIPreferredContentSizeCategoryName",
+            "UICTContentSizeCategoryL",
+            "-UITestMockAI",
+            "-UITestShowTransmissionPreview"
+        ]
+        app.launch()
+
+        app.buttons["home.createChart"].tap()
+        let auditCard = app.buttons["birthInput.auditCard"]
+        XCTAssertTrue(auditCard.waitForExistence(timeout: 5))
+        scrollToElement(auditCard)
+        auditCard.tap()
+        XCTAssertTrue(app.staticTexts["IANA 時區"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["時辰與換日"].exists)
+        XCTAssertTrue(app.staticTexts["規則集"].exists)
+
+        let generateButton = app.buttons["birthInput.generate"]
+        scrollToElement(generateButton)
+        generateButton.tap()
+        XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
+        app.buttons["chart.save"].tap()
+        XCTAssertTrue(app.staticTexts["命盤已儲存在這台裝置。"].waitForExistence(timeout: 3))
+
+        app.buttons["chart.share"].tap()
+        XCTAssertTrue(app.navigationBars["隱私分享"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["share.confirm"].waitForExistence(timeout: 3))
+        app.buttons["關閉"].tap()
+
+        let askAI = app.buttons["chart.askAI"]
+        scrollToElement(askAI)
+        askAI.tap()
+        XCTAssertTrue(app.navigationBars["命盤 AI"].waitForExistence(timeout: 5))
+        app.buttons["assistant.suggestion.0"].tap()
+        app.buttons["assistant.send"].tap()
+        XCTAssertTrue(app.navigationBars["確認傳送內容"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["已驗證命盤事實"].exists)
+        XCTAssertTrue(app.staticTexts["基礎解讀種子"].exists)
+        XCTAssertTrue(app.staticTexts["API key、筆記、收藏與已保存對話"].exists)
+        app.buttons["assistant.confirmSend"].tap()
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 5))
+
+        app.buttons["對話操作"].tap()
+        XCTAssertTrue(app.buttons["保存本次對話"].waitForExistence(timeout: 3))
+        app.buttons["保存本次對話"].tap()
+        XCTAssertTrue(app.alerts["保存本次對話"].waitForExistence(timeout: 3))
+        app.alerts["保存本次對話"].buttons["保存到本機"].tap()
+
+        app.buttons["對話操作"].tap()
+        app.buttons["已保存 AI 對話"].tap()
+        XCTAssertTrue(app.navigationBars["已保存 AI 對話"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["ui-test-model・1 輪"].waitForExistence(timeout: 3))
+        app.cells.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["對話內容"].waitForExistence(timeout: 5))
+        let confirmExport = app.buttons["conversation.confirmExport"]
+        XCTAssertTrue(confirmExport.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["conversation.export"].exists)
+        confirmExport.tap()
+        XCTAssertTrue(app.staticTexts["確認匯出個人資料"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS %@",
+            "命盤名稱、出生日期與時間、模型與完整問答"
+        )).firstMatch.exists)
+        app.buttons["我已確認，顯示匯出按鈕"].tap()
+        XCTAssertTrue(app.buttons["conversation.export"].waitForExistence(timeout: 3))
     }
 
     private func waitForLabel(

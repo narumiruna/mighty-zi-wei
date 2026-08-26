@@ -8,6 +8,7 @@ struct InterpretationView: View {
     let chartID: UUID?
 
     @Environment(AIConfigurationStore.self) private var aiConfigurationStore
+    @Environment(AIUsageStore.self) private var usageStore
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
     @State private var interpretation: ChartInterpretation
     @State private var isGenerating = false
@@ -15,6 +16,7 @@ struct InterpretationView: View {
     @State private var generationTask: Task<Void, Never>?
     @State private var generationID: UUID?
     @State private var showsAPIConfiguration = false
+    @State private var showsTransmissionConfirmation = false
 
     private let modelInterpreter = OpenAIResponsesInterpreter()
 
@@ -81,6 +83,16 @@ struct InterpretationView: View {
         .sheet(isPresented: $showsAPIConfiguration) {
             APIConfigurationSheet()
         }
+        .confirmationDialog(
+            "傳送命盤依據給第三方 API？",
+            isPresented: $showsTransmissionConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("確認並使用雲端整理") { generateWithAI() }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("將傳送 \(facts.count) 項已驗證事實與 \(seeds.count) 項基礎解讀，不包含姓名、原始出生資料、API key、筆記或收藏。使用模型 \(aiConfigurationStore.model)，可能產生費用。")
+        }
     }
 
     private var factsByID: [String: ChartFact] {
@@ -113,7 +125,7 @@ struct InterpretationView: View {
 
             if aiConfigurationStore.isConfigured {
                 Button {
-                    generateWithAI()
+                    showsTransmissionConfirmation = true
                 } label: {
                     Label(
                         interpretation.source == .remoteAI ? "重新整理" : "使用雲端 AI 整理",
@@ -156,6 +168,7 @@ struct InterpretationView: View {
         generationTask = Task {
             do {
                 let configuration = try aiConfigurationStore.configuration()
+                try usageStore.reserve(.interpretation)
                 let result = try await modelInterpreter.generate(
                     facts: facts,
                     seeds: seeds,
@@ -171,6 +184,7 @@ struct InterpretationView: View {
                 statusMessage = "已停止整理，保留目前內容。"
             } catch {
                 guard generationID == identifier else { return }
+                usageStore.record(error: error, kind: .interpretation)
                 voiceCoordinator.stopOutput()
                 interpretation = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
                 statusMessage = generationFailureMessage(for: error)

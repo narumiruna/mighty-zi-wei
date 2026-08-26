@@ -39,6 +39,12 @@ struct ChartShareBuilder: Sendable {
     }
 }
 
+struct ChartSharePrivacyGuard: Sendable {
+    func requiresConfirmation(options: ChartShareBuilder.Options) -> Bool {
+        options.includesName || options.includesBirthData
+    }
+}
+
 struct ChartSharingView: View {
     let chart: ZiWeiChart
     let name: String
@@ -46,6 +52,8 @@ struct ChartSharingView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var includesName = false
     @State private var includesBirthData = false
+    @State private var sensitiveSharingConfirmed = false
+    @State private var showsSensitiveConfirmation = false
 
     private var text: String {
         ChartShareBuilder().makeText(
@@ -77,23 +85,64 @@ struct ChartSharingView: View {
                 }
 
                 Section {
-                    ShareLink(item: text) {
-                        Label("分享文字摘要", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
+                    if containsPersonalData, !sensitiveSharingConfirmed {
+                        Button {
+                            showsSensitiveConfirmation = true
+                        } label: {
+                            Label("確認個人資料後分享", systemImage: "exclamationmark.shield")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("share.confirmSensitive")
+                    } else {
+                        ShareLink(item: text) {
+                            Label("分享文字摘要", systemImage: "square.and.arrow.up")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("share.confirm")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("share.confirm")
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
             .navigationTitle("隱私分享")
+            .onChange(of: includesName) { _, _ in sensitiveSharingConfirmed = false }
+            .onChange(of: includesBirthData) { _, _ in sensitiveSharingConfirmed = false }
+            .confirmationDialog(
+                "確認分享個人資料",
+                isPresented: $showsSensitiveConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("我已確認，繼續") { sensitiveSharingConfirmed = true }
+                Button("返回檢查", role: .cancel) {}
+            } message: {
+                Text("這份摘要將包含\(sensitiveDescription)。請確認分享對象與使用情境；下一步仍需點選分享按鈕才會開啟系統分享選單。")
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("關閉") { dismiss() }
                 }
             }
+        }
+    }
+
+    private var containsPersonalData: Bool {
+        ChartSharePrivacyGuard().requiresConfirmation(
+            options: .init(
+                includesName: includesName,
+                includesBirthData: includesBirthData
+            )
+        )
+    }
+
+    private var sensitiveDescription: String {
+        switch (includesName, includesBirthData) {
+        case (true, true): "名稱及完整出生日期、時間與時區"
+        case (true, false): "名稱"
+        case (false, true): "完整出生日期、時間與時區"
+        case (false, false): "不包含個人資料"
         }
     }
 }

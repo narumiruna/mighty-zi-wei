@@ -64,6 +64,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
             "createdAt",
             "id",
             "name",
+            "tags",
+            "isPinned",
             "ruleSetID",
             "ruleSetVersion",
             "updatedAt"
@@ -310,6 +312,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         let container = try ModelContainer(
             for: SavedChart.self,
             SavedInsight.self,
+            CloudDeletion.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let context = ModelContext(container)
@@ -332,6 +335,87 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertNil(charts.first?.chartCacheData)
         XCTAssertEqual(restoredInsights.map(\.title), ["備份收藏"])
         XCTAssertEqual(restoredInsights.first?.evidenceFactIDs, ["natal.palace.life.branch"])
+    }
+
+    func test還原會清除舊刪除標記更新同步版本取消舊提醒並重設捷徑() throws {
+        let incomingChart = try makeSavedChart()
+        incomingChart.isPinned = true
+        let incomingInsight = SavedInsight(
+            id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
+            chartID: incomingChart.id,
+            kind: .note,
+            locationID: "chart.general",
+            title: "備份筆記",
+            content: "還原內容"
+        )
+        let payload = try BackupPayload(
+            savedCharts: [incomingChart],
+            savedInsights: [incomingInsight]
+        )
+
+        let existingChart = try makeSavedChart()
+        let existingInsight = SavedInsight(
+            id: incomingInsight.id,
+            chartID: existingChart.id,
+            kind: .note,
+            locationID: "chart.general",
+            title: "本機筆記",
+            content: "舊內容",
+            reviewDate: Date(timeIntervalSinceReferenceDate: 500_000_000),
+            reminderIdentifier: "review.old-device-request"
+        )
+        let deletedAt = Date(timeIntervalSinceReferenceDate: 600_000_000)
+        let chartDeletion = CloudDeletion(
+            entityID: existingChart.id,
+            entityType: "SavedChart",
+            deletedAt: deletedAt
+        )
+        let insightDeletion = CloudDeletion(
+            entityID: existingInsight.id,
+            entityType: "SavedInsight",
+            deletedAt: deletedAt
+        )
+        let container = try ModelContainer(
+            for: SavedChart.self,
+            SavedInsight.self,
+            CloudDeletion.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        context.insert(existingChart)
+        context.insert(existingInsight)
+        context.insert(chartDeletion)
+        context.insert(insightDeletion)
+        try context.save()
+
+        let suite = "BackupRestoreShortcutTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var cancelledIdentifiers: [String] = []
+
+        _ = try BackupRestoreService.restore(
+            payload.validated(),
+            existingCharts: [existingChart],
+            existingInsights: [existingInsight],
+            modelContext: context,
+            restoredAt: Date(timeIntervalSinceReferenceDate: 550_000_000),
+            shortcutDefaults: defaults,
+            cancelReminder: { identifier in
+                if let identifier { cancelledIdentifiers.append(identifier) }
+            }
+        )
+
+        let restoredChart = try XCTUnwrap(context.fetch(FetchDescriptor<SavedChart>()).first)
+        let restoredInsight = try XCTUnwrap(context.fetch(FetchDescriptor<SavedInsight>()).first)
+        XCTAssertGreaterThan(restoredChart.updatedAt, deletedAt)
+        XCTAssertGreaterThan(restoredInsight.updatedAt, deletedAt)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<CloudDeletion>()).isEmpty)
+        XCTAssertEqual(cancelledIdentifiers, ["review.old-device-request"])
+        XCTAssertNil(restoredInsight.reminderIdentifier)
+        XCTAssertEqual(
+            defaults.string(forKey: PinnedChartShortcut.key),
+            restoredChart.id.uuidString
+        )
     }
 
     func test拒絕不同規則版本以免保留過期收藏依據() throws {

@@ -5,7 +5,12 @@ struct HomeView: View {
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
     @State private var showsSettings = false
 
-    private var recentCharts: ArraySlice<SavedChart> { charts.prefix(3) }
+    private var recentCharts: ArraySlice<SavedChart> {
+        charts.sorted {
+            if $0.isPinned != $1.isPinned { return $0.isPinned }
+            return $0.updatedAt > $1.updatedAt
+        }.prefix(3)
+    }
 
     var body: some View {
         NavigationStack {

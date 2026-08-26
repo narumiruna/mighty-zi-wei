@@ -26,22 +26,33 @@ targets:
       - path: MightyZiWei
     resources:
       - path: MightyZiWei/Resources
+    dependencies:
+      - target: MightyZiWeiPrivacyWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.narumi.MightyZiWei
         PRODUCT_NAME: MightyZiWei
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_CFBundleDisplayName: 很牛的紫微斗數
-        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: false
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.lifestyle
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: 將你主動說出的命盤問題轉成可編輯文字，不會自動送出。
-        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: 將你主動說出的命盤問題辨識成可編輯文字，不會自動送出。
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
-        INFOPLIST_KEY_UILaunchScreen_Generation: true
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: Configuration/MightyZiWei-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Configuration/MightyZiWei.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: false
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  MightyZiWeiPrivacyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MightyZiWeiPrivacyWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.narumi.MightyZiWei.PrivacyWidget
+        PRODUCT_NAME: 隱私回顧
+        GENERATE_INFOPLIST_FILE: false
+        INFOPLIST_FILE: Configuration/MightyZiWeiPrivacyWidget-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Configuration/MightyZiWeiPrivacyWidget.entitlements
+        SKIP_INSTALL: true
+        APPLICATION_EXTENSION_API_ONLY: true
+        TARGETED_DEVICE_FAMILY: "1"
   MightyZiWeiTests:
     type: bundle.unit-test
     platform: iOS

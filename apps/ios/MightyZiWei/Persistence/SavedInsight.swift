@@ -30,6 +30,8 @@ final class SavedInsight {
     var content: String
     var markerRawValue: String
     var evidenceFactIDsData: Data
+    var reviewDate: Date?
+    var reminderIdentifier: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -55,6 +57,8 @@ final class SavedInsight {
         content: String,
         marker: Marker = .none,
         evidenceFactIDs: [String] = [],
+        reviewDate: Date? = nil,
+        reminderIdentifier: String? = nil,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -66,15 +70,48 @@ final class SavedInsight {
         self.content = content
         self.markerRawValue = marker.rawValue
         self.evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
+        self.reviewDate = reviewDate
+        self.reminderIdentifier = reminderIdentifier
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 
-    func updateNote(title: String, content: String, marker: Marker) {
+    func updateNote(
+        title: String,
+        content: String,
+        marker: Marker,
+        locationID: String? = nil,
+        evidenceFactIDs: [String]? = nil,
+        reviewDate: Date? = nil,
+        reminderIdentifier: String? = nil
+    ) {
         self.title = Self.normalized(title, fallback: "私人筆記")
         self.content = content.trimmingCharacters(in: .whitespacesAndNewlines)
         self.marker = marker
+        if let locationID {
+            self.locationID = locationID
+        }
+        if let evidenceFactIDs {
+            evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
+        }
+        self.reviewDate = reviewDate
+        self.reminderIdentifier = reminderIdentifier
         updatedAt = .now
+    }
+
+    var linkedContentTitle: String {
+        if locationID.hasPrefix("palace."),
+           let value = locationID.split(separator: ".").last,
+           let kind = PalaceKind(rawValue: String(value)) {
+            return kind.displayName
+        }
+        if locationID.hasPrefix("interpretation.") {
+            return "命盤解讀"
+        }
+        if locationID.hasPrefix("assistant.") {
+            return "命盤 AI 回答"
+        }
+        return "整張命盤"
     }
 
     func matchesBookmark(

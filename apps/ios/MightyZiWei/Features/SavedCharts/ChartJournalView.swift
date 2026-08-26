@@ -6,6 +6,7 @@ struct ChartJournalView: View {
     let chartName: String
     var suggestedLocationID = "chart.general"
     var suggestedTitle = "命盤筆記"
+    var startsWithNewNote = false
 
     @Environment(\.modelContext) private var modelContext
     @Query private var savedCharts: [SavedChart]
@@ -19,7 +20,7 @@ struct ChartJournalView: View {
     }
 
     private var notes: [SavedInsight] {
-        insights.filter { $0.kind == .note }
+        insights.filter { $0.kind == .note }.sorted { $0.createdAt > $1.createdAt }
     }
 
     private var bookmarks: [SavedInsight] {
@@ -45,7 +46,7 @@ struct ChartJournalView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("私人筆記") {
+            Section {
                 if notes.isEmpty {
                     Text("還沒有筆記")
                         .foregroundStyle(.secondary)
@@ -70,6 +71,10 @@ struct ChartJournalView: View {
                 }
                 .disabled(!chartExists)
                 .accessibilityIdentifier("journal.addNote")
+            } header: {
+                Text("觀察時間軸")
+            } footer: {
+                Text("回顧提醒只使用你選擇的日期，不會根據命盤推算吉凶或事件。")
             }
 
             Section("稍後閱讀") {
@@ -92,6 +97,11 @@ struct ChartJournalView: View {
             }
         }
         .navigationTitle(chartName)
+        .task {
+            if startsWithNewNote, chartExists, editingInsight == nil {
+                createsNewNote = true
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $createsNewNote) {
             InsightNoteEditor(
@@ -123,9 +133,20 @@ struct ChartJournalView: View {
     }
 
     private func delete(insights: [SavedInsight]) {
-        insights.forEach(modelContext.delete)
+        let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
+        insights.forEach { insight in
+            ICloudSyncService.recordDeletion(
+                entityID: insight.id,
+                entityType: "SavedInsight",
+                modelContext: modelContext
+            )
+            modelContext.delete(insight)
+        }
         do {
             try modelContext.save()
+            reminderIdentifiers.forEach {
+                ReviewReminderScheduler().cancel(identifier: $0)
+            }
         } catch {
             modelContext.rollback()
             errorMessage = "無法刪除本機內容。"
@@ -181,6 +202,20 @@ private struct InsightRow: View {
             Text(insight.content)
                 .font(.subheadline)
                 .lineLimit(3)
+            HStack(spacing: 10) {
+                Label(insight.linkedContentTitle, systemImage: "link")
+                Text(insight.createdAt, format: .dateTime.year().month().day())
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            if let reviewDate = insight.reviewDate {
+                Label(
+                    "\(reviewDate.formatted(date: .abbreviated, time: .shortened)) 回顧",
+                    systemImage: "bell"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+            }
             if !insight.evidenceFactIDs.isEmpty {
                 Label("保留 \(insight.evidenceFactIDs.count) 項命盤依據", systemImage: "checkmark.seal")
                     .font(.caption)
@@ -189,6 +224,37 @@ private struct InsightRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+    }
+}
+
+private struct NoteLinkTarget: Identifiable, Hashable {
+    let id: String
+    let title: String
+
+    static let all: [NoteLinkTarget] = [
+        NoteLinkTarget(id: "chart.general", title: "整張命盤")
+    ] + PalaceKind.allCases.map {
+        NoteLinkTarget(id: "palace.\($0.rawValue)", title: $0.displayName)
+    } + InterpretationCategory.allCases.map {
+        NoteLinkTarget(id: "interpretation.\($0.rawValue)", title: "解讀：\($0.title)")
+    }
+}
+
+private enum ReviewReminderChoice: String, CaseIterable, Identifiable {
+    case none
+    case oneMonth
+    case threeMonths
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none: "不提醒"
+        case .oneMonth: "一個月後"
+        case .threeMonths: "三個月後"
+        case .custom: "自訂日期"
+        }
     }
 }
 
@@ -204,6 +270,11 @@ private struct InsightNoteEditor: View {
     @State private var title: String
     @State private var content: String
     @State private var marker: SavedInsight.Marker
+    @State private var selectedLocationID: String
+    @State private var selectedEvidenceIDs: Set<String>
+    @State private var reminderChoice: ReviewReminderChoice
+    @State private var customReviewDate: Date
+    @State private var isSaving = false
     @State private var errorMessage: String?
 
     init(
@@ -219,6 +290,24 @@ private struct InsightNoteEditor: View {
         _title = State(initialValue: insight?.title ?? initialTitle)
         _content = State(initialValue: insight?.content ?? "")
         _marker = State(initialValue: insight?.marker ?? .none)
+        _selectedLocationID = State(initialValue: insight?.locationID ?? locationID)
+        _selectedEvidenceIDs = State(initialValue: Set(insight?.evidenceFactIDs ?? []))
+        _reminderChoice = State(initialValue: insight?.reviewDate == nil ? .none : .custom)
+        _customReviewDate = State(
+            initialValue: insight?.reviewDate
+                ?? Calendar.current.date(byAdding: .month, value: 3, to: .now)
+                ?? .now.addingTimeInterval(7_776_000)
+        )
+    }
+
+    private var savedChart: SavedChart? {
+        savedCharts.first { $0.id == chartID }
+    }
+
+    private var availableFacts: [ChartFact] {
+        guard let savedChart,
+              let chart = try? savedChart.resolvedChart() else { return [] }
+        return ChartFactBuilder().makeFacts(from: chart)
     }
 
     var body: some View {
@@ -231,6 +320,36 @@ private struct InsightNoteEditor: View {
                         .accessibilityIdentifier("journal.noteContent")
                 }
 
+                Section("連結命盤內容") {
+                    Picker("連結到", selection: $selectedLocationID) {
+                        ForEach(NoteLinkTarget.all) { target in
+                            Text(target.title).tag(target.id)
+                        }
+                    }
+
+                    if !availableFacts.isEmpty {
+                        DisclosureGroup("連結已驗證命盤依據（選填）") {
+                            ForEach(availableFacts) { fact in
+                                Button {
+                                    if selectedEvidenceIDs.contains(fact.id) {
+                                        selectedEvidenceIDs.remove(fact.id)
+                                    } else {
+                                        selectedEvidenceIDs.insert(fact.id)
+                                    }
+                                } label: {
+                                    Label(
+                                        fact.displayText,
+                                        systemImage: selectedEvidenceIDs.contains(fact.id)
+                                            ? "checkmark.circle.fill"
+                                            : "circle"
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
                 Section("自我觀察") {
                     Picker("標記", selection: $marker) {
                         ForEach(SavedInsight.Marker.allCases, id: \.rawValue) { marker in
@@ -238,6 +357,26 @@ private struct InsightNoteEditor: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section {
+                    Picker("回顧提醒", selection: $reminderChoice) {
+                        ForEach(ReviewReminderChoice.allCases) { choice in
+                            Text(choice.title).tag(choice)
+                        }
+                    }
+                    if reminderChoice == .custom {
+                        DatePicker(
+                            "回顧日期",
+                            selection: $customReviewDate,
+                            in: Date.now...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                    }
+                } header: {
+                    Text("回顧提醒")
+                } footer: {
+                    Text("日期完全由你設定，只提醒回顧自己的筆記，不代表命盤事件、吉日或凶日。")
                 }
             }
             .navigationTitle(insight == nil ? "新增筆記" : "編輯筆記")
@@ -247,8 +386,11 @@ private struct InsightNoteEditor: View {
                     Button("取消") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("儲存") { save() }
-                        .disabled(content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("儲存") { Task { await save() } }
+                        .disabled(
+                            isSaving
+                                || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
                         .accessibilityIdentifier("journal.saveNote")
                 }
             }
@@ -267,27 +409,75 @@ private struct InsightNoteEditor: View {
         )
     }
 
-    private func save() {
-        guard savedCharts.contains(where: { $0.id == chartID }) else {
+    private var selectedReviewDate: Date? {
+        switch reminderChoice {
+        case .none:
+            nil
+        case .oneMonth:
+            Calendar.current.date(byAdding: .month, value: 1, to: .now)
+        case .threeMonths:
+            Calendar.current.date(byAdding: .month, value: 3, to: .now)
+        case .custom:
+            customReviewDate
+        }
+    }
+
+    @MainActor
+    private func save() async {
+        guard let savedChart else {
             errorMessage = "這張命盤已刪除，無法儲存筆記。"
             return
         }
+        isSaving = true
+        defer { isSaving = false }
         let target = insight ?? SavedInsight(
             chartID: chartID,
             kind: .note,
-            locationID: locationID,
+            locationID: selectedLocationID,
             title: initialTitle,
             content: ""
         )
-        target.updateNote(title: title, content: content, marker: marker)
+        let oldReminderIdentifier = target.reminderIdentifier
+        var newReminderIdentifier: String?
+        if let reviewDate = selectedReviewDate {
+            do {
+                newReminderIdentifier = try await ReviewReminderScheduler().schedule(
+                    insightID: target.id,
+                    chartName: savedChart.name,
+                    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                    date: reviewDate
+                )
+            } catch let error as LocalizedError {
+                errorMessage = error.errorDescription ?? "無法建立回顧提醒。"
+                return
+            } catch {
+                errorMessage = "無法建立回顧提醒。"
+                return
+            }
+        }
+        target.updateNote(
+            title: title,
+            content: content,
+            marker: marker,
+            locationID: selectedLocationID,
+            evidenceFactIDs: Array(selectedEvidenceIDs).sorted(),
+            reviewDate: selectedReviewDate,
+            reminderIdentifier: newReminderIdentifier
+        )
         if insight == nil {
             modelContext.insert(target)
         }
         do {
             try modelContext.save()
+            if oldReminderIdentifier != newReminderIdentifier {
+                ReviewReminderScheduler().cancel(identifier: oldReminderIdentifier)
+            }
             dismiss()
         } catch {
             modelContext.rollback()
+            if newReminderIdentifier != oldReminderIdentifier {
+                ReviewReminderScheduler().cancel(identifier: newReminderIdentifier)
+            }
             errorMessage = "本機資料寫入失敗，請再試一次。"
         }
     }
@@ -364,6 +554,11 @@ struct InsightBookmarkButton: View {
         guard let chartID = validChartID else { return }
         if let existing {
             if matchesCurrentContent {
+                ICloudSyncService.recordDeletion(
+                    entityID: existing.id,
+                    entityType: "SavedInsight",
+                    modelContext: modelContext
+                )
                 modelContext.delete(existing)
             } else {
                 existing.updateBookmark(

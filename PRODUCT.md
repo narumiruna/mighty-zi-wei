@@ -1166,3 +1166,45 @@ OpenAI 相容 Responses API 也先不要接。
 > 「我們能不能穩定、可測試地算出正確的紫微斗數命盤？」
 
 等這件事完成，再開始做漂亮 UI 與 AI。
+
+---
+
+# 28. MVP 後實用功能
+
+已儲存命盤必須支援依名稱、標籤與建立日期搜尋。
+
+標籤由使用者自訂，釘選命盤優先顯示，相同 `BirthProfile` 必須在再次儲存前提示並在列表標示。
+
+App 鎖使用 `LocalAuthentication.deviceOwnerAuthentication`，允許 Face ID、Touch ID 或裝置密碼。
+
+App 進入 inactive 或 background 時必須立即遮住內容，而且啟用 App 鎖時必須重新鎖定。
+
+分享包含名稱或完整出生資料前，必須列出欄位並再次取得使用者確認。
+
+觀察筆記以時間軸呈現，並可連結整張命盤、宮位、解讀分類與既有 `ChartFact`。
+
+回顧提醒日期完全由使用者指定，不得從命盤、運限或其他未驗證規則推算。
+
+完整 AI 對話只有使用者主動操作時才保存，並保留當時命盤名稱、命盤時間、模型、問題、回答與 evidence IDs。
+
+本機 AI 對話可以重新命名、搜尋及匯出純文字，但不得自動進入 CloudKit 或加密備份。
+
+每次雲端命盤請求前必須顯示傳送摘要。
+
+使用者可以設定回答字數與每月本機請求上限。
+
+安全診斷不得包含 API key、endpoint、prompt、命盤或 response body。
+
+選擇性 iCloud 同步預設關閉，而且只同步命盤、標籤、釘選、筆記、回顧日期與收藏。
+
+CloudKit 版本衝突以 `updatedAt` 較新的內容為準，刪除使用 tombstone 傳播。
+
+App Intents 可以開啟釘選命盤、新增觀察筆記與建立 AI 問題草稿。
+
+AI 問題捷徑不得自動送出。
+
+隱私 Widget 只顯示下一個使用者自訂回顧時間與 App 捷徑，預設不得顯示姓名、出生資料或命盤內容。
+
+VoiceOver 啟用時命盤自動改用線性閱讀，並讀出宮位干支、主星、身宮與其他星曜。
+
+出生資料檢查卡必須顯示 local civil date/time、IANA 時區、歷史 UTC 位移、夏令時間、子時換日規則與 ruleset version。

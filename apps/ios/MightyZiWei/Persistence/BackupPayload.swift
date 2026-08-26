@@ -8,6 +8,8 @@ struct BackupChartDTO: Codable, Equatable, Sendable {
     let ruleSetID: String
     let ruleSetVersion: Int
     let appSchemaVersion: Int
+    let tags: [String]?
+    let isPinned: Bool?
     let createdAt: Date
     let updatedAt: Date
 
@@ -18,6 +20,8 @@ struct BackupChartDTO: Codable, Equatable, Sendable {
         ruleSetID: String,
         ruleSetVersion: Int,
         appSchemaVersion: Int,
+        tags: [String] = [],
+        isPinned: Bool = false,
         createdAt: Date,
         updatedAt: Date
     ) {
@@ -27,6 +31,8 @@ struct BackupChartDTO: Codable, Equatable, Sendable {
         self.ruleSetID = ruleSetID
         self.ruleSetVersion = ruleSetVersion
         self.appSchemaVersion = appSchemaVersion
+        self.tags = tags
+        self.isPinned = isPinned
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -39,6 +45,8 @@ struct BackupChartDTO: Codable, Equatable, Sendable {
             ruleSetID: savedChart.ruleSetID,
             ruleSetVersion: savedChart.ruleSetVersion,
             appSchemaVersion: savedChart.appSchemaVersion,
+            tags: savedChart.tags,
+            isPinned: savedChart.isPinned,
             createdAt: savedChart.createdAt,
             updatedAt: savedChart.updatedAt
         )
@@ -53,6 +61,8 @@ struct BackupChartDTO: Codable, Equatable, Sendable {
             ruleSetVersion: ruleSetVersion,
             appSchemaVersion: appSchemaVersion,
             chartCacheData: nil,
+            tags: tags ?? [],
+            isPinned: isPinned ?? false,
             createdAt: createdAt,
             updatedAt: updatedAt
         )
@@ -65,6 +75,8 @@ struct BackupChartDTO: Codable, Equatable, Sendable {
         savedChart.ruleSetVersion = ruleSetVersion
         savedChart.appSchemaVersion = appSchemaVersion
         savedChart.chartCacheData = nil
+        savedChart.tags = tags ?? []
+        savedChart.isPinned = isPinned ?? false
         savedChart.createdAt = createdAt
         savedChart.updatedAt = updatedAt
     }
@@ -80,6 +92,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     let body: String
     let marker: String
     let evidenceFactIDs: [String]
+    let reviewDate: Date?
     let createdAt: Date
     let updatedAt: Date
 
@@ -92,6 +105,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         body: String,
         marker: String = SavedInsight.Marker.none.rawValue,
         evidenceFactIDs: [String] = [],
+        reviewDate: Date? = nil,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -103,6 +117,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         self.body = body
         self.marker = marker
         self.evidenceFactIDs = evidenceFactIDs
+        self.reviewDate = reviewDate
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -117,6 +132,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
             body: savedInsight.content,
             marker: savedInsight.markerRawValue,
             evidenceFactIDs: savedInsight.evidenceFactIDs,
+            reviewDate: savedInsight.reviewDate,
             createdAt: savedInsight.createdAt,
             updatedAt: savedInsight.updatedAt
         )
@@ -132,6 +148,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
             content: body,
             marker: SavedInsight.Marker(rawValue: marker)!,
             evidenceFactIDs: evidenceFactIDs,
+            reviewDate: reviewDate,
             createdAt: createdAt,
             updatedAt: updatedAt
         )
@@ -145,6 +162,8 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         savedInsight.content = body
         savedInsight.markerRawValue = marker
         savedInsight.evidenceFactIDsData = (try? BackupJSONCoding.encoder().encode(evidenceFactIDs)) ?? Data("[]".utf8)
+        savedInsight.reviewDate = reviewDate
+        savedInsight.reminderIdentifier = nil
         savedInsight.createdAt = createdAt
         savedInsight.updatedAt = updatedAt
     }

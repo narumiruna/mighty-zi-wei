@@ -8,11 +8,29 @@ private struct UITestCredentialStore: APICredentialStoring {
 
 @main
 struct MightyZiWeiApp: App {
+    private let modelContainer: ModelContainer
     @State private var aiConfigurationStore: AIConfigurationStore
+    @State private var aiUsageStore: AIUsageStore
+    @State private var appLockStore: AppLockStore
+    @State private var iCloudSyncCoordinator: ICloudSyncCoordinator
     @State private var voiceCoordinator: VoiceCoordinator
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
+        let schema = Schema([
+            SavedChart.self,
+            SavedInsight.self,
+            SavedConversation.self,
+            CloudDeletion.self
+        ])
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: arguments.contains("-UITestResetData")
+        )
+        modelContainer = try! ModelContainer(for: schema, configurations: [configuration])
+        _aiUsageStore = State(initialValue: AIUsageStore())
+        _appLockStore = State(initialValue: AppLockStore())
+        _iCloudSyncCoordinator = State(initialValue: ICloudSyncCoordinator())
         if arguments.contains("-UITestMockSpeech") {
             _voiceCoordinator = State(
                 initialValue: VoiceCoordinator(
@@ -46,8 +64,11 @@ struct MightyZiWeiApp: App {
         WindowGroup {
             RootView()
                 .environment(aiConfigurationStore)
+                .environment(aiUsageStore)
+                .environment(appLockStore)
+                .environment(iCloudSyncCoordinator)
                 .environment(voiceCoordinator)
         }
-        .modelContainer(for: [SavedChart.self, SavedInsight.self])
+        .modelContainer(modelContainer)
     }
 }
