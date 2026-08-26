@@ -37,6 +37,68 @@ struct CloudTombstoneUploadPolicy: Sendable {
     }
 }
 
+struct CloudBookmarkRevision: Equatable, Sendable {
+    let id: UUID
+    let chartID: UUID
+    let locationID: String
+    let updatedAt: Date
+}
+
+struct CloudBookmarkDeduplicationPlan: Equatable, Sendable {
+    let duplicateIDs: Set<UUID>
+}
+
+struct CloudBookmarkDeduplicator: Sendable {
+    func makePlan(
+        localInsights: [SavedInsight],
+        remoteInsights: [CloudInsightPayload]
+    ) -> CloudBookmarkDeduplicationPlan {
+        let localRevisions = localInsights.compactMap { insight -> CloudBookmarkRevision? in
+            guard insight.kind == .bookmark else { return nil }
+            return CloudBookmarkRevision(
+                id: insight.id,
+                chartID: insight.chartID,
+                locationID: insight.locationID,
+                updatedAt: insight.updatedAt
+            )
+        }
+        let remoteRevisions = remoteInsights.compactMap { insight -> CloudBookmarkRevision? in
+            guard insight.kind == SavedInsight.Kind.bookmark.rawValue else { return nil }
+            return CloudBookmarkRevision(
+                id: insight.id,
+                chartID: insight.chartID,
+                locationID: insight.locationID,
+                updatedAt: insight.updatedAt
+            )
+        }
+        return makePlan(revisions: localRevisions + remoteRevisions)
+    }
+
+    func makePlan(revisions: [CloudBookmarkRevision]) -> CloudBookmarkDeduplicationPlan {
+        let groups = Dictionary(grouping: revisions) {
+            CloudBookmarkLocation(chartID: $0.chartID, locationID: $0.locationID)
+        }
+        var duplicateIDs = Set<UUID>()
+        for group in groups.values {
+            let uniqueRevisions = Dictionary(grouping: group, by: \.id).values.compactMap {
+                $0.max { first, second in first.updatedAt < second.updatedAt }
+            }
+            guard uniqueRevisions.count > 1 else { continue }
+            let ordered = uniqueRevisions.sorted {
+                if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+            duplicateIDs.formUnion(ordered.dropFirst().map(\.id))
+        }
+        return CloudBookmarkDeduplicationPlan(duplicateIDs: duplicateIDs)
+    }
+}
+
+private struct CloudBookmarkLocation: Hashable {
+    let chartID: UUID
+    let locationID: String
+}
+
 struct CloudLocalTombstonePlanner {
     func makePlan(
         charts: [SavedChart],
@@ -310,22 +372,53 @@ final class ICloudSyncService {
             uploaded += 1
         }
 
-        for remote in remoteInsights {
-            guard remote.isStructurallyValid else { throw SyncError.invalidRemoteData }
+        var remoteInsightsToReconcile = remoteInsights.filter { remote in
+            guard chartsByID[remote.chartID] != nil else { return false }
             let tombstone = allDeletions[DeletionKey(type: RecordType.insight, id: remote.id)]
-            if CloudConflictResolver().isDeleted(
+            return !CloudConflictResolver().isDeleted(
                 contentUpdatedAt: remote.updatedAt,
                 deletedAt: tombstone?.deletedAt
-            ), insightsByID[remote.id] == nil {
-                continue
+            ) || insightsByID[remote.id] != nil
+        }
+        for remote in remoteInsightsToReconcile {
+            guard remote.isStructurallyValid,
+                  let linkedChart = chartsByID[remote.chartID] else {
+                throw SyncError.invalidRemoteData
             }
-            guard let linkedChart = chartsByID[remote.chartID] else { continue }
             let validFactIDs = Set(
                 ChartFactBuilder().makeFacts(from: try linkedChart.resolvedChart()).map(\.id)
             )
             guard remote.evidenceFactIDs.allSatisfy(validFactIDs.contains) else {
                 throw SyncError.invalidRemoteData
             }
+        }
+
+        let bookmarkPlan = CloudBookmarkDeduplicator().makePlan(
+            localInsights: Array(insightsByID.values),
+            remoteInsights: remoteInsightsToReconcile
+        )
+        conflicts += bookmarkPlan.duplicateIDs.count
+        for duplicateID in bookmarkPlan.duplicateIDs {
+            if let duplicate = insightsByID.removeValue(forKey: duplicateID) {
+                if let identifier = duplicate.reminderIdentifier {
+                    reminderIdentifiersToCancel.insert(identifier)
+                }
+                modelContext.delete(duplicate)
+                downloaded += 1
+            }
+            if insightRecordsByID[duplicateID] != nil {
+                try await deleteContentRecord(for: DeletionKey(
+                    type: RecordType.insight,
+                    id: duplicateID
+                ))
+                uploaded += 1
+            }
+        }
+        remoteInsightsToReconcile.removeAll {
+            bookmarkPlan.duplicateIDs.contains($0.id)
+        }
+
+        for remote in remoteInsightsToReconcile {
             if let local = insightsByID[remote.id] {
                 if CloudConflictResolver().winner(
                     localUpdatedAt: local.updatedAt,
@@ -350,7 +443,7 @@ final class ICloudSyncService {
                 downloaded += 1
             }
         }
-        let remoteInsightIDs = Set(remoteInsights.map(\.id))
+        let remoteInsightIDs = Set(remoteInsightsToReconcile.map(\.id))
         for insight in insightsByID.values where
             !remoteInsightIDs.contains(insight.id) && chartsByID[insight.chartID] != nil {
             try await database.save(CloudInsightPayload(insight).record())

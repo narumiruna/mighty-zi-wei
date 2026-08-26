@@ -66,9 +66,10 @@ final class SavedChart {
 
     func resolvedChart() throws -> ZiWeiChart {
         let current = RuleSetIdentity.taiwanTraditionalSanheV1
-        if ruleSetID == current.id,
-           ruleSetVersion == current.version,
-           appSchemaVersion == Self.schemaVersion,
+        let advancesContentRevision = ruleSetID != current.id
+            || ruleSetVersion != current.version
+            || appSchemaVersion != Self.schemaVersion
+        if !advancesContentRevision,
            let chartCacheData,
            let cached = try? JSONDecoder().decode(ZiWeiChart.self, from: chartCacheData) {
             return cached
@@ -82,7 +83,9 @@ final class SavedChart {
         ruleSetID = chart.ruleSet.id
         ruleSetVersion = chart.ruleSet.version
         appSchemaVersion = Self.schemaVersion
-        updatedAt = .now
+        if advancesContentRevision {
+            updatedAt = .now
+        }
         return chart
     }
 

@@ -48,6 +48,17 @@ final class PracticalFeaturesTests: XCTestCase {
         )
     }
 
+    func test已選標籤不存在時會自動清除篩選() {
+        let policy = SavedChartTagSelectionPolicy()
+
+        XCTAssertEqual(
+            policy.validSelection("家人", availableTags: ["家人", "朋友"]),
+            "家人"
+        )
+        XCTAssertNil(policy.validSelection("家人", availableTags: ["朋友"]))
+        XCTAssertNil(policy.validSelection("家人", availableTags: []))
+    }
+
     func test相同出生資料可辨識但不同資料不會誤判() throws {
         let first = try makeSavedChart(name: "甲")
         let duplicate = try makeSavedChart(name: "乙")
@@ -330,6 +341,70 @@ final class PracticalFeaturesTests: XCTestCase {
             [first.timeIntervalSince1970, second.timeIntervalSince1970]
         )
         XCTAssertNil(defaults.object(forKey: ReviewReminderScheduler.nextReminderKey))
+    }
+
+    func test同步會依命盤與位置去除重複收藏並保留最新版本() {
+        let chartID = UUID()
+        let local = SavedInsight(
+            id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+            chartID: chartID,
+            kind: .bookmark,
+            locationID: "interpretation.overview",
+            title: "本機收藏",
+            content: "較舊內容",
+            updatedAt: makeDate(2026, 1, 1)
+        )
+        let remoteWinner = SavedInsight(
+            id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
+            chartID: chartID,
+            kind: .bookmark,
+            locationID: "interpretation.overview",
+            title: "遠端收藏",
+            content: "最新內容",
+            updatedAt: makeDate(2026, 3, 1)
+        )
+        let remoteDuplicate = SavedInsight(
+            id: UUID(uuidString: "66666666-7777-8888-9999-AAAAAAAAAAAA")!,
+            chartID: chartID,
+            kind: .bookmark,
+            locationID: "interpretation.overview",
+            title: "另一份收藏",
+            content: "中間版本",
+            updatedAt: makeDate(2026, 2, 1)
+        )
+        let otherLocation = SavedInsight(
+            chartID: chartID,
+            kind: .bookmark,
+            locationID: "interpretation.career",
+            title: "工作收藏",
+            content: "不同位置",
+            updatedAt: makeDate(2026, 4, 1)
+        )
+
+        let plan = CloudBookmarkDeduplicator().makePlan(
+            localInsights: [local],
+            remoteInsights: [
+                CloudInsightPayload(remoteWinner),
+                CloudInsightPayload(remoteDuplicate),
+                CloudInsightPayload(otherLocation)
+            ]
+        )
+
+        XCTAssertEqual(plan.duplicateIDs, [local.id, remoteDuplicate.id])
+        XCTAssertFalse(plan.duplicateIDs.contains(remoteWinner.id))
+        XCTAssertFalse(plan.duplicateIDs.contains(otherLocation.id))
+    }
+
+    func test重建衍生命盤快取不會改寫同步內容版本() throws {
+        let chart = try makeSavedChart(name: "同步命盤")
+        let synchronizedRevision = makeDate(2026, 2, 1)
+        chart.chartCacheData = nil
+        chart.updatedAt = synchronizedRevision
+
+        _ = try chart.resolvedChart()
+
+        XCTAssertNotNil(chart.chartCacheData)
+        XCTAssertEqual(chart.updatedAt, synchronizedRevision)
     }
 
     func testCloudKit衝突保留較新版本且刪除時間優先() {

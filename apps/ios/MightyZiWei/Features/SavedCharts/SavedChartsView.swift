@@ -23,6 +23,13 @@ struct SavedChartDuplicateKey: Hashable {
     }
 }
 
+struct SavedChartTagSelectionPolicy: Sendable {
+    func validSelection(_ selection: String?, availableTags: [String]) -> String? {
+        guard let selection, availableTags.contains(selection) else { return nil }
+        return selection
+    }
+}
+
 enum SavedChartCreatedDateFilter: String, CaseIterable, Identifiable {
     case all
     case sevenDays
@@ -95,7 +102,7 @@ struct SavedChartsView: View {
     private var filteredCharts: [SavedChart] {
         charts.filter { chart in
             chart.matchesSearch(searchText)
-                && (selectedTag == nil || chart.tags.contains(selectedTag!))
+                && (selectedTag.map(chart.tags.contains) ?? true)
                 && createdDateFilter.includes(chart.createdAt)
         }.sorted {
             if $0.isPinned != $1.isPinned { return $0.isPinned }
@@ -114,6 +121,12 @@ struct SavedChartsView: View {
             .task { handleExternalDestination() }
             .onChange(of: navigation.requestedSavedDestination) { _, _ in
                 handleExternalDestination()
+            }
+            .onChange(of: availableTags) { _, tags in
+                selectedTag = SavedChartTagSelectionPolicy().validSelection(
+                    selectedTag,
+                    availableTags: tags
+                )
             }
             .toolbar { moreActionsToolbar }
             .alert("編輯自訂標籤", isPresented: tagsArePresented) {
