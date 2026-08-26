@@ -18,6 +18,10 @@ list:
 generate:
     xcodegen generate
 
+# 升級 App 的語意版本（major、minor 或 patch）
+bump version:
+    ./scripts/bump-version.sh "{{version}}"
+
 # 產生並開啟 Xcode 專案
 open: generate
     open {{project}}
