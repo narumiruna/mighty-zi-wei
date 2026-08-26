@@ -25,17 +25,27 @@ enum PinnedChartShortcut {
     }
 }
 
-private enum ShortcutBridge {
+enum ShortcutBridge {
     static let suite = ReviewReminderScheduler.sharedDefaultsSuite
     static let pendingActionKey = "shortcuts.pending-action"
     static let pendingDraftKey = "shortcuts.pending-ai-draft"
+    static let actionDidChangeNotification = Notification.Name(
+        "MightyZiWei.shortcut-action-did-change"
+    )
 
-    static func setAction(_ action: String, draft: String? = nil) {
-        let defaults = UserDefaults(suiteName: suite)
+    static func setAction(
+        _ action: String,
+        draft: String? = nil,
+        defaults: UserDefaults? = UserDefaults(suiteName: suite),
+        notificationCenter: NotificationCenter = .default
+    ) {
         defaults?.set(action, forKey: pendingActionKey)
         if let draft {
             defaults?.set(draft, forKey: pendingDraftKey)
+        } else {
+            defaults?.removeObject(forKey: pendingDraftKey)
         }
+        notificationCenter.post(name: actionDidChangeNotification, object: nil)
     }
 }
 

@@ -2,6 +2,21 @@ import Accessibility
 import SwiftData
 import SwiftUI
 
+struct AIRequestBudgetSummary: Equatable, Sendable {
+    let remainingRequests: Int?
+    let maximumAnswerCharacters: Int
+
+    var message: String {
+        let quota: String
+        if let remainingRequests {
+            quota = "確認後本月剩餘 \(max(0, remainingRequests - 1)) 次請求。"
+        } else {
+            quota = "未設定每月請求上限。"
+        }
+        return "每次回答長度上限為 \(maximumAnswerCharacters) 字。\(quota)"
+    }
+}
+
 struct InterpretationView: View {
     let facts: [ChartFact]
     let seeds: [InterpretationSeed]
@@ -91,12 +106,19 @@ struct InterpretationView: View {
             Button("確認並使用雲端整理") { generateWithAI() }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("將傳送 \(facts.count) 項已驗證事實與 \(seeds.count) 項基礎解讀，不包含姓名、原始出生資料、API key、筆記或收藏。使用模型 \(aiConfigurationStore.model)，可能產生費用。")
+            Text("將傳送 \(facts.count) 項已驗證事實與 \(seeds.count) 項基礎解讀，不包含姓名、原始出生資料、API key、筆記或收藏。使用模型 \(aiConfigurationStore.model)，可能產生費用。\(requestBudgetSummary.message)")
         }
     }
 
     private var factsByID: [String: ChartFact] {
         Dictionary(uniqueKeysWithValues: facts.map { ($0.id, $0) })
+    }
+
+    private var requestBudgetSummary: AIRequestBudgetSummary {
+        AIRequestBudgetSummary(
+            remainingRequests: usageStore.remainingRequests,
+            maximumAnswerCharacters: aiConfigurationStore.maximumAnswerCharacters
+        )
     }
 
     private var sourceHeader: some View {

@@ -61,6 +61,7 @@ final class ChartAssistantStore {
     private(set) var turns: [ChartConversationTurn] = []
     private(set) var requestState: RequestState = .idle
     private(set) var lastDiagnosticCode: String?
+    private(set) var conversationModelIdentifier: String?
     var draft = ""
 
     init(
@@ -90,6 +91,11 @@ final class ChartAssistantStore {
 
     var trimmedDraft: String {
         draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func requiresNewConversation(for modelIdentifier: String) -> Bool {
+        guard let conversationModelIdentifier else { return false }
+        return conversationModelIdentifier != modelIdentifier
     }
 
     func offer(_ chart: ChartAssistantChart) {
@@ -146,6 +152,7 @@ final class ChartAssistantStore {
         unsavedSelectionFallback = nil
         selectedChart = nil
         turns = []
+        conversationModelIdentifier = nil
         draft = ""
         requestState = .idle
     }
@@ -153,6 +160,7 @@ final class ChartAssistantStore {
     func clearConversation() {
         cancelRequest()
         turns = []
+        conversationModelIdentifier = nil
         draft = ""
         requestState = .idle
     }
@@ -160,6 +168,7 @@ final class ChartAssistantStore {
     func send(configuration: OpenAIResponsesConfiguration) {
         guard !isRequesting,
               !hasReachedRoundLimit,
+              !requiresNewConversation(for: configuration.model),
               let chart = selectedChart
         else { return }
 
@@ -187,6 +196,7 @@ final class ChartAssistantStore {
                     answer: answer.content,
                     evidenceFactIDs: answer.evidenceFactIDs
                 ))
+                conversationModelIdentifier = conversationModelIdentifier ?? configuration.model
                 draft = ""
                 finishRequest(state: .idle)
             } catch is CancellationError {
@@ -217,6 +227,7 @@ final class ChartAssistantStore {
             cancelRequest()
             unsavedSelectionFallback = nil
             turns = []
+            conversationModelIdentifier = nil
             draft = ""
             requestState = .idle
         } else if selectedChart?.id != chart.id {
@@ -344,6 +355,13 @@ struct RootView: View {
         }
         .onReceive(
             NotificationCenter.default.publisher(
+                for: ShortcutBridge.actionDidChangeNotification
+            )
+        ) { _ in
+            handlePendingShortcut()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
                 for: AVAudioSession.interruptionNotification
             )
         ) { _ in
@@ -404,8 +422,10 @@ struct RootView: View {
 
     private func handlePendingShortcut() {
         let defaults = UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)
-        guard let action = defaults?.string(forKey: "shortcuts.pending-action") else { return }
-        defaults?.removeObject(forKey: "shortcuts.pending-action")
+        guard let action = defaults?.string(forKey: ShortcutBridge.pendingActionKey) else {
+            return
+        }
+        defaults?.removeObject(forKey: ShortcutBridge.pendingActionKey)
         switch action {
         case "open-pinned", "new-note":
             navigation.selectedTab = .saved
@@ -415,8 +435,8 @@ struct RootView: View {
                 ? .journal(id)
                 : .chart(id)
         case "ai-draft":
-            assistantStore.draft = defaults?.string(forKey: "shortcuts.pending-ai-draft") ?? ""
-            defaults?.removeObject(forKey: "shortcuts.pending-ai-draft")
+            assistantStore.draft = defaults?.string(forKey: ShortcutBridge.pendingDraftKey) ?? ""
+            defaults?.removeObject(forKey: ShortcutBridge.pendingDraftKey)
             navigation.selectedTab = .ai
         default:
             break

@@ -558,6 +558,12 @@ struct ChartAssistantView: View {
 
     private func prepareToSendQuestion() {
         guard !voiceCoordinator.isInputActive, canSend else { return }
+        guard !assistantStore.requiresNewConversation(
+            for: configurationStore.model
+        ) else {
+            errorMessage = "模型已變更。請先清除目前對話並開始新對話，避免混用不同模型的回答。"
+            return
+        }
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("-UITestMockAI"),
            !arguments.contains("-UITestShowTransmissionPreview") {
@@ -571,6 +577,12 @@ struct ChartAssistantView: View {
         guard !voiceCoordinator.isInputActive else { return }
         do {
             let configuration = try configurationStore.configuration()
+            guard !assistantStore.requiresNewConversation(
+                for: configuration.model
+            ) else {
+                errorMessage = "模型已變更。請先清除目前對話並開始新對話，避免混用不同模型的回答。"
+                return
+            }
             try usageStore.reserve(.conversation)
             assistantStore.send(configuration: configuration)
             composerIsFocused = false
@@ -585,12 +597,13 @@ struct ChartAssistantView: View {
 
     private func saveConversation() {
         guard let chart = assistantStore.selectedChart,
-              !assistantStore.turns.isEmpty else { return }
+              !assistantStore.turns.isEmpty,
+              let modelIdentifier = assistantStore.conversationModelIdentifier else { return }
         modelContext.insert(SavedConversation(
             chartID: chart.savedChartID,
             chartName: chart.name,
             chartDetail: chart.detail,
-            modelIdentifier: configurationStore.model,
+            modelIdentifier: modelIdentifier,
             title: conversationTitle,
             turns: assistantStore.turns
         ))

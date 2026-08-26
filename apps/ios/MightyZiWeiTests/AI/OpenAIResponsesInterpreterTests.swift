@@ -438,6 +438,39 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         XCTAssertEqual(store.requestState, .idle)
     }
 
+    func test本次對話會固定使用產生首則回答的模型() async throws {
+        let defaults = UserDefaults(suiteName: "ChartAssistantModelTests.\(UUID().uuidString)")!
+        let answerer = SequenceConversationAnswerer(results: [
+            .success(ChartConversationAnswer(
+                status: .answered,
+                content: "第一個模型的回答。",
+                evidenceFactIDs: [fact.id]
+            )),
+            .success(ChartConversationAnswer(
+                status: .answered,
+                content: "不應混入的回答。",
+                evidenceFactIDs: [fact.id]
+            ))
+        ])
+        let store = ChartAssistantStore(answerer: answerer, defaults: defaults)
+        store.select(makeAssistantChart())
+        store.draft = "第一題"
+        store.send(configuration: try makeConfiguration(apiKey: nil, model: "first-model"))
+        await waitForRequestToFinish(store)
+
+        XCTAssertEqual(store.conversationModelIdentifier, "first-model")
+        XCTAssertTrue(store.requiresNewConversation(for: "second-model"))
+        store.draft = "第二題"
+        store.send(configuration: try makeConfiguration(apiKey: nil, model: "second-model"))
+
+        XCTAssertFalse(store.isRequesting)
+        XCTAssertEqual(store.turns.count, 1)
+        XCTAssertEqual(store.conversationModelIdentifier, "first-model")
+        store.clearConversation()
+        XCTAssertNil(store.conversationModelIdentifier)
+        XCTAssertFalse(store.requiresNewConversation(for: "second-model"))
+    }
+
     func test對話失敗與取消會保留問題草稿及既有回答() async throws {
         let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
         let answerer = SequenceConversationAnswerer(results: [
@@ -690,10 +723,13 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         return URLSession(configuration: configuration)
     }
 
-    private func makeConfiguration(apiKey: String?) throws -> OpenAIResponsesConfiguration {
+    private func makeConfiguration(
+        apiKey: String?,
+        model: String = "test-model"
+    ) throws -> OpenAIResponsesConfiguration {
         try OpenAIResponsesConfiguration(
             endpoint: "https://example.com/custom/responses",
-            model: "test-model",
+            model: model,
             apiKey: apiKey
         )
     }

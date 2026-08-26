@@ -286,7 +286,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertTrue(BackupRestoreWarning.message.contains("永久刪除"))
     }
 
-    func test還原會原子更新同ID資料並移除該命盤舊Insight() throws {
+    func test還原會原子更新同ID資料並移除該命盤舊Insight() async throws {
         let incomingChart = try makeSavedChart()
         incomingChart.name = "備份名稱"
         let existingChart = try makeSavedChart()
@@ -320,7 +320,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         context.insert(staleInsight)
         try context.save()
 
-        let result = try BackupRestoreService.restore(
+        let result = try await BackupRestoreService.restore(
             payload.validated(),
             existingCharts: [existingChart],
             existingInsights: [staleInsight],
@@ -337,8 +337,9 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertEqual(restoredInsights.first?.evidenceFactIDs, ["natal.palace.life.branch"])
     }
 
-    func test還原會清除舊刪除標記更新同步版本取消舊提醒並重設捷徑() throws {
+    func test還原會清除舊刪除標記更新同步版本取消舊提醒並重設捷徑() async throws {
         let incomingChart = try makeSavedChart()
+        incomingChart.name = "備份名稱"
         incomingChart.isPinned = true
         let incomingInsight = SavedInsight(
             id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
@@ -346,7 +347,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
             kind: .note,
             locationID: "chart.general",
             title: "備份筆記",
-            content: "還原內容"
+            content: "還原內容",
+            reviewDate: Date(timeIntervalSinceReferenceDate: 700_000_000)
         )
         let payload = try BackupPayload(
             savedCharts: [incomingChart],
@@ -392,8 +394,9 @@ final class EncryptedBackupServiceTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         var cancelledIdentifiers: [String] = []
+        var scheduledReminderTitles: [String] = []
 
-        _ = try BackupRestoreService.restore(
+        _ = try await BackupRestoreService.restore(
             payload.validated(),
             existingCharts: [existingChart],
             existingInsights: [existingInsight],
@@ -402,6 +405,13 @@ final class EncryptedBackupServiceTests: XCTestCase {
             shortcutDefaults: defaults,
             cancelReminder: { identifier in
                 if let identifier { cancelledIdentifiers.append(identifier) }
+            },
+            scheduleReminder: { insightID, chartName, title, date in
+                XCTAssertEqual(insightID, incomingInsight.id)
+                XCTAssertEqual(chartName, "備份名稱")
+                XCTAssertEqual(date, incomingInsight.reviewDate)
+                scheduledReminderTitles.append(title)
+                return "review.restored-device-request"
             }
         )
 
@@ -411,7 +421,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertGreaterThan(restoredInsight.updatedAt, deletedAt)
         XCTAssertTrue(try context.fetch(FetchDescriptor<CloudDeletion>()).isEmpty)
         XCTAssertEqual(cancelledIdentifiers, ["review.old-device-request"])
-        XCTAssertNil(restoredInsight.reminderIdentifier)
+        XCTAssertEqual(scheduledReminderTitles, ["備份筆記"])
+        XCTAssertEqual(restoredInsight.reminderIdentifier, "review.restored-device-request")
         XCTAssertEqual(
             defaults.string(forKey: PinnedChartShortcut.key),
             restoredChart.id.uuidString

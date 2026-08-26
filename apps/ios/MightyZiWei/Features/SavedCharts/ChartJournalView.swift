@@ -41,7 +41,7 @@ struct ChartJournalView: View {
             }
 
             Section {
-                Text("筆記與收藏由 App 保存在本機，也可能依 iOS 設定納入裝置備份或移轉；只有你主動建立加密備份時，App 才會匯出這些內容。")
+                Text("筆記與收藏會儲存在此 App；若啟用 iCloud 同步，也會同步到你的私人 iCloud 資料庫。只有你主動建立加密備份時，App 才會另外匯出這些內容。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

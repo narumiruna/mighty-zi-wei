@@ -249,7 +249,7 @@ struct BackupManagementView: View {
                         encodedRecoveryKey: key
                     )
                 }.value
-                let result = try BackupRestoreService.restore(
+                let result = try await BackupRestoreService.restore(
                     payload,
                     existingCharts: charts,
                     existingInsights: insights,

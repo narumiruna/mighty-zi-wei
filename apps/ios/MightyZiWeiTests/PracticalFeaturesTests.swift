@@ -77,6 +77,49 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertFalse(first.hasSameBirthProfile(as: different))
     }
 
+    func test重新命名命盤會原子更新已授權提醒內容() async throws {
+        let chart = try makeSavedChart(name: "舊名稱")
+        let insight = SavedInsight(
+            chartID: chart.id,
+            kind: .note,
+            locationID: "chart.general",
+            title: "回顧筆記",
+            content: "內容",
+            reviewDate: makeDate(2027, 1, 1),
+            reminderIdentifier: "review.old-request"
+        )
+        let container = try ModelContainer(
+            for: SavedChart.self,
+            SavedInsight.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        context.insert(chart)
+        context.insert(insight)
+        try context.save()
+        var scheduledChartNames: [String] = []
+        var cancelledIdentifiers: [String] = []
+
+        try await SavedChartRenameService.rename(
+            chart,
+            to: "新名稱",
+            insights: [insight],
+            modelContext: context,
+            scheduleReminder: { _, chartName, _, _ in
+                scheduledChartNames.append(chartName)
+                return "review.new-request"
+            },
+            cancelReminder: { identifier in
+                if let identifier { cancelledIdentifiers.append(identifier) }
+            }
+        )
+
+        XCTAssertEqual(chart.name, "新名稱")
+        XCTAssertEqual(insight.reminderIdentifier, "review.new-request")
+        XCTAssertEqual(scheduledChartNames, ["新名稱"])
+        XCTAssertEqual(cancelledIdentifiers, ["review.old-request"])
+    }
+
     func test觀察筆記保留內容連結命盤依據與自訂回顧時間() {
         let reviewDate = Date.now.addingTimeInterval(7_776_000)
         let note = SavedInsight(
@@ -139,6 +182,22 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertTrue(exported.contains("命盤：常用命盤"))
         XCTAssertTrue(exported.contains("模型：example-model"))
         XCTAssertTrue(exported.contains("natal.palace.life.branch"))
+    }
+
+    func test雲端整理確認會顯示回答長度與確認後額度() {
+        XCTAssertEqual(
+            AIRequestBudgetSummary(
+                remainingRequests: 1,
+                maximumAnswerCharacters: 1_200
+            ).message,
+            "每次回答長度上限為 1200 字。確認後本月剩餘 0 次請求。"
+        )
+        XCTAssertTrue(
+            AIRequestBudgetSummary(
+                remainingRequests: nil,
+                maximumAnswerCharacters: 600
+            ).message.contains("未設定每月請求上限")
+        )
     }
 
     func testAPI用量上限與安全診斷不含敏感內容() throws {
@@ -227,6 +286,29 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertEqual(local.title, "新標題")
         XCTAssertEqual(local.reviewDate, makeDate(2027, 2, 1))
         XCTAssertEqual(local.reminderIdentifier, "review.old-device-request")
+    }
+
+    func test捷徑執行時會立即通知已啟動的App並保存待辦動作() throws {
+        let suite = "ShortcutBridgeTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let notificationCenter = NotificationCenter()
+        let notified = expectation(
+            forNotification: ShortcutBridge.actionDidChangeNotification,
+            object: nil,
+            notificationCenter: notificationCenter
+        )
+
+        ShortcutBridge.setAction(
+            "ai-draft",
+            draft: "測試問題",
+            defaults: defaults,
+            notificationCenter: notificationCenter
+        )
+
+        wait(for: [notified], timeout: 0.1)
+        XCTAssertEqual(defaults.string(forKey: ShortcutBridge.pendingActionKey), "ai-draft")
+        XCTAssertEqual(defaults.string(forKey: ShortcutBridge.pendingDraftKey), "測試問題")
     }
 
     func test刪除標記會定位原始CloudKit內容紀錄() throws {
@@ -319,6 +401,42 @@ final class PracticalFeaturesTests: XCTestCase {
             ]
         )
         XCTAssertTrue(newerRemotePlan.chartIDs.isEmpty)
+    }
+
+    func test命盤刪除會為遠端子筆記建立勝出的串聯刪除計畫() {
+        let deletedChartID = UUID()
+        let survivingChartID = UUID()
+        let deletedAt = makeDate(2026, 2, 1)
+        let newerInsightUpdate = makeDate(2026, 3, 1)
+        let deletedChildID = UUID()
+        let newerDeletedChildID = UUID()
+        let survivingChildID = UUID()
+
+        let plan = CloudCascadeDeletionPlanner().makePlan(
+            remoteInsights: [
+                CloudRemoteInsightRevision(
+                    id: deletedChildID,
+                    chartID: deletedChartID,
+                    updatedAt: makeDate(2026, 1, 1)
+                ),
+                CloudRemoteInsightRevision(
+                    id: newerDeletedChildID,
+                    chartID: deletedChartID,
+                    updatedAt: newerInsightUpdate
+                ),
+                CloudRemoteInsightRevision(
+                    id: survivingChildID,
+                    chartID: survivingChartID,
+                    updatedAt: makeDate(2026, 1, 1)
+                )
+            ],
+            deletedChartDates: [deletedChartID: deletedAt],
+            survivingChartIDs: [survivingChartID]
+        )
+
+        XCTAssertEqual(plan.insightDeletedAt[deletedChildID], deletedAt)
+        XCTAssertEqual(plan.insightDeletedAt[newerDeletedChildID], newerInsightUpdate)
+        XCTAssertNil(plan.insightDeletedAt[survivingChildID])
     }
 
     func testWidget共享狀態保留所有未來提醒並移除過期日期() throws {

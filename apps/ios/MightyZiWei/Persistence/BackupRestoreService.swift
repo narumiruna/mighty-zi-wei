@@ -19,8 +19,21 @@ enum BackupRestoreService {
         ),
         cancelReminder: (String?) -> Void = {
             ReviewReminderScheduler().cancel(identifier: $0)
+        },
+        scheduleReminder: (
+            UUID,
+            String,
+            String,
+            Date
+        ) async throws -> String? = { insightID, chartName, title, date in
+            try await ReviewReminderScheduler().scheduleSyncedReminder(
+                insightID: insightID,
+                chartName: chartName,
+                title: title,
+                date: date
+            )
         }
-    ) throws -> BackupRestoreResult {
+    ) async throws -> BackupRestoreResult {
         let validatedCharts = try payload.makeSavedCharts()
         let validatedChartsByID = Dictionary(
             uniqueKeysWithValues: validatedCharts.map { ($0.id, $0) }
@@ -94,10 +107,27 @@ enum BackupRestoreService {
 
         matchingDeletions.forEach(modelContext.delete)
 
+        var newReminderIdentifiers: [String] = []
         do {
+            for insightID in restoredInsightIDs {
+                guard let insight = insightsByID[insightID],
+                      let reviewDate = insight.reviewDate,
+                      let chartName = chartsByID[insight.chartID]?.name else { continue }
+                let identifier = try await scheduleReminder(
+                    insight.id,
+                    chartName,
+                    insight.title,
+                    reviewDate
+                )
+                insight.reminderIdentifier = identifier
+                if let identifier {
+                    newReminderIdentifiers.append(identifier)
+                }
+            }
             try modelContext.save()
         } catch {
             modelContext.rollback()
+            newReminderIdentifiers.forEach { cancelReminder($0) }
             throw error
         }
 

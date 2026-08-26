@@ -67,6 +67,58 @@ private struct ExternalSavedDestination: Identifiable, Hashable {
     let kind: Kind
 }
 
+@MainActor
+enum SavedChartRenameService {
+    static func rename(
+        _ chart: SavedChart,
+        to proposedName: String,
+        insights: [SavedInsight],
+        modelContext: ModelContext,
+        scheduleReminder: (
+            UUID,
+            String,
+            String,
+            Date
+        ) async throws -> String? = { insightID, chartName, title, date in
+            try await ReviewReminderScheduler().scheduleSyncedReminder(
+                insightID: insightID,
+                chartName: chartName,
+                title: title,
+                date: date
+            )
+        },
+        cancelReminder: (String?) -> Void = {
+            ReviewReminderScheduler().cancel(identifier: $0)
+        }
+    ) async throws {
+        var oldReminderIdentifiers: [String] = []
+        var newReminderIdentifiers: [String] = []
+        do {
+            try chart.rename(to: proposedName)
+            for insight in insights where insight.chartID == chart.id {
+                guard let reviewDate = insight.reviewDate,
+                      let newIdentifier = try await scheduleReminder(
+                          insight.id,
+                          chart.name,
+                          insight.title,
+                          reviewDate
+                      ) else { continue }
+                if let oldIdentifier = insight.reminderIdentifier {
+                    oldReminderIdentifiers.append(oldIdentifier)
+                }
+                insight.reminderIdentifier = newIdentifier
+                newReminderIdentifiers.append(newIdentifier)
+            }
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            newReminderIdentifiers.forEach { cancelReminder($0) }
+            throw error
+        }
+        oldReminderIdentifiers.forEach { cancelReminder($0) }
+    }
+}
+
 struct SavedChartsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppNavigationState.self) private var navigation
@@ -141,7 +193,7 @@ struct SavedChartsView: View {
                 Button("取消", role: .cancel) {}
                 Button("儲存") { rename() }
             } message: {
-                Text("名稱只會儲存在本機。")
+                Text("名稱會儲存在此 App；若啟用 iCloud 同步，也會同步到你的私人 iCloud 資料庫。")
             }
             .confirmationDialog(
                 "刪除這張命盤？",
@@ -387,12 +439,19 @@ struct SavedChartsView: View {
 
     private func rename() {
         guard let chartToRename else { return }
-        do {
-            try chartToRename.rename(to: proposedName)
-            try modelContext.save()
-            self.chartToRename = nil
-        } catch {
-            errorMessage = "無法重新命名命盤。"
+        let proposedName = proposedName
+        Task {
+            do {
+                try await SavedChartRenameService.rename(
+                    chartToRename,
+                    to: proposedName,
+                    insights: insights,
+                    modelContext: modelContext
+                )
+                self.chartToRename = nil
+            } catch {
+                errorMessage = "無法重新命名命盤。"
+            }
         }
     }
 

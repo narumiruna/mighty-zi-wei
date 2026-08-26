@@ -37,6 +37,32 @@ struct CloudTombstoneUploadPolicy: Sendable {
     }
 }
 
+struct CloudRemoteInsightRevision: Equatable, Sendable {
+    let id: UUID
+    let chartID: UUID
+    let updatedAt: Date
+}
+
+struct CloudCascadeDeletionPlan: Equatable, Sendable {
+    let insightDeletedAt: [UUID: Date]
+}
+
+struct CloudCascadeDeletionPlanner: Sendable {
+    func makePlan(
+        remoteInsights: [CloudRemoteInsightRevision],
+        deletedChartDates: [UUID: Date],
+        survivingChartIDs: Set<UUID>
+    ) -> CloudCascadeDeletionPlan {
+        let insightDeletedAt = Dictionary(uniqueKeysWithValues: remoteInsights.compactMap {
+            insight -> (UUID, Date)? in
+            guard !survivingChartIDs.contains(insight.chartID),
+                  let chartDeletedAt = deletedChartDates[insight.chartID] else { return nil }
+            return (insight.id, max(chartDeletedAt, insight.updatedAt))
+        })
+        return CloudCascadeDeletionPlan(insightDeletedAt: insightDeletedAt)
+    }
+}
+
 struct CloudBookmarkRevision: Equatable, Sendable {
     let id: UUID
     let chartID: UUID
@@ -370,6 +396,36 @@ final class ICloudSyncService {
         for chart in chartsByID.values where !remoteChartIDs.contains(chart.id) {
             try await database.save(try CloudChartPayload(chart).record())
             uploaded += 1
+        }
+
+        let cascadePlan = CloudCascadeDeletionPlanner().makePlan(
+            remoteInsights: remoteInsights.map {
+                CloudRemoteInsightRevision(
+                    id: $0.id,
+                    chartID: $0.chartID,
+                    updatedAt: $0.updatedAt
+                )
+            },
+            deletedChartDates: Dictionary(uniqueKeysWithValues: allDeletions.compactMap {
+                key, deletion -> (UUID, Date)? in
+                guard key.type == RecordType.chart else { return nil }
+                return (key.id, deletion.deletedAt)
+            }),
+            survivingChartIDs: Set(chartsByID.keys)
+        )
+        for (insightID, deletedAt) in cascadePlan.insightDeletedAt {
+            let key = DeletionKey(type: RecordType.insight, id: insightID)
+            if let deletion = allDeletions[key] {
+                deletion.deletedAt = max(deletion.deletedAt, deletedAt)
+            } else {
+                let deletion = CloudDeletion(
+                    entityID: insightID,
+                    entityType: RecordType.insight,
+                    deletedAt: deletedAt
+                )
+                modelContext.insert(deletion)
+                allDeletions[key] = deletion
+            }
         }
 
         var remoteInsightsToReconcile = remoteInsights.filter { remote in
