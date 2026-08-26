@@ -2,6 +2,24 @@ import Accessibility
 import SwiftData
 import SwiftUI
 
+struct SavedChartAssistantSnapshot: Equatable {
+    let id: UUID
+    let name: String
+    let birthProfileData: Data
+    let ruleSetID: String
+    let ruleSetVersion: Int
+    let appSchemaVersion: Int
+
+    init(_ chart: SavedChart) {
+        id = chart.id
+        name = chart.name
+        birthProfileData = chart.birthProfileData
+        ruleSetID = chart.ruleSetID
+        ruleSetVersion = chart.ruleSetVersion
+        appSchemaVersion = chart.appSchemaVersion
+    }
+}
+
 struct ChartAssistantView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AIConfigurationStore.self) private var configurationStore
@@ -20,6 +38,10 @@ struct ChartAssistantView: View {
         "面對人際關係時，我可能要注意什麼？",
         "這張命盤有哪些值得自我觀察的傾向？"
     ]
+
+    private var savedChartSnapshots: [SavedChartAssistantSnapshot] {
+        savedCharts.map(SavedChartAssistantSnapshot.init)
+    }
 
     var body: some View {
         NavigationStack {
@@ -69,30 +91,10 @@ struct ChartAssistantView: View {
                 loadDefaultChartIfNeeded()
             }
             .onChange(of: voiceCoordinator.inputState) { previousState, state in
-                switch state {
-                case .recording:
-                    AccessibilityNotification.Announcement("已開始語音輸入。")
-                        .post()
-                case .finalizing:
-                    AccessibilityNotification.Announcement("正在結束語音輸入。")
-                        .post()
-                case .failed(let message):
-                    AccessibilityNotification.Announcement(message)
-                        .post()
-                case .idle where previousState == .finalizing:
-                    AccessibilityNotification.Announcement("語音輸入已結束，文字仍可編輯。")
-                        .post()
-                case .idle, .preparing:
-                    break
-                }
+                announceVoiceInputChange(from: previousState, to: state)
             }
-            .onChange(of: savedCharts.map(\.id)) { _, identifiers in
-                guard let selectedID = assistantStore.selectedChart?.savedChartID,
-                      !identifiers.contains(selectedID)
-                else { return }
-                voiceCoordinator.stopAll()
-                assistantStore.clearSelection()
-                loadDefaultChartIfNeeded()
+            .onChange(of: savedChartSnapshots) { previous, current in
+                reconcileSavedCharts(previous: previous, current: current)
             }
             .onDisappear {
                 assistantStore.cancelRequest()
@@ -136,6 +138,24 @@ struct ChartAssistantView: View {
             } message: {
                 Text(errorMessage ?? "未知錯誤")
             }
+        }
+    }
+
+    private func announceVoiceInputChange(
+        from previousState: VoiceCoordinator.InputState,
+        to state: VoiceCoordinator.InputState
+    ) {
+        switch state {
+        case .recording:
+            AccessibilityNotification.Announcement("已開始語音輸入。").post()
+        case .finalizing:
+            AccessibilityNotification.Announcement("正在結束語音輸入。").post()
+        case .failed(let message):
+            AccessibilityNotification.Announcement(message).post()
+        case .idle where previousState == .finalizing:
+            AccessibilityNotification.Announcement("語音輸入已結束，文字仍可編輯。").post()
+        case .idle, .preparing:
+            break
         }
     }
 
@@ -510,6 +530,32 @@ struct ChartAssistantView: View {
         } ?? savedCharts.first
         if let preferred {
             select(savedChart: preferred)
+        }
+    }
+
+    private func reconcileSavedCharts(
+        previous: [SavedChartAssistantSnapshot],
+        current: [SavedChartAssistantSnapshot]
+    ) {
+        guard let selectedID = assistantStore.selectedChart?.savedChartID else { return }
+        guard let currentSnapshot = current.first(where: { $0.id == selectedID }) else {
+            voiceCoordinator.stopAll()
+            assistantStore.reconcileDeletedSavedChart(selectedID)
+            loadDefaultChartIfNeeded()
+            return
+        }
+        guard previous.first(where: { $0.id == selectedID }) != currentSnapshot,
+              let savedChart = savedCharts.first(where: { $0.id == selectedID }) else {
+            return
+        }
+
+        do {
+            voiceCoordinator.stopAll()
+            assistantStore.reconcileSelection(with: try makeAssistantChart(savedChart: savedChart))
+        } catch {
+            assistantStore.clearSelection()
+            errorMessage = "命盤資料已更新，但目前無法重新準備 AI 命盤。請回到已儲存命盤重新建立。"
+            loadDefaultChartIfNeeded()
         }
     }
 

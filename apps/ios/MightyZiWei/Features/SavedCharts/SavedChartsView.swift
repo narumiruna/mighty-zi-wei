@@ -1,12 +1,27 @@
 import SwiftData
 import SwiftUI
 
+struct SavedInsightDeletionSummary: Equatable {
+    let noteCount: Int
+    let bookmarkCount: Int
+
+    init(insights: [SavedInsight]) {
+        noteCount = insights.count { $0.kind == .note }
+        bookmarkCount = insights.count { $0.kind == .bookmark }
+    }
+
+    var message: String {
+        "將一併永久刪除 \(noteCount) 則私人筆記與 \(bookmarkCount) 則收藏。這個動作無法復原。"
+    }
+}
+
 struct SavedChartsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
     @Query private var insights: [SavedInsight]
 
     @State private var chartToRename: SavedChart?
+    @State private var chartToDelete: SavedChart?
     @State private var proposedName = ""
     @State private var showsDeleteAllConfirmation = false
     @State private var errorMessage: String?
@@ -37,9 +52,9 @@ struct SavedChartsView: View {
                                 }
                                 .tint(.accentColor)
                             }
-                            .swipeActions(edge: .trailing) {
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
-                                    delete(chart)
+                                    chartToDelete = chart
                                 } label: {
                                     Label("刪除", systemImage: "trash")
                                 }
@@ -83,14 +98,30 @@ struct SavedChartsView: View {
                 Text("名稱只會儲存在本機。")
             }
             .confirmationDialog(
+                "刪除這張命盤？",
+                isPresented: deleteIsPresented,
+                titleVisibility: .visible
+            ) {
+                Button("刪除命盤、筆記與收藏", role: .destructive) {
+                    guard let chartToDelete else { return }
+                    delete(chartToDelete)
+                    self.chartToDelete = nil
+                }
+                Button("取消", role: .cancel) {
+                    chartToDelete = nil
+                }
+            } message: {
+                Text(singleDeletionSummary.message)
+            }
+            .confirmationDialog(
                 "刪除所有已儲存命盤？",
                 isPresented: $showsDeleteAllConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("全部刪除", role: .destructive) { deleteAll() }
+                Button("刪除所有命盤、筆記與收藏", role: .destructive) { deleteAll() }
                 Button("取消", role: .cancel) {}
             } message: {
-                Text("這個動作無法復原。")
+                Text(SavedInsightDeletionSummary(insights: insights).message)
             }
             .alert("操作未完成", isPresented: errorIsPresented) {
                 Button("好", role: .cancel) {}
@@ -104,6 +135,22 @@ struct SavedChartsView: View {
         Binding(
             get: { chartToRename != nil },
             set: { if !$0 { chartToRename = nil } }
+        )
+    }
+
+    private var deleteIsPresented: Binding<Bool> {
+        Binding(
+            get: { chartToDelete != nil },
+            set: { if !$0 { chartToDelete = nil } }
+        )
+    }
+
+    private var singleDeletionSummary: SavedInsightDeletionSummary {
+        guard let chartToDelete else {
+            return SavedInsightDeletionSummary(insights: [])
+        }
+        return SavedInsightDeletionSummary(
+            insights: insights.filter { $0.chartID == chartToDelete.id }
         )
     }
 
@@ -137,6 +184,7 @@ struct SavedChartsView: View {
             try modelContext.delete(model: SavedChart.self)
             try modelContext.save()
         } catch {
+            modelContext.rollback()
             errorMessage = "無法刪除所有已儲存命盤。"
         }
     }
@@ -145,6 +193,7 @@ struct SavedChartsView: View {
         do {
             try modelContext.save()
         } catch {
+            modelContext.rollback()
             errorMessage = errorText
         }
     }

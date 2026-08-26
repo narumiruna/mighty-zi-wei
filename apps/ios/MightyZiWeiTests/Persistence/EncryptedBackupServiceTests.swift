@@ -278,7 +278,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         try context.save()
 
         let result = try BackupRestoreService.restore(
-            payload,
+            payload.validated(),
             existingCharts: [existingChart],
             existingInsights: [staleInsight],
             modelContext: context
@@ -292,6 +292,29 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertNil(charts.first?.chartCacheData)
         XCTAssertEqual(restoredInsights.map(\.title), ["備份收藏"])
         XCTAssertEqual(restoredInsights.first?.evidenceFactIDs, ["natal.palace.life.branch"])
+    }
+
+    func test拒絕不同規則版本以免保留過期收藏依據() throws {
+        let fixture = try makeValidPayloadFixture()
+        var object = fixture.object
+        var charts = try XCTUnwrap(object["charts"] as? [[String: Any]])
+        charts[0]["ruleSetVersion"] = 0
+        object["charts"] = charts
+        let backupData = try seal(
+            JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+            recoveryKey: fixture.recoveryKey
+        )
+
+        XCTAssertThrowsError(try EncryptedBackupService.restore(
+            from: backupData,
+            recoveryKey: fixture.recoveryKey
+        )) { error in
+            guard case let .unsupportedChartRuleSet(_, ruleSetID, version) = error as? BackupError else {
+                return XCTFail("預期拒絕不同排盤規則，實際為 \(error)")
+            }
+            XCTAssertEqual(ruleSetID, RuleSetIdentity.taiwanTraditionalSanheV1.id)
+            XCTAssertEqual(version, 0)
+        }
     }
 
     func test拒絕無效EvidenceFactID() throws {

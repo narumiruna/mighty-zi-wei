@@ -8,12 +8,11 @@ struct BackupRestoreResult: Equatable, Sendable {
 @MainActor
 enum BackupRestoreService {
     static func restore(
-        _ payload: BackupPayload,
+        _ payload: ValidatedBackupPayload,
         existingCharts: [SavedChart],
         existingInsights: [SavedInsight],
         modelContext: ModelContext
     ) throws -> BackupRestoreResult {
-        try payload.validate()
         let validatedCharts = try payload.makeSavedCharts()
         let validatedChartsByID = Dictionary(
             uniqueKeysWithValues: validatedCharts.map { ($0.id, $0) }

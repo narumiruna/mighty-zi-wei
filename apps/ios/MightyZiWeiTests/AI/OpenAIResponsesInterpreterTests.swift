@@ -565,6 +565,90 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         XCTAssertEqual(store.lastSelectedSavedChartID, savedID)
     }
 
+    func test刪除從首頁儲存的命盤時不受觀察順序影響並保留對話() async throws {
+        let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
+        let store = ChartAssistantStore(
+            answerer: SequenceConversationAnswerer(results: [
+                .success(ChartConversationAnswer(
+                    status: .answered,
+                    content: "刪除紀錄後仍保留。",
+                    evidenceFactIDs: [fact.id]
+                ))
+            ]),
+            defaults: defaults
+        )
+        let temporaryChart = makeAssistantChart()
+        let savedID = UUID()
+        let savedChart = ChartAssistantChart(
+            id: savedID,
+            savedChartID: savedID,
+            name: temporaryChart.name,
+            detail: temporaryChart.detail,
+            facts: temporaryChart.facts,
+            seeds: temporaryChart.seeds
+        )
+        store.select(temporaryChart)
+        store.draft = "保留這次對話"
+        store.send(configuration: try makeConfiguration(apiKey: nil))
+        await waitForRequestToFinish(store)
+        store.migrateSelection(from: temporaryChart.id, to: savedChart)
+
+        store.reconcileDeletedSavedChart(savedID)
+
+        XCTAssertEqual(store.selectedChart?.id, temporaryChart.id)
+        XCTAssertNil(store.selectedChart?.savedChartID)
+        XCTAssertEqual(store.turns.map(\.answer), ["刪除紀錄後仍保留。"])
+    }
+
+    func test同ID命盤來源更新時重建選擇並清除舊對話() async throws {
+        let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
+        let store = ChartAssistantStore(
+            answerer: SequenceConversationAnswerer(results: [
+                .success(ChartConversationAnswer(
+                    status: .answered,
+                    content: "這是舊命盤回答。",
+                    evidenceFactIDs: [fact.id]
+                ))
+            ]),
+            defaults: defaults
+        )
+        let savedID = UUID()
+        let original = ChartAssistantChart(
+            id: savedID,
+            savedChartID: savedID,
+            name: "原命盤",
+            detail: "1990/06/15　10:30",
+            facts: [fact],
+            seeds: makeSeeds()
+        )
+        let replacementFact = ChartFact(
+            id: fact.id,
+            category: fact.category,
+            subject: fact.subject,
+            value: .init(kind: "palace", identifier: "career"),
+            displayText: "紫微位於官祿宮。"
+        )
+        let replacement = ChartAssistantChart(
+            id: savedID,
+            savedChartID: savedID,
+            name: "還原後命盤",
+            detail: "1992/08/20　18:30",
+            facts: [replacementFact],
+            seeds: []
+        )
+        store.select(original)
+        store.draft = "詢問原命盤"
+        store.send(configuration: try makeConfiguration(apiKey: nil))
+        await waitForRequestToFinish(store)
+
+        store.reconcileSelection(with: replacement)
+
+        XCTAssertEqual(store.selectedChart?.name, "還原後命盤")
+        XCTAssertEqual(store.selectedChart?.facts, [replacementFact])
+        XCTAssertTrue(store.turns.isEmpty)
+        XCTAssertEqual(store.draft, "")
+    }
+
     private func waitForRequestToFinish(_ store: ChartAssistantStore) async {
         for _ in 0..<100 where store.isRequesting {
             try? await Task.sleep(for: .milliseconds(10))

@@ -54,6 +54,11 @@ enum BackupError: Error, Equatable {
     case unsupportedEnvelopeSchema(Int)
     case unsupportedPayloadSchema(Int)
     case unsupportedAlgorithm(String)
+    case unsupportedChartRuleSet(
+        chartID: UUID,
+        ruleSetID: String,
+        ruleSetVersion: Int
+    )
     case unsupportedChartSchema(chartID: UUID, schemaVersion: Int)
     case invalidChartData(UUID)
     case invalidRecoveryKey
@@ -80,6 +85,8 @@ extension BackupError: LocalizedError {
             "不支援備份資料版本 \(version)。"
         case let .unsupportedAlgorithm(algorithm):
             "不支援備份加密演算法 \(algorithm)。"
+        case let .unsupportedChartRuleSet(_, ruleSetID, ruleSetVersion):
+            "備份使用不相容的排盤規則 \(ruleSetID) v\(ruleSetVersion)，無法安全保留收藏依據。"
         case let .unsupportedChartSchema(_, version):
             "不支援命盤資料版本 \(version)。"
         case .invalidChartData:
@@ -152,7 +159,7 @@ enum EncryptedBackupService {
     static func restore(
         from backupData: Data,
         recoveryKey: BackupRecoveryKey
-    ) throws -> BackupPayload {
+    ) throws -> ValidatedBackupPayload {
         try validateSize(backupData)
 
         let envelope: EncryptedBackupEnvelope
@@ -191,11 +198,13 @@ enum EncryptedBackupService {
         } catch {
             throw BackupError.malformedBackup
         }
-        try payload.validate()
-        return payload
+        return try payload.validated()
     }
 
-    static func restore(from backupData: Data, encodedRecoveryKey: String) throws -> BackupPayload {
+    static func restore(
+        from backupData: Data,
+        encodedRecoveryKey: String
+    ) throws -> ValidatedBackupPayload {
         try restore(
             from: backupData,
             recoveryKey: BackupRecoveryKey(encoded: encodedRecoveryKey)

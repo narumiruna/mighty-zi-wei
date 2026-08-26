@@ -187,11 +187,20 @@ struct BackupPayload: Codable, Equatable, Sendable {
             throw BackupError.unsupportedPayloadSchema(schemaVersion)
         }
 
+        let currentRuleSet = RuleSetIdentity.taiwanTraditionalSanheV1
         var chartIDs = Set<UUID>()
         var validFactIDsByChartID: [UUID: Set<String>] = [:]
         for chart in charts {
             guard chartIDs.insert(chart.id).inserted else {
                 throw BackupError.duplicateChartID(chart.id)
+            }
+            guard chart.ruleSetID == currentRuleSet.id,
+                  chart.ruleSetVersion == currentRuleSet.version else {
+                throw BackupError.unsupportedChartRuleSet(
+                    chartID: chart.id,
+                    ruleSetID: chart.ruleSetID,
+                    ruleSetVersion: chart.ruleSetVersion
+                )
             }
             guard chart.appSchemaVersion == SavedChart.schemaVersion else {
                 throw BackupError.unsupportedChartSchema(
@@ -234,14 +243,29 @@ struct BackupPayload: Codable, Equatable, Sendable {
         }
     }
 
-    func makeSavedCharts() throws -> [SavedChart] {
+    func validated() throws -> ValidatedBackupPayload {
         try validate()
-        return try charts.map { try $0.makeSavedChart() }
+        return ValidatedBackupPayload(payload: self)
+    }
+}
+
+struct ValidatedBackupPayload: Sendable {
+    let schemaVersion: Int
+    let charts: [BackupChartDTO]
+    let insights: [BackupInsightDTO]
+
+    fileprivate init(payload: BackupPayload) {
+        schemaVersion = payload.schemaVersion
+        charts = payload.charts
+        insights = payload.insights
     }
 
-    func makeSavedInsights() throws -> [SavedInsight] {
-        try validate()
-        return insights.map { $0.makeSavedInsight() }
+    func makeSavedCharts() throws -> [SavedChart] {
+        try charts.map { try $0.makeSavedChart() }
+    }
+
+    func makeSavedInsights() -> [SavedInsight] {
+        insights.map { $0.makeSavedInsight() }
     }
 }
 

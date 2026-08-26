@@ -36,6 +36,7 @@ struct BackupManagementView: View {
     @State private var showsImporter = false
     @State private var importedData: Data?
     @State private var importedFilename: String?
+    @State private var isRestoring = false
     @State private var statusMessage: String?
     @State private var errorMessage: String?
 
@@ -87,11 +88,20 @@ struct BackupManagementView: View {
                         .autocorrectionDisabled()
                         .font(.footnote.monospaced())
                         .accessibilityIdentifier("backup.importKey")
-                    Button("解密並還原") {
+                    Button {
                         restore()
+                    } label: {
+                        if isRestoring {
+                            ProgressView("正在驗證備份…")
+                        } else {
+                            Text("解密並還原")
+                        }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(
+                        isRestoring
+                            || importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
                     .accessibilityIdentifier("backup.restore")
                     Text("相同識別碼的本機命盤、筆記與收藏會由備份內容取代；其他本機資料會保留。")
                         .font(.footnote)
@@ -191,27 +201,34 @@ struct BackupManagementView: View {
     }
 
     private func restore() {
-        guard let backupData = importedData else { return }
-        do {
-            let key = importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines)
-            let payload = try EncryptedBackupService.restore(
-                from: backupData,
-                encodedRecoveryKey: key
-            )
-            let result = try BackupRestoreService.restore(
-                payload,
-                existingCharts: charts,
-                existingInsights: insights,
-                modelContext: modelContext
-            )
+        guard let backupData = importedData, !isRestoring else { return }
+        let key = importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        isRestoring = true
 
-            importedData = nil
-            importedFilename = nil
-            importRecoveryKey = ""
-            statusMessage = "已還原 \(result.chartCount) 張命盤與 \(result.insightCount) 則筆記或收藏。"
-        } catch {
-            modelContext.rollback()
-            errorMessage = safeMessage(for: error)
+        Task {
+            do {
+                let payload = try await Task.detached(priority: .userInitiated) {
+                    try EncryptedBackupService.restore(
+                        from: backupData,
+                        encodedRecoveryKey: key
+                    )
+                }.value
+                let result = try BackupRestoreService.restore(
+                    payload,
+                    existingCharts: charts,
+                    existingInsights: insights,
+                    modelContext: modelContext
+                )
+
+                importedData = nil
+                importedFilename = nil
+                importRecoveryKey = ""
+                statusMessage = "已還原 \(result.chartCount) 張命盤與 \(result.insightCount) 則筆記或收藏。"
+            } catch {
+                modelContext.rollback()
+                errorMessage = safeMessage(for: error)
+            }
+            isRestoring = false
         }
     }
 

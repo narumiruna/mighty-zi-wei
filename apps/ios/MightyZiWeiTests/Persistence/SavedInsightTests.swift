@@ -48,6 +48,30 @@ final class SavedInsightTests: XCTestCase {
         XCTAssertEqual(bookmark.marker, .none)
     }
 
+    func test刪除命盤前摘要明確列出筆記與收藏數量() {
+        let chartID = UUID()
+        let summary = SavedInsightDeletionSummary(insights: [
+            SavedInsight(
+                chartID: chartID,
+                kind: .note,
+                locationID: "chart.general",
+                title: "私人筆記",
+                content: "內容"
+            ),
+            SavedInsight.bookmark(
+                chartID: chartID,
+                locationID: "interpretation.overview",
+                title: "收藏",
+                content: "內容",
+                evidenceFactIDs: []
+            )
+        ])
+
+        XCTAssertEqual(summary.noteCount, 1)
+        XCTAssertEqual(summary.bookmarkCount, 1)
+        XCTAssertEqual(summary.message, "將一併永久刪除 1 則私人筆記與 1 則收藏。這個動作無法復原。")
+    }
+
     func test重新產生內容後可辨識並更新同一收藏() {
         let bookmark = SavedInsight.bookmark(
             chartID: UUID(),
