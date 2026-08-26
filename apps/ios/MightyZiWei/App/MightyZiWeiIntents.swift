@@ -1,6 +1,30 @@
 import AppIntents
 import Foundation
 
+enum PinnedChartShortcut {
+    static let key = "shortcuts.pinned-chart-id"
+
+    static func reconcile(
+        charts: [SavedChart],
+        defaults: UserDefaults? = UserDefaults(
+            suiteName: ReviewReminderScheduler.sharedDefaultsSuite
+        )
+    ) {
+        let pinned = charts
+            .filter(\.isPinned)
+            .sorted {
+                if $0.updatedAt != $1.updatedAt { return $0.updatedAt > $1.updatedAt }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+            .first
+        if let pinned {
+            defaults?.set(pinned.id.uuidString, forKey: key)
+        } else {
+            defaults?.removeObject(forKey: key)
+        }
+    }
+}
+
 private enum ShortcutBridge {
     static let suite = ReviewReminderScheduler.sharedDefaultsSuite
     static let pendingActionKey = "shortcuts.pending-action"

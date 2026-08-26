@@ -374,13 +374,8 @@ struct RootView: View {
                 deletions: cloudDeletions,
                 modelContext: modelContext
             )
-            let defaults = UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)
             let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
-            if let pinned = currentCharts.first(where: \.isPinned) {
-                defaults?.set(pinned.id.uuidString, forKey: "shortcuts.pinned-chart-id")
-            } else {
-                defaults?.removeObject(forKey: "shortcuts.pinned-chart-id")
-            }
+            PinnedChartShortcut.reconcile(charts: currentCharts)
         } catch {
             // 保持啟用狀態，等下次進入前景或由使用者手動重試。
         }

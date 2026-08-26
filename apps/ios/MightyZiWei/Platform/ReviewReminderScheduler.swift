@@ -1,9 +1,11 @@
 import Foundation
 import UserNotifications
+import WidgetKit
 
 struct ReviewReminderScheduler: Sendable {
     static let sharedDefaultsSuite = "group.dev.narumi.MightyZiWei"
     static let nextReminderKey = "privacy-widget.next-review-date"
+    static let privacyWidgetKind = "MightyZiWeiPrivacyWidget"
 
     enum ReminderError: LocalizedError {
         case permissionDenied
@@ -35,7 +37,7 @@ struct ReviewReminderScheduler: Sendable {
             throw ReminderError.permissionDenied
         }
 
-        let identifier = "review.\(insightID.uuidString)"
+        let identifier = Self.makeIdentifier(insightID: insightID)
         let content = UNMutableNotificationContent()
         content.title = "回顧你的觀察筆記"
         content.body = "你曾為「\(chartName)」記下「\(title)」。這是你自行設定的回顧提醒，不是命盤預測。"
@@ -53,6 +55,10 @@ struct ReviewReminderScheduler: Sendable {
         ))
         await refreshWidgetReminder(center: center)
         return identifier
+    }
+
+    static func makeIdentifier(insightID: UUID) -> String {
+        "review.\(insightID.uuidString).\(UUID().uuidString)"
     }
 
     func cancel(identifier: String?) {
@@ -75,5 +81,6 @@ struct ReviewReminderScheduler: Sendable {
         } else {
             defaults?.removeObject(forKey: Self.nextReminderKey)
         }
+        WidgetCenter.shared.reloadTimelines(ofKind: Self.privacyWidgetKind)
     }
 }

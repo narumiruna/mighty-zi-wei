@@ -450,7 +450,7 @@ private struct ChartOverview: View {
             LazyVGrid(
                 columns: [
                     GridItem(
-                        .adaptive(minimum: 150),
+                        .flexible(),
                         spacing: ChartOverviewMetrics.spacing
                     )
                 ],

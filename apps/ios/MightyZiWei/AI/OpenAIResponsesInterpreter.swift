@@ -1,5 +1,14 @@
 import Foundation
 
+struct InterpretationLengthBudget: Equatable, Sendable {
+    let totalCharacters: Int
+    let sectionCount: Int
+
+    var maximumSectionCharacters: Int {
+        max(1, totalCharacters / max(1, sectionCount))
+    }
+}
+
 struct OpenAIResponsesInterpreter: Sendable {
     private let session: URLSession
 
@@ -127,10 +136,18 @@ struct OpenAIResponsesInterpreter: Sendable {
         seeds: [InterpretationSeed],
         configuration: OpenAIResponsesConfiguration
     ) throws -> URLRequest {
+        let lengthBudget = InterpretationLengthBudget(
+            totalCharacters: configuration.maximumAnswerCharacters,
+            sectionCount: InterpretationCategory.allCases.count
+        )
         let body: [String: Any] = [
             "model": configuration.model,
             "instructions": Self.instructions,
-            "input": makePrompt(facts: facts, seeds: seeds),
+            "input": makePrompt(
+                facts: facts,
+                seeds: seeds,
+                lengthBudget: lengthBudget
+            ),
             "stream": false,
             "store": false,
             "text": [
@@ -139,7 +156,7 @@ struct OpenAIResponsesInterpreter: Sendable {
                     "name": "chart_interpretation",
                     "strict": true,
                     "schema": outputSchema(
-                        maximumContentCharacters: configuration.maximumAnswerCharacters
+                        maximumContentCharacters: lengthBudget.maximumSectionCharacters
                     )
                 ]
             ]
@@ -280,7 +297,11 @@ struct OpenAIResponsesInterpreter: Sendable {
         return outputText
     }
 
-    private func makePrompt(facts: [ChartFact], seeds: [InterpretationSeed]) -> String {
+    private func makePrompt(
+        facts: [ChartFact],
+        seeds: [InterpretationSeed],
+        lengthBudget: InterpretationLengthBudget
+    ) -> String {
         let factText = facts
             .map { "- \($0.id): \($0.displayText)" }
             .joined(separator: "\n")
@@ -298,6 +319,7 @@ struct OpenAIResponsesInterpreter: Sendable {
         內容只供娛樂與自我反思，請使用「可能」、「傾向」等保留語氣。
         category 欄位只能使用：\(categories)。
         不得加入 seeds 未提供的命理含義。
+        五個 content 合計不得超過 \(lengthBudget.totalCharacters) 個字元，每個 content 最多 \(lengthBudget.maximumSectionCharacters) 個字元。
 
         已驗證命盤事實：
         \(factText)

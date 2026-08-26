@@ -91,6 +91,7 @@ final class ICloudSyncService {
         var uploaded = 0
         var downloaded = 0
         var conflicts = 0
+        var reminderIdentifiersToCancel = Set<String>()
 
         var allDeletions: [DeletionKey: CloudDeletion] = [:]
         for deletion in deletions {
@@ -123,7 +124,9 @@ final class ICloudSyncService {
             ) {
                 if let local = chartsByID.removeValue(forKey: remote.id) {
                     insights.filter { $0.chartID == local.id }.forEach { insight in
-                        ReviewReminderScheduler().cancel(identifier: insight.reminderIdentifier)
+                        if let identifier = insight.reminderIdentifier {
+                            reminderIdentifiersToCancel.insert(identifier)
+                        }
                         modelContext.delete(insight)
                     }
                     modelContext.delete(local)
@@ -170,7 +173,9 @@ final class ICloudSyncService {
                 deletedAt: tombstone?.deletedAt
             ) {
                 if let local = insightsByID.removeValue(forKey: remote.id) {
-                    ReviewReminderScheduler().cancel(identifier: local.reminderIdentifier)
+                    if let identifier = local.reminderIdentifier {
+                        reminderIdentifiersToCancel.insert(identifier)
+                    }
                     modelContext.delete(local)
                     downloaded += 1
                 }
@@ -188,7 +193,9 @@ final class ICloudSyncService {
                     localUpdatedAt: local.updatedAt,
                     remoteUpdatedAt: remote.updatedAt
                 ) == .remote {
-                    ReviewReminderScheduler().cancel(identifier: local.reminderIdentifier)
+                    if let identifier = local.reminderIdentifier {
+                        reminderIdentifiersToCancel.insert(identifier)
+                    }
                     remote.apply(to: local)
                     downloaded += 1
                     conflicts += 1
@@ -220,6 +227,14 @@ final class ICloudSyncService {
                 existing: deletionRecordsByKey[key]
             ))
             uploaded += 1
+            if deletionWins(
+                key: key,
+                deletion: deletion,
+                chartsByID: chartsByID,
+                insightsByID: insightsByID
+            ) {
+                try await deleteContentRecord(for: key)
+            }
         }
 
         do {
@@ -227,6 +242,9 @@ final class ICloudSyncService {
         } catch {
             modelContext.rollback()
             throw error
+        }
+        reminderIdentifiersToCancel.forEach {
+            ReviewReminderScheduler().cancel(identifier: $0)
         }
         return ICloudSyncResult(
             uploadedCount: uploaded,
@@ -244,6 +262,44 @@ final class ICloudSyncService {
             entityID: entityID,
             entityType: entityType
         ))
+    }
+
+    private func deletionWins(
+        key: DeletionKey,
+        deletion: CloudDeletion,
+        chartsByID: [UUID: SavedChart],
+        insightsByID: [UUID: SavedInsight]
+    ) -> Bool {
+        let contentUpdatedAt: Date?
+        switch key.type {
+        case RecordType.chart:
+            contentUpdatedAt = chartsByID[key.id]?.updatedAt
+        case RecordType.insight:
+            contentUpdatedAt = insightsByID[key.id]?.updatedAt
+        default:
+            return false
+        }
+        guard let contentUpdatedAt else { return true }
+        return CloudConflictResolver().isDeleted(
+            contentUpdatedAt: contentUpdatedAt,
+            deletedAt: deletion.deletedAt
+        )
+    }
+
+    private func deleteContentRecord(for key: DeletionKey) async throws {
+        guard let reference = CloudContentRecordReference(
+            entityType: key.type,
+            entityID: key.id
+        ) else {
+            throw SyncError.invalidRemoteData
+        }
+        do {
+            try await database.deleteRecord(
+                withID: CKRecord.ID(recordName: reference.recordName)
+            )
+        } catch let error as CKError where error.code == .unknownItem {
+            // 已刪除的內容視為成功，保留 tombstone 供其他裝置同步。
+        }
     }
 
     private func fetchRecords(type: String) async throws -> [CKRecord] {
@@ -281,6 +337,19 @@ private enum RecordType {
 private struct DeletionKey: Hashable {
     let type: String
     let id: UUID
+}
+
+struct CloudContentRecordReference: Equatable, Sendable {
+    let recordType: String
+    let recordName: String
+
+    init?(entityType: String, entityID: UUID) {
+        guard entityType == RecordType.chart || entityType == RecordType.insight else {
+            return nil
+        }
+        recordType = entityType
+        recordName = entityID.uuidString
+    }
 }
 
 private struct CloudChartPayload: Codable {

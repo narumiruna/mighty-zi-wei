@@ -150,6 +150,38 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertEqual(store.maximumAnswerCharacters, 2_000)
     }
 
+    func test命盤整理回答長度會分配到全部必要分類() {
+        let budget = InterpretationLengthBudget(totalCharacters: 1_200, sectionCount: 5)
+
+        XCTAssertEqual(budget.maximumSectionCharacters, 240)
+        XCTAssertLessThanOrEqual(budget.maximumSectionCharacters * budget.sectionCount, 1_200)
+    }
+
+    func test回顧提醒更新使用不同識別碼以保留舊通知直到儲存成功() {
+        let insightID = UUID()
+        let first = ReviewReminderScheduler.makeIdentifier(insightID: insightID)
+        let second = ReviewReminderScheduler.makeIdentifier(insightID: insightID)
+
+        XCTAssertTrue(first.hasPrefix("review.\(insightID.uuidString)."))
+        XCTAssertNotEqual(first, second)
+    }
+
+    func test刪除標記會定位原始CloudKit內容紀錄() throws {
+        let entityID = UUID()
+        let chartReference = try XCTUnwrap(
+            CloudContentRecordReference(entityType: "SavedChart", entityID: entityID)
+        )
+        let insightReference = try XCTUnwrap(
+            CloudContentRecordReference(entityType: "SavedInsight", entityID: entityID)
+        )
+
+        XCTAssertEqual(chartReference.recordType, "SavedChart")
+        XCTAssertEqual(chartReference.recordName, entityID.uuidString)
+        XCTAssertEqual(insightReference.recordType, "SavedInsight")
+        XCTAssertEqual(insightReference.recordName, entityID.uuidString)
+        XCTAssertNil(CloudContentRecordReference(entityType: "Unknown", entityID: entityID))
+    }
+
     func testCloudKit衝突保留較新版本且刪除時間優先() {
         let resolver = CloudConflictResolver()
         let older = makeDate(2026, 1, 1)

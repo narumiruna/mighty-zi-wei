@@ -35,6 +35,7 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             XCTAssertEqual(json["stream"] as? Bool, false)
             XCTAssertTrue((json["instructions"] as? String)?.contains("Only use chart facts") == true)
             XCTAssertTrue((json["input"] as? String)?.contains(fact.id) == true)
+            XCTAssertTrue((json["input"] as? String)?.contains("合計不得超過 1200 個字元") == true)
             XCTAssertFalse((json["input"] as? String)?.contains("BirthProfile") == true)
 
             let text = try XCTUnwrap(json["text"] as? [String: Any])
@@ -43,6 +44,17 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             XCTAssertEqual(format["strict"] as? Bool, true)
             let schema = try XCTUnwrap(format["schema"] as? [String: Any])
             XCTAssertEqual(schema["additionalProperties"] as? Bool, false)
+            let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
+            let sections = try XCTUnwrap(properties["sections"] as? [String: Any])
+            let section = try XCTUnwrap(sections["items"] as? [String: Any])
+            let sectionProperties = try XCTUnwrap(section["properties"] as? [String: Any])
+            let content = try XCTUnwrap(sectionProperties["content"] as? [String: Any])
+            let maximumSectionCharacters = try XCTUnwrap(content["maxLength"] as? Int)
+            XCTAssertEqual(maximumSectionCharacters, 240)
+            XCTAssertLessThanOrEqual(
+                maximumSectionCharacters * InterpretationCategory.allCases.count,
+                1_200
+            )
 
             return Self.response(
                 request: request,

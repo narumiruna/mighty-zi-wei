@@ -157,23 +157,17 @@ struct SettingsView: View {
                 modelContext: modelContext
             )
             let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
-            let defaults = UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)
-            if let pinned = currentCharts.first(where: \.isPinned) {
-                defaults?.set(pinned.id.uuidString, forKey: "shortcuts.pinned-chart-id")
-            } else {
-                defaults?.removeObject(forKey: "shortcuts.pinned-chart-id")
-            }
+            PinnedChartShortcut.reconcile(charts: currentCharts)
             syncMessage = "同步完成：上傳 \(result.uploadedCount) 筆、下載 \(result.downloadedCount) 筆；處理 \(result.conflictCount) 筆版本衝突。"
         } catch let error as LocalizedError {
-            iCloudSyncEnabled = false
             errorMessage = error.errorDescription ?? "目前無法完成 iCloud 同步。"
         } catch {
-            iCloudSyncEnabled = false
             errorMessage = "目前無法完成 iCloud 同步。"
         }
     }
 
     private func deleteAll() {
+        let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
         do {
             charts.forEach {
                 ICloudSyncService.recordDeletion(
@@ -188,13 +182,14 @@ struct SettingsView: View {
                     entityType: "SavedInsight",
                     modelContext: modelContext
                 )
-                ReviewReminderScheduler().cancel(identifier: $0.reminderIdentifier)
             }
             try modelContext.delete(model: SavedInsight.self)
             try modelContext.delete(model: SavedChart.self)
-            UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)?
-                .removeObject(forKey: "shortcuts.pinned-chart-id")
             try modelContext.save()
+            reminderIdentifiers.forEach {
+                ReviewReminderScheduler().cancel(identifier: $0)
+            }
+            PinnedChartShortcut.reconcile(charts: [])
         } catch {
             modelContext.rollback()
             errorMessage = "目前無法刪除已儲存命盤，請稍後再試。"

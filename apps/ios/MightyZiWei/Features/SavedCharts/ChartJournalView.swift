@@ -133,8 +133,8 @@ struct ChartJournalView: View {
     }
 
     private func delete(insights: [SavedInsight]) {
+        let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
         insights.forEach { insight in
-            ReviewReminderScheduler().cancel(identifier: insight.reminderIdentifier)
             ICloudSyncService.recordDeletion(
                 entityID: insight.id,
                 entityType: "SavedInsight",
@@ -144,6 +144,9 @@ struct ChartJournalView: View {
         }
         do {
             try modelContext.save()
+            reminderIdentifiers.forEach {
+                ReviewReminderScheduler().cancel(identifier: $0)
+            }
         } catch {
             modelContext.rollback()
             errorMessage = "無法刪除本機內容。"
@@ -451,8 +454,6 @@ private struct InsightNoteEditor: View {
                 errorMessage = "無法建立回顧提醒。"
                 return
             }
-        } else {
-            ReviewReminderScheduler().cancel(identifier: oldReminderIdentifier)
         }
         target.updateNote(
             title: title,
@@ -468,6 +469,9 @@ private struct InsightNoteEditor: View {
         }
         do {
             try modelContext.save()
+            if oldReminderIdentifier != newReminderIdentifier {
+                ReviewReminderScheduler().cancel(identifier: oldReminderIdentifier)
+            }
             dismiss()
         } catch {
             modelContext.rollback()

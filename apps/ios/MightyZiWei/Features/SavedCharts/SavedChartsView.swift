@@ -400,31 +400,38 @@ struct SavedChartsView: View {
 
     private func togglePinned(_ chart: SavedChart) {
         chart.setPinned(!chart.isPinned)
-        updatePinnedShortcut()
-        saveChanges(errorText: "無法更新釘選狀態。")
+        saveChanges(errorText: "無法更新釘選狀態。") {
+            PinnedChartShortcut.reconcile(charts: charts)
+        }
     }
 
     private func delete(_ chart: SavedChart) {
+        let deletedInsights = insights.filter { $0.chartID == chart.id }
+        let reminderIdentifiers = deletedInsights.compactMap(\.reminderIdentifier)
         ICloudSyncService.recordDeletion(
             entityID: chart.id,
             entityType: "SavedChart",
             modelContext: modelContext
         )
-        insights.filter { $0.chartID == chart.id }.forEach { insight in
+        deletedInsights.forEach { insight in
             ICloudSyncService.recordDeletion(
                 entityID: insight.id,
                 entityType: "SavedInsight",
                 modelContext: modelContext
             )
-            ReviewReminderScheduler().cancel(identifier: insight.reminderIdentifier)
             modelContext.delete(insight)
         }
         modelContext.delete(chart)
-        updatePinnedShortcut(excluding: [chart.id])
-        saveChanges(errorText: "無法刪除命盤。")
+        saveChanges(errorText: "無法刪除命盤。") {
+            reminderIdentifiers.forEach {
+                ReviewReminderScheduler().cancel(identifier: $0)
+            }
+            PinnedChartShortcut.reconcile(charts: charts.filter { $0.id != chart.id })
+        }
     }
 
     private func deleteAll() {
+        let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
         do {
             charts.forEach {
                 ICloudSyncService.recordDeletion(
@@ -439,33 +446,24 @@ struct SavedChartsView: View {
                     entityType: "SavedInsight",
                     modelContext: modelContext
                 )
-                ReviewReminderScheduler().cancel(identifier: $0.reminderIdentifier)
             }
             try modelContext.delete(model: SavedInsight.self)
             try modelContext.delete(model: SavedChart.self)
-            UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)?
-                .removeObject(forKey: "shortcuts.pinned-chart-id")
             try modelContext.save()
+            reminderIdentifiers.forEach {
+                ReviewReminderScheduler().cancel(identifier: $0)
+            }
+            PinnedChartShortcut.reconcile(charts: [])
         } catch {
             modelContext.rollback()
             errorMessage = "無法刪除所有已儲存命盤。"
         }
     }
 
-    private func updatePinnedShortcut(excluding excludedIDs: Set<UUID> = []) {
-        let defaults = UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)
-        if let pinned = charts.first(where: {
-            $0.isPinned && !excludedIDs.contains($0.id)
-        }) {
-            defaults?.set(pinned.id.uuidString, forKey: "shortcuts.pinned-chart-id")
-        } else {
-            defaults?.removeObject(forKey: "shortcuts.pinned-chart-id")
-        }
-    }
-
-    private func saveChanges(errorText: String) {
+    private func saveChanges(errorText: String, afterSave: () -> Void = {}) {
         do {
             try modelContext.save()
+            afterSave()
         } catch {
             modelContext.rollback()
             errorMessage = errorText
