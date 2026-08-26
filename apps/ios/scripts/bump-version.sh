@@ -44,6 +44,48 @@ case "$bump_type" in
 esac
 
 next_version="$major.$minor.$patch"
+if ! command -v xcodegen >/dev/null 2>&1; then
+    echo "找不到 xcodegen，版本未變更。" >&2
+    exit 1
+fi
+
+project_dir="$ios_dir/MightyZiWei.xcodeproj"
+backup_dir="$(mktemp -d "${TMPDIR:-/tmp}/mighty-zi-wei-version.XXXXXX")"
+project_existed=false
+rollback_needed=false
+
+cleanup() {
+    status=$?
+    trap - EXIT
+
+    if [[ "$rollback_needed" == true ]]; then
+        set +e
+        restore_failed=false
+        cp -p "$backup_dir/project.yml" "$project_file" || restore_failed=true
+        rm -rf "$project_dir" || restore_failed=true
+        if [[ "$project_existed" == true ]]; then
+            cp -Rp "$backup_dir/MightyZiWei.xcodeproj" "$project_dir" || restore_failed=true
+        fi
+
+        if [[ "$restore_failed" == true ]]; then
+            echo "版本升級失敗，且無法完整還原版本檔案；備份位於 $backup_dir。" >&2
+            exit "$status"
+        fi
+        echo "版本升級失敗；已還原 project.yml 與 Xcode 專案。" >&2
+    fi
+
+    rm -rf "$backup_dir"
+    exit "$status"
+}
+trap cleanup EXIT
+
+cp -p "$project_file" "$backup_dir/project.yml"
+if [[ -d "$project_dir" ]]; then
+    cp -Rp "$project_dir" "$backup_dir/MightyZiWei.xcodeproj"
+    project_existed=true
+fi
+rollback_needed=true
+
 CURRENT_VERSION="$current_version" NEXT_VERSION="$next_version" perl -pi -e \
     's/(MARKETING_VERSION: ")\Q$ENV{CURRENT_VERSION}\E(")/$1$ENV{NEXT_VERSION}$2/' \
     "$project_file"
@@ -52,5 +94,6 @@ CURRENT_VERSION="$current_version" NEXT_VERSION="$next_version" perl -pi -e \
     cd "$ios_dir"
     xcodegen generate
 )
+rollback_needed=false
 
 echo "版本已從 $current_version 升級至 ${next_version}。"

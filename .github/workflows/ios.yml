@@ -16,6 +16,8 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
+      - name: 測試版本升級失敗還原
+        run: bash scripts/tests/bump-version-test.sh
       - name: 安裝 XcodeGen
         run: brew install xcodegen
       - name: 產生 Xcode 專案
