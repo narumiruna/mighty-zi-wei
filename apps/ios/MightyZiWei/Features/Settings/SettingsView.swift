@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AIConfigurationStore.self) private var aiConfigurationStore
     @Environment(AppLockStore.self) private var appLockStore
+    @Environment(ICloudSyncCoordinator.self) private var iCloudSyncCoordinator
     @Query private var charts: [SavedChart]
     @Query private var insights: [SavedInsight]
     @Query private var deletions: [CloudDeletion]
@@ -14,7 +15,6 @@ struct SettingsView: View {
     @State private var showsDeleteAllConfirmation = false
     @State private var errorMessage: String?
     @State private var syncMessage: String?
-    @State private var isSyncing = false
 
     var body: some View {
         NavigationStack {
@@ -64,13 +64,13 @@ struct SettingsView: View {
                         Button {
                             Task { await synchronizeNow() }
                         } label: {
-                            if isSyncing {
+                            if iCloudSyncCoordinator.isSyncing {
                                 Label("正在同步…", systemImage: "arrow.triangle.2.circlepath")
                             } else {
                                 Label("立即同步", systemImage: "icloud.and.arrow.up")
                             }
                         }
-                        .disabled(isSyncing)
+                        .disabled(iCloudSyncCoordinator.isSyncing)
                     }
                     if let syncMessage {
                         Text(syncMessage)
@@ -146,16 +146,15 @@ struct SettingsView: View {
     }
 
     private func synchronizeNow() async {
-        guard !isSyncing else { return }
-        isSyncing = true
-        defer { isSyncing = false }
         do {
-            let result = try await ICloudSyncService().sync(
-                charts: charts,
-                insights: insights,
-                deletions: deletions,
-                modelContext: modelContext
-            )
+            let result = try await iCloudSyncCoordinator.synchronize {
+                try await ICloudSyncService().sync(
+                    charts: charts,
+                    insights: insights,
+                    deletions: deletions,
+                    modelContext: modelContext
+                )
+            }
             let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
             PinnedChartShortcut.reconcile(charts: currentCharts)
             syncMessage = "同步完成：上傳 \(result.uploadedCount) 筆、下載 \(result.downloadedCount) 筆；處理 \(result.conflictCount) 筆版本衝突。"

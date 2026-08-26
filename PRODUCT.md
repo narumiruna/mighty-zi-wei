@@ -1169,7 +1169,7 @@ OpenAI 相容 Responses API 也先不要接。
 
 ---
 
-# 28. Post-MVP practical features
+# 28. MVP 後實用功能
 
 已儲存命盤必須支援依名稱、標籤與建立日期搜尋。
 

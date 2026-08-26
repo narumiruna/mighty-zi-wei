@@ -187,6 +187,37 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertNotEqual(first, second)
     }
 
+    func test套用遠端筆記時會保留舊提醒直到替代通知儲存成功() {
+        let insightID = UUID()
+        let chartID = UUID()
+        let local = SavedInsight(
+            id: insightID,
+            chartID: chartID,
+            kind: .note,
+            locationID: "chart.general",
+            title: "舊標題",
+            content: "舊內容",
+            reviewDate: makeDate(2027, 1, 1),
+            reminderIdentifier: "review.old-device-request"
+        )
+        let remote = SavedInsight(
+            id: insightID,
+            chartID: chartID,
+            kind: .note,
+            locationID: "chart.general",
+            title: "新標題",
+            content: "新內容",
+            reviewDate: makeDate(2027, 2, 1),
+            updatedAt: makeDate(2026, 9, 1)
+        )
+
+        CloudInsightPayload(remote).apply(to: local)
+
+        XCTAssertEqual(local.title, "新標題")
+        XCTAssertEqual(local.reviewDate, makeDate(2027, 2, 1))
+        XCTAssertEqual(local.reminderIdentifier, "review.old-device-request")
+    }
+
     func test刪除標記會定位原始CloudKit內容紀錄() throws {
         let entityID = UUID()
         let chartReference = try XCTUnwrap(
@@ -201,6 +232,17 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertEqual(insightReference.recordType, "SavedInsight")
         XCTAssertEqual(insightReference.recordName, entityID.uuidString)
         XCTAssertNil(CloudContentRecordReference(entityType: "Unknown", entityID: entityID))
+    }
+
+    func test相同或較舊的刪除標記不會重複上傳() {
+        let policy = CloudTombstoneUploadPolicy()
+        let older = makeDate(2026, 1, 1)
+        let newer = makeDate(2026, 2, 1)
+
+        XCTAssertTrue(policy.shouldUpload(localDeletedAt: older, remoteDeletedAt: nil))
+        XCTAssertFalse(policy.shouldUpload(localDeletedAt: older, remoteDeletedAt: older))
+        XCTAssertFalse(policy.shouldUpload(localDeletedAt: older, remoteDeletedAt: newer))
+        XCTAssertTrue(policy.shouldUpload(localDeletedAt: newer, remoteDeletedAt: older))
     }
 
     func testCloudKit內容紀錄不存在時仍會把有效刪除標記套用到本機資料() throws {
@@ -307,6 +349,75 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertFalse(resolver.isDeleted(contentUpdatedAt: newer, deletedAt: older))
     }
 
+    func test同步協調器讓同時請求共用同一個執行結果() async throws {
+        let coordinator = ICloudSyncCoordinator()
+        let expected = ICloudSyncResult(uploadedCount: 1, downloadedCount: 2, conflictCount: 3)
+        var executionCount = 0
+        var release: CheckedContinuation<Void, Never>?
+
+        let first = Task { @MainActor in
+            try await coordinator.synchronize {
+                executionCount += 1
+                await withCheckedContinuation { release = $0 }
+                return expected
+            }
+        }
+        while release == nil {
+            await Task.yield()
+        }
+        let second = Task { @MainActor in
+            try await coordinator.synchronize {
+                executionCount += 1
+                return ICloudSyncResult(
+                    uploadedCount: 99,
+                    downloadedCount: 99,
+                    conflictCount: 99
+                )
+            }
+        }
+        while coordinator.waitingCallerCount == 0 {
+            await Task.yield()
+        }
+        release?.resume()
+        release = nil
+
+        let firstResult = try await first.value
+        let secondResult = try await second.value
+        XCTAssertEqual(firstResult, expected)
+        XCTAssertEqual(secondResult, expected)
+        XCTAssertEqual(executionCount, 1)
+        XCTAssertFalse(coordinator.isSyncing)
+    }
+
+    func test同步流程拋錯時會回復所有尚未儲存的SwiftData變更() async throws {
+        let chart = try makeSavedChart(name: "同步前")
+        let container = try ModelContainer(
+            for: SavedChart.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        context.insert(chart)
+        try context.save()
+        var didRunRollbackAction = false
+
+        do {
+            let _: Void = try await CloudSyncMutationTransaction.run(
+                modelContext: context,
+                onRollback: { didRunRollbackAction = true }
+            ) {
+                try chart.rename(to: "尚未完成")
+                throw SyncTransactionTestError.expected
+            }
+            XCTFail("同步錯誤應向呼叫端拋出。")
+        } catch SyncTransactionTestError.expected {
+            // 預期錯誤。
+        }
+
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<SavedChart>()).first)
+        XCTAssertEqual(restored.name, "同步前")
+        XCTAssertTrue(didRunRollbackAction)
+    }
+
     func test加密備份保留分類與回顧資料但不含提醒識別碼() throws {
         let chart = try makeSavedChart(name: "備份命盤")
         chart.updateTags(["個案"])
@@ -354,6 +465,10 @@ final class PracticalFeaturesTests: XCTestCase {
             chart: ZiWeiCalculator().calculate(profile)
         )
     }
+}
+
+private enum SyncTransactionTestError: Error {
+    case expected
 }
 
 private final class TestCredentialStore: APICredentialStoring {

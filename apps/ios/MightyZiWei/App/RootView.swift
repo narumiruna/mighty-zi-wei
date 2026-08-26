@@ -281,6 +281,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @Environment(AppLockStore.self) private var appLockStore
+    @Environment(ICloudSyncCoordinator.self) private var iCloudSyncCoordinator
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
 
     @Query private var savedCharts: [SavedChart]
@@ -289,7 +290,6 @@ struct RootView: View {
     @AppStorage(ICloudSyncService.enabledKey) private var iCloudSyncEnabled = false
     @State private var navigation = AppNavigationState()
     @State private var assistantStore: ChartAssistantStore
-    @State private var isAutomaticallySyncing = false
 
     init() {
         let isUITestingAI = ProcessInfo.processInfo.arguments.contains("-UITestMockAI")
@@ -376,16 +376,16 @@ struct RootView: View {
     }
 
     private func synchronizeICloudIfNeeded() async {
-        guard iCloudSyncEnabled, !isAutomaticallySyncing else { return }
-        isAutomaticallySyncing = true
-        defer { isAutomaticallySyncing = false }
+        guard iCloudSyncEnabled else { return }
         do {
-            _ = try await ICloudSyncService().sync(
-                charts: savedCharts,
-                insights: savedInsights,
-                deletions: cloudDeletions,
-                modelContext: modelContext
-            )
+            _ = try await iCloudSyncCoordinator.synchronize {
+                try await ICloudSyncService().sync(
+                    charts: savedCharts,
+                    insights: savedInsights,
+                    deletions: cloudDeletions,
+                    modelContext: modelContext
+                )
+            }
             let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
             PinnedChartShortcut.reconcile(charts: currentCharts)
         } catch {

@@ -1,5 +1,6 @@
 import CloudKit
 import Foundation
+import Observation
 import SwiftData
 
 enum CloudConflictWinner: Equatable, Sendable {
@@ -27,6 +28,13 @@ struct ICloudSyncResult: Equatable, Sendable {
 struct CloudLocalTombstonePlan: Equatable, Sendable {
     let chartIDs: Set<UUID>
     let insightIDs: Set<UUID>
+}
+
+struct CloudTombstoneUploadPolicy: Sendable {
+    func shouldUpload(localDeletedAt: Date, remoteDeletedAt: Date?) -> Bool {
+        guard let remoteDeletedAt else { return true }
+        return localDeletedAt > remoteDeletedAt
+    }
 }
 
 struct CloudLocalTombstonePlanner {
@@ -76,6 +84,57 @@ struct CloudLocalTombstonePlanner {
             return insight.id
         })
         return CloudLocalTombstonePlan(chartIDs: chartIDs, insightIDs: insightIDs)
+    }
+}
+
+@MainActor
+@Observable
+final class ICloudSyncCoordinator {
+    private(set) var isSyncing = false
+    private var waiters: [CheckedContinuation<ICloudSyncResult, any Error>] = []
+    var waitingCallerCount: Int { waiters.count }
+
+    func synchronize(
+        operation: () async throws -> ICloudSyncResult
+    ) async throws -> ICloudSyncResult {
+        if isSyncing {
+            return try await withCheckedThrowingContinuation { continuation in
+                waiters.append(continuation)
+            }
+        }
+
+        isSyncing = true
+        do {
+            let result = try await operation()
+            isSyncing = false
+            let currentWaiters = waiters
+            waiters.removeAll()
+            currentWaiters.forEach { $0.resume(returning: result) }
+            return result
+        } catch {
+            isSyncing = false
+            let currentWaiters = waiters
+            waiters.removeAll()
+            currentWaiters.forEach { $0.resume(throwing: error) }
+            throw error
+        }
+    }
+}
+
+@MainActor
+enum CloudSyncMutationTransaction {
+    static func run<Result>(
+        modelContext: ModelContext,
+        onRollback: () -> Void = {},
+        operation: () async throws -> Result
+    ) async throws -> Result {
+        do {
+            return try await operation()
+        } catch {
+            modelContext.rollback()
+            onRollback()
+            throw error
+        }
     }
 }
 
@@ -143,10 +202,25 @@ final class ICloudSyncService {
                 (DeletionKey(type: $0.entityType, id: $0.entityID), $1)
             }
         )
+        let remoteDeletionsByKey = Dictionary(
+            uniqueKeysWithValues: remoteDeletions.map {
+                (DeletionKey(type: $0.entityType, id: $0.entityID), $0)
+            }
+        )
+        var newlyScheduledReminderIdentifiers = Set<String>()
+        return try await CloudSyncMutationTransaction.run(
+            modelContext: modelContext,
+            onRollback: {
+                newlyScheduledReminderIdentifiers.forEach {
+                    ReviewReminderScheduler().cancel(identifier: $0)
+                }
+            }
+        ) {
         var uploaded = 0
         var downloaded = 0
         var conflicts = 0
         var reminderIdentifiersToCancel = Set<String>()
+        var insightIDsToReconcileReminders = Set<UUID>()
 
         var allDeletions: [DeletionKey: CloudDeletion] = [:]
         for deletion in deletions {
@@ -211,6 +285,9 @@ final class ICloudSyncService {
                     remoteUpdatedAt: remote.updatedAt
                 ) == .remote {
                     try remote.apply(to: local)
+                    insightsByID.values
+                        .filter { $0.chartID == local.id && $0.reviewDate != nil }
+                        .forEach { insightIDsToReconcileReminders.insert($0.id) }
                     downloaded += 1
                     conflicts += 1
                 } else if local.updatedAt > remote.updatedAt {
@@ -254,10 +331,8 @@ final class ICloudSyncService {
                     localUpdatedAt: local.updatedAt,
                     remoteUpdatedAt: remote.updatedAt
                 ) == .remote {
-                    if let identifier = local.reminderIdentifier {
-                        reminderIdentifiersToCancel.insert(identifier)
-                    }
                     remote.apply(to: local)
+                    insightIDsToReconcileReminders.insert(local.id)
                     downloaded += 1
                     conflicts += 1
                 } else if local.updatedAt > remote.updatedAt {
@@ -271,6 +346,7 @@ final class ICloudSyncService {
                 let local = remote.makeModel()
                 modelContext.insert(local)
                 insightsByID[local.id] = local
+                insightIDsToReconcileReminders.insert(local.id)
                 downloaded += 1
             }
         }
@@ -281,27 +357,57 @@ final class ICloudSyncService {
             uploaded += 1
         }
 
+        let tombstonePolicy = CloudTombstoneUploadPolicy()
         for (key, deletion) in allDeletions {
-            try await database.save(CloudDeletionPayload(deletion).record(
-                existing: deletionRecordsByKey[key]
-            ))
-            uploaded += 1
+            if tombstonePolicy.shouldUpload(
+                localDeletedAt: deletion.deletedAt,
+                remoteDeletedAt: remoteDeletionsByKey[key]?.deletedAt
+            ) {
+                try await database.save(CloudDeletionPayload(deletion).record(
+                    existing: deletionRecordsByKey[key]
+                ))
+                uploaded += 1
+            }
             if deletionWins(
                 key: key,
                 deletion: deletion,
                 chartsByID: chartsByID,
                 insightsByID: insightsByID
+            ), contentRecordExists(
+                for: key,
+                chartRecordsByID: chartRecordsByID,
+                insightRecordsByID: insightRecordsByID
             ) {
                 try await deleteContentRecord(for: key)
             }
         }
 
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            throw error
+        for insightID in insightIDsToReconcileReminders {
+            guard let insight = insightsByID[insightID],
+                  let chartName = chartsByID[insight.chartID]?.name else { continue }
+            let oldIdentifier = insight.reminderIdentifier
+            let newIdentifier: String?
+            if let reviewDate = insight.reviewDate {
+                newIdentifier = try await ReviewReminderScheduler().scheduleSyncedReminder(
+                    insightID: insight.id,
+                    chartName: chartName,
+                    title: insight.title,
+                    date: reviewDate
+                )
+            } else {
+                newIdentifier = nil
+            }
+            insight.reminderIdentifier = newIdentifier
+            if let oldIdentifier, oldIdentifier != newIdentifier {
+                reminderIdentifiersToCancel.insert(oldIdentifier)
+            }
+            if let newIdentifier, newIdentifier != oldIdentifier {
+                newlyScheduledReminderIdentifiers.insert(newIdentifier)
+            }
         }
+
+        try modelContext.save()
+        newlyScheduledReminderIdentifiers.removeAll()
         reminderIdentifiersToCancel.forEach {
             ReviewReminderScheduler().cancel(identifier: $0)
         }
@@ -310,6 +416,7 @@ final class ICloudSyncService {
             downloadedCount: downloaded,
             conflictCount: conflicts
         )
+        }
     }
 
     static func recordDeletion(
@@ -343,6 +450,21 @@ final class ICloudSyncService {
             contentUpdatedAt: contentUpdatedAt,
             deletedAt: deletion.deletedAt
         )
+    }
+
+    private func contentRecordExists(
+        for key: DeletionKey,
+        chartRecordsByID: [UUID: CKRecord],
+        insightRecordsByID: [UUID: CKRecord]
+    ) -> Bool {
+        switch key.type {
+        case RecordType.chart:
+            chartRecordsByID[key.id] != nil
+        case RecordType.insight:
+            insightRecordsByID[key.id] != nil
+        default:
+            false
+        }
     }
 
     private func deleteContentRecord(for key: DeletionKey) async throws {
@@ -493,7 +615,7 @@ private struct CloudChartPayload: Codable {
     }
 }
 
-private struct CloudInsightPayload: Codable {
+struct CloudInsightPayload: Codable {
     let id: UUID
     let chartID: UUID
     let kind: String
@@ -567,7 +689,6 @@ private struct CloudInsightPayload: Codable {
         insight.markerRawValue = marker
         insight.evidenceFactIDsData = (try? JSONEncoder().encode(evidenceFactIDs)) ?? Data("[]".utf8)
         insight.reviewDate = reviewDate
-        insight.reminderIdentifier = nil
         insight.createdAt = createdAt
         insight.updatedAt = updatedAt
     }

@@ -37,25 +37,37 @@ struct ReviewReminderScheduler: Sendable {
         } else if settings.authorizationStatus == .denied {
             throw ReminderError.permissionDenied
         }
-
-        let identifier = Self.makeIdentifier(insightID: insightID)
-        let content = UNMutableNotificationContent()
-        content.title = "回顧你的觀察筆記"
-        content.body = "你曾為「\(chartName)」記下「\(title)」。這是你自行設定的回顧提醒，不是命盤預測。"
-        content.sound = .default
-        content.userInfo = ["insightID": insightID.uuidString]
-        let components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: date
+        return try await addReminder(
+            insightID: insightID,
+            chartName: chartName,
+            title: title,
+            date: date,
+            center: center
         )
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        try await center.add(UNNotificationRequest(
-            identifier: identifier,
-            content: content,
-            trigger: trigger
-        ))
-        await refreshWidgetReminder(center: center)
-        return identifier
+    }
+
+    func scheduleSyncedReminder(
+        insightID: UUID,
+        chartName: String,
+        title: String,
+        date: Date
+    ) async throws -> String? {
+        guard date > .now else { return nil }
+        let center = UNUserNotificationCenter.current()
+        switch await center.notificationSettings().authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return try await addReminder(
+                insightID: insightID,
+                chartName: chartName,
+                title: title,
+                date: date,
+                center: center
+            )
+        case .denied, .notDetermined:
+            return nil
+        @unknown default:
+            return nil
+        }
     }
 
     static func makeIdentifier(insightID: UUID) -> String {
@@ -79,6 +91,33 @@ struct ReviewReminderScheduler: Sendable {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
         Task { await refreshWidgetReminder(center: center) }
+    }
+
+    private func addReminder(
+        insightID: UUID,
+        chartName: String,
+        title: String,
+        date: Date,
+        center: UNUserNotificationCenter
+    ) async throws -> String {
+        let identifier = Self.makeIdentifier(insightID: insightID)
+        let content = UNMutableNotificationContent()
+        content.title = "回顧你的觀察筆記"
+        content.body = "你曾為「\(chartName)」記下「\(title)」。這是你自行設定的回顧提醒，不是命盤預測。"
+        content.sound = .default
+        content.userInfo = ["insightID": insightID.uuidString]
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: date
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        try await center.add(UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        ))
+        await refreshWidgetReminder(center: center)
+        return identifier
     }
 
     private func refreshWidgetReminder(center: UNUserNotificationCenter) async {
