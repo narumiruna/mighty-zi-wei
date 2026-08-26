@@ -318,6 +318,7 @@ struct RootView: View {
         .environment(navigation)
         .environment(assistantStore)
         .task {
+            updatePrivacyShieldWindow()
             handlePendingShortcut()
             await synchronizeICloudIfNeeded()
         }
@@ -326,6 +327,7 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             appLockStore.handleScenePhase(phase)
+            updatePrivacyShieldWindow()
             if phase == .active {
                 handlePendingShortcut()
                 Task { await synchronizeICloudIfNeeded() }
@@ -334,12 +336,11 @@ struct RootView: View {
                 voiceCoordinator.stopAll()
             }
         }
-        .overlay {
-            if appLockStore.showsPrivacyShield || appLockStore.isLocked {
-                AppLockOverlay()
-                    .transition(.opacity)
-                    .zIndex(100)
-            }
+        .onChange(of: appLockStore.isLocked) { _, _ in
+            updatePrivacyShieldWindow()
+        }
+        .onChange(of: appLockStore.showsPrivacyShield) { _, _ in
+            updatePrivacyShieldWindow()
         }
         .onReceive(
             NotificationCenter.default.publisher(
@@ -361,6 +362,17 @@ struct RootView: View {
             else { return }
             voiceCoordinator.stopAll()
         }
+    }
+
+    private func updatePrivacyShieldWindow() {
+        let shouldPresent = AppPrivacyShieldPolicy().shouldPresent(
+            showsPrivacyShield: appLockStore.showsPrivacyShield,
+            isLocked: appLockStore.isLocked
+        )
+        PrivacyShieldWindowPresenter.shared.setPresented(
+            shouldPresent,
+            lockStore: appLockStore
+        )
     }
 
     private func synchronizeICloudIfNeeded() async {

@@ -8,29 +8,42 @@ private struct PrivacyEntry: TimelineEntry {
 
 private struct PrivacyProvider: TimelineProvider {
     private let suite = "group.dev.narumi.MightyZiWei"
-    private let key = "privacy-widget.next-review-date"
+    private let reminderDatesKey = "privacy-widget.review-dates"
 
     func placeholder(in context: Context) -> PrivacyEntry {
         PrivacyEntry(date: .now, nextReviewDate: nil)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PrivacyEntry) -> Void) {
-        completion(entry())
+        let now = Date.now
+        completion(entry(at: now, reminders: storedReminders(after: now)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PrivacyEntry>) -> Void) {
-        let current = entry()
-        let refresh = Calendar.current.date(byAdding: .hour, value: 1, to: .now)
-            ?? .now.addingTimeInterval(3_600)
-        completion(Timeline(entries: [current], policy: .after(refresh)))
+        let now = Date.now
+        let reminders = storedReminders(after: now)
+        var entries = [entry(at: now, reminders: reminders)]
+        for (index, reminder) in reminders.enumerated() {
+            entries.append(PrivacyEntry(
+                date: reminder.addingTimeInterval(1),
+                nextReviewDate: reminders.dropFirst(index + 1).first
+            ))
+        }
+        let refresh = (reminders.last ?? now).addingTimeInterval(3_600)
+        completion(Timeline(entries: entries, policy: .after(refresh)))
     }
 
-    private func entry() -> PrivacyEntry {
-        let value = UserDefaults(suiteName: suite)?.double(forKey: key) ?? 0
-        let reminder = value > Date.now.timeIntervalSince1970
-            ? Date(timeIntervalSince1970: value)
-            : nil
-        return PrivacyEntry(date: .now, nextReviewDate: reminder)
+    private func storedReminders(after date: Date) -> [Date] {
+        let values = UserDefaults(suiteName: suite)?
+            .array(forKey: reminderDatesKey) as? [Double] ?? []
+        return values
+            .map(Date.init(timeIntervalSince1970:))
+            .filter { $0 > date }
+            .sorted()
+    }
+
+    private func entry(at date: Date, reminders: [Date]) -> PrivacyEntry {
+        PrivacyEntry(date: date, nextReviewDate: reminders.first)
     }
 }
 

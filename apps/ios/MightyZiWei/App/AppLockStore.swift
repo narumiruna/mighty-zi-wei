@@ -1,6 +1,7 @@
 import LocalAuthentication
 import Observation
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -107,6 +108,57 @@ final class AppLockStore {
             errorMessage = "無法完成身分驗證，請再試一次。"
             return false
         }
+    }
+}
+
+struct AppPrivacyShieldPolicy: Sendable {
+    func shouldPresent(showsPrivacyShield: Bool, isLocked: Bool) -> Bool {
+        showsPrivacyShield || isLocked
+    }
+}
+
+@MainActor
+final class PrivacyShieldWindowPresenter {
+    static let shared = PrivacyShieldWindowPresenter()
+
+    private var shieldWindow: UIWindow?
+    private weak var previousKeyWindow: UIWindow?
+
+    func setPresented(_ presented: Bool, lockStore: AppLockStore) {
+        if presented {
+            present(lockStore: lockStore)
+        } else {
+            dismiss()
+        }
+    }
+
+    private func present(lockStore: AppLockStore) {
+        if shieldWindow?.isHidden == false { return }
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive })
+                ?? scenes.first(where: { $0.activationState == .foregroundInactive })
+                ?? scenes.first else { return }
+
+        previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
+        let controller = UIHostingController(
+            rootView: AppLockOverlay().environment(lockStore)
+        )
+        controller.view.backgroundColor = .clear
+        let window = UIWindow(windowScene: scene)
+        window.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.alert.rawValue + 1)
+        window.backgroundColor = .clear
+        window.rootViewController = controller
+        shieldWindow = window
+        window.makeKeyAndVisible()
+    }
+
+    private func dismiss() {
+        guard let shieldWindow else { return }
+        shieldWindow.isHidden = true
+        shieldWindow.rootViewController = nil
+        self.shieldWindow = nil
+        previousKeyWindow?.makeKey()
+        previousKeyWindow = nil
     }
 }
 

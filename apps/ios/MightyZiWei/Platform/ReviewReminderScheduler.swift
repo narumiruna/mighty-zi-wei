@@ -5,6 +5,7 @@ import WidgetKit
 struct ReviewReminderScheduler: Sendable {
     static let sharedDefaultsSuite = "group.dev.narumi.MightyZiWei"
     static let nextReminderKey = "privacy-widget.next-review-date"
+    static let reminderDatesKey = "privacy-widget.review-dates"
     static let privacyWidgetKind = "MightyZiWeiPrivacyWidget"
 
     enum ReminderError: LocalizedError {
@@ -61,6 +62,18 @@ struct ReviewReminderScheduler: Sendable {
         "review.\(insightID.uuidString).\(UUID().uuidString)"
     }
 
+    static func storeWidgetReminderDates(
+        _ dates: [Date],
+        now: Date = .now,
+        defaults: UserDefaults?
+    ) {
+        let timestamps = Array(Set(
+            dates.filter { $0 > now }.map(\.timeIntervalSince1970)
+        )).sorted()
+        defaults?.set(timestamps, forKey: reminderDatesKey)
+        defaults?.removeObject(forKey: nextReminderKey)
+    }
+
     func cancel(identifier: String?) {
         guard let identifier else { return }
         let center = UNUserNotificationCenter.current()
@@ -74,13 +87,8 @@ struct ReviewReminderScheduler: Sendable {
             guard request.identifier.hasPrefix("review.") else { return nil }
             return (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate()
         }
-        let nextDate = dates.min()
         let defaults = UserDefaults(suiteName: Self.sharedDefaultsSuite)
-        if let nextDate {
-            defaults?.set(nextDate.timeIntervalSince1970, forKey: Self.nextReminderKey)
-        } else {
-            defaults?.removeObject(forKey: Self.nextReminderKey)
-        }
+        Self.storeWidgetReminderDates(dates, defaults: defaults)
         WidgetCenter.shared.reloadTimelines(ofKind: Self.privacyWidgetKind)
     }
 }

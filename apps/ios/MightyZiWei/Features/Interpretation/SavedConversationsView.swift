@@ -107,8 +107,19 @@ struct SavedConversationsView: View {
     }
 }
 
+struct SavedConversationExportPrivacyGuard: Equatable, Sendable {
+    let includedFields = ["命盤名稱", "出生日期與時間", "模型與完整問答"]
+
+    var fieldSummary: String {
+        includedFields.joined(separator: "、")
+    }
+}
+
 private struct SavedConversationDetailView: View {
     let conversation: SavedConversation
+
+    @State private var exportConfirmed = false
+    @State private var showsExportConfirmation = false
 
     var body: some View {
         ScrollView {
@@ -157,10 +168,29 @@ private struct SavedConversationDetailView: View {
         .navigationTitle("對話內容")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ShareLink(item: conversation.exportText()) {
-                Label("匯出純文字", systemImage: "square.and.arrow.up")
+            if exportConfirmed {
+                ShareLink(item: conversation.exportText()) {
+                    Label("匯出純文字", systemImage: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("conversation.export")
+            } else {
+                Button {
+                    showsExportConfirmation = true
+                } label: {
+                    Label("確認個人資料後匯出", systemImage: "exclamationmark.shield")
+                }
+                .accessibilityIdentifier("conversation.confirmExport")
             }
-            .accessibilityIdentifier("conversation.export")
+        }
+        .confirmationDialog(
+            "確認匯出個人資料",
+            isPresented: $showsExportConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("我已確認，顯示匯出按鈕") { exportConfirmed = true }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("純文字將包含\(SavedConversationExportPrivacyGuard().fieldSummary)：命盤名稱「\(conversation.chartName)」、命盤資料「\(conversation.chartDetail)」。下一步仍需點選匯出按鈕才會開啟系統分享選單。")
         }
     }
 }

@@ -5,6 +5,14 @@ import XCTest
 
 @MainActor
 final class PracticalFeaturesTests: XCTestCase {
+    func test隱私遮罩在背景或鎖定時都必須顯示() {
+        let policy = AppPrivacyShieldPolicy()
+
+        XCTAssertFalse(policy.shouldPresent(showsPrivacyShield: false, isLocked: false))
+        XCTAssertTrue(policy.shouldPresent(showsPrivacyShield: true, isLocked: false))
+        XCTAssertTrue(policy.shouldPresent(showsPrivacyShield: false, isLocked: true))
+    }
+
     func testApp鎖啟用後預設鎖定且背景立即遮罩() throws {
         let suite = "AppLockStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -74,6 +82,19 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertEqual(note.linkedContentTitle, "命宮")
         XCTAssertEqual(note.evidenceFactIDs, ["natal.palace.life.branch"])
         XCTAssertEqual(note.reviewDate, reviewDate)
+    }
+
+    func test保存AI對話匯出前會揭露個人資料欄位() {
+        let guardPolicy = SavedConversationExportPrivacyGuard()
+
+        XCTAssertEqual(
+            guardPolicy.includedFields,
+            ["命盤名稱", "出生日期與時間", "模型與完整問答"]
+        )
+        XCTAssertEqual(
+            guardPolicy.fieldSummary,
+            "命盤名稱、出生日期與時間、模型與完整問答"
+        )
     }
 
     func test保存AI對話可重新命名搜尋並匯出純文字() throws {
@@ -180,6 +201,93 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertEqual(insightReference.recordType, "SavedInsight")
         XCTAssertEqual(insightReference.recordName, entityID.uuidString)
         XCTAssertNil(CloudContentRecordReference(entityType: "Unknown", entityID: entityID))
+    }
+
+    func testCloudKit內容紀錄不存在時仍會把有效刪除標記套用到本機資料() throws {
+        let deletedChart = try makeSavedChart(name: "已刪命盤")
+        let survivingChart = try makeSavedChart(name: "保留命盤")
+        let older = makeDate(2026, 1, 1)
+        let newer = makeDate(2026, 2, 1)
+        deletedChart.updatedAt = older
+        survivingChart.updatedAt = newer
+        let childInsight = SavedInsight(
+            chartID: deletedChart.id,
+            kind: .note,
+            locationID: "chart.general",
+            title: "隨命盤刪除",
+            content: "內容",
+            updatedAt: newer
+        )
+        let independentInsight = SavedInsight(
+            chartID: survivingChart.id,
+            kind: .note,
+            locationID: "chart.general",
+            title: "單獨刪除",
+            content: "內容",
+            updatedAt: older
+        )
+        let plan = CloudLocalTombstonePlanner().makePlan(
+            charts: [deletedChart, survivingChart],
+            insights: [childInsight, independentInsight],
+            deletions: [
+                CloudDeletion(
+                    entityID: deletedChart.id,
+                    entityType: "SavedChart",
+                    deletedAt: newer
+                ),
+                CloudDeletion(
+                    entityID: survivingChart.id,
+                    entityType: "SavedChart",
+                    deletedAt: older
+                ),
+                CloudDeletion(
+                    entityID: independentInsight.id,
+                    entityType: "SavedInsight",
+                    deletedAt: newer
+                )
+            ]
+        )
+
+        XCTAssertEqual(plan.chartIDs, [deletedChart.id])
+        XCTAssertEqual(plan.insightIDs, [childInsight.id, independentInsight.id])
+
+        let newerRemotePlan = CloudLocalTombstonePlanner().makePlan(
+            charts: [deletedChart],
+            insights: [],
+            deletions: [
+                CloudDeletion(
+                    entityID: deletedChart.id,
+                    entityType: "SavedChart",
+                    deletedAt: newer
+                )
+            ],
+            remoteChartUpdatedAt: [
+                deletedChart.id: newer.addingTimeInterval(60)
+            ]
+        )
+        XCTAssertTrue(newerRemotePlan.chartIDs.isEmpty)
+    }
+
+    func testWidget共享狀態保留所有未來提醒並移除過期日期() throws {
+        let suite = "ReviewWidgetStateTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = makeDate(2026, 8, 26)
+        let first = now.addingTimeInterval(3_600)
+        let second = now.addingTimeInterval(7_200)
+        defaults.set(123, forKey: ReviewReminderScheduler.nextReminderKey)
+
+        ReviewReminderScheduler.storeWidgetReminderDates(
+            [now.addingTimeInterval(-60), second, first, first],
+            now: now,
+            defaults: defaults
+        )
+
+        XCTAssertEqual(
+            defaults.array(forKey: ReviewReminderScheduler.reminderDatesKey) as? [Double],
+            [first.timeIntervalSince1970, second.timeIntervalSince1970]
+        )
+        XCTAssertNil(defaults.object(forKey: ReviewReminderScheduler.nextReminderKey))
     }
 
     func testCloudKit衝突保留較新版本且刪除時間優先() {

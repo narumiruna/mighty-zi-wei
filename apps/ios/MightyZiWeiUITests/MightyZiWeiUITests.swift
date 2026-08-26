@@ -472,6 +472,19 @@ final class MightyZiWeiUITests: XCTestCase {
         app.buttons["已保存 AI 對話"].tap()
         XCTAssertTrue(app.navigationBars["已保存 AI 對話"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["ui-test-model・1 輪"].waitForExistence(timeout: 3))
+        app.cells.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["對話內容"].waitForExistence(timeout: 5))
+        let confirmExport = app.buttons["conversation.confirmExport"]
+        XCTAssertTrue(confirmExport.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["conversation.export"].exists)
+        confirmExport.tap()
+        XCTAssertTrue(app.staticTexts["確認匯出個人資料"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS %@",
+            "命盤名稱、出生日期與時間、模型與完整問答"
+        )).firstMatch.exists)
+        app.buttons["我已確認，顯示匯出按鈕"].tap()
+        XCTAssertTrue(app.buttons["conversation.export"].waitForExistence(timeout: 3))
     }
 
     private func waitForLabel(

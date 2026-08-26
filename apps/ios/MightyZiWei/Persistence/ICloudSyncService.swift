@@ -24,6 +24,61 @@ struct ICloudSyncResult: Equatable, Sendable {
     let conflictCount: Int
 }
 
+struct CloudLocalTombstonePlan: Equatable, Sendable {
+    let chartIDs: Set<UUID>
+    let insightIDs: Set<UUID>
+}
+
+struct CloudLocalTombstonePlanner {
+    func makePlan(
+        charts: [SavedChart],
+        insights: [SavedInsight],
+        deletions: [CloudDeletion],
+        remoteChartUpdatedAt: [UUID: Date] = [:],
+        remoteInsightUpdatedAt: [UUID: Date] = [:]
+    ) -> CloudLocalTombstonePlan {
+        var latestDeletionDates: [CloudEntityKey: Date] = [:]
+        for deletion in deletions {
+            let key = CloudEntityKey(type: deletion.entityType, id: deletion.entityID)
+            latestDeletionDates[key] = max(
+                latestDeletionDates[key] ?? .distantPast,
+                deletion.deletedAt
+            )
+        }
+        let resolver = CloudConflictResolver()
+        let chartIDs: Set<UUID> = Set(charts.compactMap { chart -> UUID? in
+            let deletedAt = latestDeletionDates[
+                CloudEntityKey(type: RecordType.chart, id: chart.id)
+            ]
+            guard let deletedAt,
+                  resolver.isDeleted(
+                      contentUpdatedAt: chart.updatedAt,
+                      deletedAt: deletedAt
+                  ),
+                  remoteChartUpdatedAt[chart.id].map({ $0 <= deletedAt }) ?? true else {
+                return nil
+            }
+            return chart.id
+        })
+        let insightIDs: Set<UUID> = Set(insights.compactMap { insight -> UUID? in
+            if chartIDs.contains(insight.chartID) { return insight.id }
+            let deletedAt = latestDeletionDates[
+                CloudEntityKey(type: RecordType.insight, id: insight.id)
+            ]
+            guard let deletedAt,
+                  resolver.isDeleted(
+                      contentUpdatedAt: insight.updatedAt,
+                      deletedAt: deletedAt
+                  ),
+                  remoteInsightUpdatedAt[insight.id].map({ $0 <= deletedAt }) ?? true else {
+                return nil
+            }
+            return insight.id
+        })
+        return CloudLocalTombstonePlan(chartIDs: chartIDs, insightIDs: insightIDs)
+    }
+}
+
 @MainActor
 final class ICloudSyncService {
     static let enabledKey = "icloud.sync.enabled"
@@ -116,22 +171,38 @@ final class ICloudSyncService {
         }
 
         var chartsByID = Dictionary(uniqueKeysWithValues: charts.map { ($0.id, $0) })
+        var insightsByID = Dictionary(uniqueKeysWithValues: insights.map { ($0.id, $0) })
+        let localTombstonePlan = CloudLocalTombstonePlanner().makePlan(
+            charts: charts,
+            insights: insights,
+            deletions: Array(allDeletions.values),
+            remoteChartUpdatedAt: Dictionary(
+                uniqueKeysWithValues: remoteCharts.map { ($0.id, $0.updatedAt) }
+            ),
+            remoteInsightUpdatedAt: Dictionary(
+                uniqueKeysWithValues: remoteInsights.map { ($0.id, $0.updatedAt) }
+            )
+        )
+        for insightID in localTombstonePlan.insightIDs {
+            guard let insight = insightsByID.removeValue(forKey: insightID) else { continue }
+            if let identifier = insight.reminderIdentifier {
+                reminderIdentifiersToCancel.insert(identifier)
+            }
+            modelContext.delete(insight)
+            downloaded += 1
+        }
+        for chartID in localTombstonePlan.chartIDs {
+            guard let chart = chartsByID.removeValue(forKey: chartID) else { continue }
+            modelContext.delete(chart)
+            downloaded += 1
+        }
+
         for remote in remoteCharts {
             let tombstone = allDeletions[DeletionKey(type: RecordType.chart, id: remote.id)]
             if CloudConflictResolver().isDeleted(
                 contentUpdatedAt: remote.updatedAt,
                 deletedAt: tombstone?.deletedAt
-            ) {
-                if let local = chartsByID.removeValue(forKey: remote.id) {
-                    insights.filter { $0.chartID == local.id }.forEach { insight in
-                        if let identifier = insight.reminderIdentifier {
-                            reminderIdentifiersToCancel.insert(identifier)
-                        }
-                        modelContext.delete(insight)
-                    }
-                    modelContext.delete(local)
-                    downloaded += 1
-                }
+            ), chartsByID[remote.id] == nil {
                 continue
             }
             if let local = chartsByID[remote.id] {
@@ -157,28 +228,18 @@ final class ICloudSyncService {
             }
         }
         let remoteChartIDs = Set(remoteCharts.map(\.id))
-        for chart in charts where !remoteChartIDs.contains(chart.id) {
-            let tombstone = allDeletions[DeletionKey(type: RecordType.chart, id: chart.id)]
-            guard tombstone == nil || tombstone!.deletedAt < chart.updatedAt else { continue }
+        for chart in chartsByID.values where !remoteChartIDs.contains(chart.id) {
             try await database.save(try CloudChartPayload(chart).record())
             uploaded += 1
         }
 
-        var insightsByID = Dictionary(uniqueKeysWithValues: insights.map { ($0.id, $0) })
         for remote in remoteInsights {
             guard remote.isStructurallyValid else { throw SyncError.invalidRemoteData }
             let tombstone = allDeletions[DeletionKey(type: RecordType.insight, id: remote.id)]
             if CloudConflictResolver().isDeleted(
                 contentUpdatedAt: remote.updatedAt,
                 deletedAt: tombstone?.deletedAt
-            ) {
-                if let local = insightsByID.removeValue(forKey: remote.id) {
-                    if let identifier = local.reminderIdentifier {
-                        reminderIdentifiersToCancel.insert(identifier)
-                    }
-                    modelContext.delete(local)
-                    downloaded += 1
-                }
+            ), insightsByID[remote.id] == nil {
                 continue
             }
             guard let linkedChart = chartsByID[remote.chartID] else { continue }
@@ -214,10 +275,8 @@ final class ICloudSyncService {
             }
         }
         let remoteInsightIDs = Set(remoteInsights.map(\.id))
-        for insight in insights where
+        for insight in insightsByID.values where
             !remoteInsightIDs.contains(insight.id) && chartsByID[insight.chartID] != nil {
-            let tombstone = allDeletions[DeletionKey(type: RecordType.insight, id: insight.id)]
-            guard tombstone == nil || tombstone!.deletedAt < insight.updatedAt else { continue }
             try await database.save(CloudInsightPayload(insight).record())
             uploaded += 1
         }
@@ -334,7 +393,9 @@ private enum RecordType {
     static let deletion = "DeletedRecord"
 }
 
-private struct DeletionKey: Hashable {
+private typealias DeletionKey = CloudEntityKey
+
+private struct CloudEntityKey: Hashable {
     let type: String
     let id: UUID
 }
