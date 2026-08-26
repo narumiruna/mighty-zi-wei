@@ -3,6 +3,7 @@ import SwiftUI
 struct AIConfigurationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AIConfigurationStore.self) private var configurationStore
+    @Environment(AIUsageStore.self) private var usageStore
 
     @State private var endpoint = AIConfigurationStore.defaultEndpoint
     @State private var model = ""
@@ -14,6 +15,7 @@ struct AIConfigurationView: View {
     @State private var testMessage: String?
     @State private var testSucceeded = false
     @State private var testTask: Task<Void, Never>?
+    @State private var copiedDiagnostic = false
 
     var body: some View {
         Form {
@@ -66,6 +68,48 @@ struct AIConfigurationView: View {
                 }
             } footer: {
                 Text("測試會使用目前欄位發出一個小型 Responses API request，可能產生少量 token 費用，但不會傳送命盤資料。")
+            }
+
+            Section {
+                Picker("每次回答長度", selection: answerLengthBinding) {
+                    Text("精簡（600 字）").tag(600)
+                    Text("標準（1,200 字）").tag(1_200)
+                    Text("詳細（2,000 字）").tag(2_000)
+                }
+                Picker("每月請求上限", selection: monthlyLimitBinding) {
+                    Text("10 次").tag(10)
+                    Text("25 次").tag(25)
+                    Text("50 次").tag(50)
+                    Text("100 次").tag(100)
+                    Text("不設上限").tag(0)
+                }
+                LabeledContent("本月已送出", value: "\(usageStore.currentMonthCount) 次")
+                if let remaining = usageStore.remainingRequests {
+                    LabeledContent("本月剩餘", value: "\(remaining) 次")
+                }
+            } header: {
+                Text("回答與費用保護")
+            } footer: {
+                Text("請求上限在送出前由 App 檢查；實際 token 與費用仍以第三方服務紀錄為準。")
+            }
+
+            if let diagnostic = usageStore.lastDiagnostic {
+                Section {
+                    Text(diagnostic)
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                    Button {
+                        ClipboardWriter.copy(diagnostic)
+                        copiedDiagnostic = true
+                    } label: {
+                        Label(copiedDiagnostic ? "已複製" : "一鍵複製診斷", systemImage: "doc.on.doc")
+                    }
+                    .accessibilityIdentifier("ai.copyDiagnostic")
+                } header: {
+                    Text("安全診斷")
+                } footer: {
+                    Text("診斷不包含 API key、endpoint、prompt、命盤或服務回應內容。")
+                }
             }
 
             Section("資料與費用") {
@@ -156,6 +200,7 @@ struct AIConfigurationView: View {
                     model: model,
                     apiKey: apiKey
                 )
+                try usageStore.reserve(.connectionTest)
                 endpoint = configuration.endpoint.absoluteString
                 try await OpenAIResponsesInterpreter().testConnection(
                     configuration: configuration
@@ -166,11 +211,27 @@ struct AIConfigurationView: View {
             } catch is CancellationError {
                 return
             } catch let error as LocalizedError {
+                usageStore.record(error: error, kind: .connectionTest)
                 testMessage = error.errorDescription ?? "API 測試失敗，請檢查設定。"
             } catch {
+                usageStore.record(error: error, kind: .connectionTest)
                 testMessage = "API 測試失敗，請檢查設定。"
             }
         }
+    }
+
+    private var answerLengthBinding: Binding<Int> {
+        Binding(
+            get: { configurationStore.maximumAnswerCharacters },
+            set: { configurationStore.setMaximumAnswerCharacters($0) }
+        )
+    }
+
+    private var monthlyLimitBinding: Binding<Int> {
+        Binding(
+            get: { usageStore.monthlyLimit },
+            set: { usageStore.monthlyLimit = $0 }
+        )
     }
 
     private func resetTestStatus() {

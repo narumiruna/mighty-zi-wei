@@ -64,6 +64,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
             "createdAt",
             "id",
             "name",
+            "tags",
+            "isPinned",
             "ruleSetID",
             "ruleSetVersion",
             "updatedAt"
@@ -310,6 +312,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         let container = try ModelContainer(
             for: SavedChart.self,
             SavedInsight.self,
+            CloudDeletion.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let context = ModelContext(container)

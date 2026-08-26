@@ -29,6 +29,7 @@ struct ChartView: View {
     @State private var assistantChartID = UUID()
     @State private var showsAssistantSwitchConfirmation = false
     @State private var showsSharing = false
+    @State private var duplicateChart: SavedChart?
     @State private var isSaved = false
     @State private var newlySavedChartID: UUID?
     @State private var saveMessage: String?
@@ -186,6 +187,16 @@ struct ChartView: View {
             Text(errorMessage ?? "未知錯誤")
         }
         .confirmationDialog(
+            "已有相同出生資料的命盤",
+            isPresented: duplicateConfirmationIsPresented,
+            titleVisibility: .visible
+        ) {
+            Button("仍要儲存另一張") { persistChart() }
+            Button("取消", role: .cancel) { duplicateChart = nil }
+        } message: {
+            Text("「\(duplicateChart?.name ?? "既有命盤")」使用相同出生日期、時間與時區。你可以取消以避免重複，或仍然保留不同名稱與標籤的版本。")
+        }
+        .confirmationDialog(
             "切換命盤並清除本次 AI 對話？",
             isPresented: $showsAssistantSwitchConfirmation,
             titleVisibility: .visible
@@ -222,6 +233,13 @@ struct ChartView: View {
         return trimmed.isEmpty ? "未命名命盤" : trimmed
     }
 
+    private var duplicateConfirmationIsPresented: Binding<Bool> {
+        Binding(
+            get: { duplicateChart != nil },
+            set: { if !$0 { duplicateChart = nil } }
+        )
+    }
+
     private var errorIsPresented: Binding<Bool> {
         Binding(
             get: { errorMessage != nil },
@@ -239,6 +257,18 @@ struct ChartView: View {
     }
 
     private func saveChart() {
+        errorMessage = nil
+        if let duplicate = savedCharts.first(where: {
+            (try? $0.birthProfile()) == chart.birthProfile
+        }) {
+            duplicateChart = duplicate
+            return
+        }
+        persistChart()
+    }
+
+    private func persistChart() {
+        duplicateChart = nil
         errorMessage = nil
         do {
             let previousAssistantID = assistantChart.id
@@ -377,10 +407,12 @@ private struct ChartOverview: View {
     let assistantChart: ChartAssistantChart
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @AppStorage("accessibility.linear-chart") private var linearChartEnabled = false
 
     @ViewBuilder
     var body: some View {
-        if dynamicTypeSize.isAccessibilitySize {
+        if dynamicTypeSize.isAccessibilitySize || voiceOverEnabled || linearChartEnabled {
             accessibleLayout
         } else {
             chartLayout
@@ -433,7 +465,10 @@ private struct ChartOverview: View {
                             assistantChart: assistantChart
                         )
                     } label: {
-                        PalaceOverviewCell(palace: palace)
+                        PalaceOverviewCell(
+                            palace: palace,
+                            stars: chart.stars.filter { $0.palace == kind }
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("chart.palace.\(kind.rawValue)")
@@ -492,6 +527,7 @@ private struct ChartGrid: View {
         } label: {
             PalaceOverviewCell(
                 palace: palace,
+                stars: chart.stars.filter { $0.palace == palace.kind },
                 size: cellSize
             )
         }
@@ -532,6 +568,7 @@ private struct ChartIdentityCard: View {
 
 private struct PalaceOverviewCell: View {
     let palace: ChartPalace
+    var stars: [StarPlacement] = []
     var size: CGFloat?
 
     var body: some View {
@@ -573,9 +610,16 @@ private struct PalaceOverviewCell: View {
     }
 
     private var accessibilityText: String {
-        palace.isBodyPalace
-            ? "\(palace.kind.displayName)，身宮位於此"
-            : palace.kind.displayName
+        let mainStars = stars.filter { $0.star.category == .main }.map(\.star.displayName)
+        let otherStars = stars.filter { $0.star.category != .main }.map(\.star.displayName)
+        var parts = [
+            palace.kind.displayName,
+            "宮位干支\(palace.stemBranch.displayName)",
+            mainStars.isEmpty ? "本宮無主星" : "主星\(mainStars.joined(separator: "、"))"
+        ]
+        if palace.isBodyPalace { parts.append("身宮位於此") }
+        if !otherStars.isEmpty { parts.append("其他星曜\(otherStars.joined(separator: "、"))") }
+        return parts.joined(separator: "，")
     }
 }
 

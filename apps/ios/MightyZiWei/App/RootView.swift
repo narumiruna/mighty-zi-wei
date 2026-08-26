@@ -1,6 +1,7 @@
 import AVFAudio
 import Combine
 import Observation
+import SwiftData
 import SwiftUI
 
 @MainActor
@@ -12,7 +13,13 @@ final class AppNavigationState {
         case ai
     }
 
+    enum SavedDestination: Equatable {
+        case chart(UUID)
+        case journal(UUID)
+    }
+
     var selectedTab: Tab = .home
+    var requestedSavedDestination: SavedDestination?
 }
 
 protocol ChartConversationAnswering: Sendable {
@@ -53,6 +60,7 @@ final class ChartAssistantStore {
     private(set) var selectedChart: ChartAssistantChart?
     private(set) var turns: [ChartConversationTurn] = []
     private(set) var requestState: RequestState = .idle
+    private(set) var lastDiagnosticCode: String?
     var draft = ""
 
     init(
@@ -161,6 +169,7 @@ final class ChartAssistantStore {
         let identifier = UUID()
         requestID = identifier
         requestState = .loading(question: question)
+        lastDiagnosticCode = nil
         let history = turns
         requestTask = Task {
             do {
@@ -182,9 +191,11 @@ final class ChartAssistantStore {
                 finishRequest(state: .idle)
             } catch is CancellationError {
                 guard requestID == identifier else { return }
+                lastDiagnosticCode = "cancelled"
                 finishRequest(state: .cancelled)
             } catch {
                 guard requestID == identifier else { return }
+                lastDiagnosticCode = diagnosticCode(for: error)
                 finishRequest(state: .failed(message: safeMessage(for: error)))
             }
         }
@@ -223,6 +234,16 @@ final class ChartAssistantStore {
         requestState = state
     }
 
+    private func diagnosticCode(for error: Error) -> String {
+        if let interpreterError = error as? OpenAIResponsesInterpreter.InterpreterError {
+            return interpreterError.diagnosticCode
+        }
+        if error is ConversationAnswerValidator.ValidationError {
+            return "answer_validation_failed"
+        }
+        return "unexpected_error"
+    }
+
     private func safeMessage(for error: Error) -> String {
         if let interpreterError = error as? OpenAIResponsesInterpreter.InterpreterError {
             return interpreterError.errorDescription ?? "AI API 暫時無法完成回答。"
@@ -258,10 +279,17 @@ private struct UITestChartConversationAnswerer: ChartConversationAnswering {
 
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
+    @Environment(AppLockStore.self) private var appLockStore
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
 
+    @Query private var savedCharts: [SavedChart]
+    @Query private var savedInsights: [SavedInsight]
+    @Query private var cloudDeletions: [CloudDeletion]
+    @AppStorage(ICloudSyncService.enabledKey) private var iCloudSyncEnabled = false
     @State private var navigation = AppNavigationState()
     @State private var assistantStore: ChartAssistantStore
+    @State private var isAutomaticallySyncing = false
 
     init() {
         let isUITestingAI = ProcessInfo.processInfo.arguments.contains("-UITestMockAI")
@@ -289,9 +317,28 @@ struct RootView: View {
         }
         .environment(navigation)
         .environment(assistantStore)
+        .task {
+            handlePendingShortcut()
+            await synchronizeICloudIfNeeded()
+        }
+        .onOpenURL { url in
+            handle(url: url)
+        }
         .onChange(of: scenePhase) { _, phase in
+            appLockStore.handleScenePhase(phase)
+            if phase == .active {
+                handlePendingShortcut()
+                Task { await synchronizeICloudIfNeeded() }
+            }
             if shouldStopVoice(for: phase) {
                 voiceCoordinator.stopAll()
+            }
+        }
+        .overlay {
+            if appLockStore.showsPrivacyShield || appLockStore.isLocked {
+                AppLockOverlay()
+                    .transition(.opacity)
+                    .zIndex(100)
             }
         }
         .onReceive(
@@ -313,6 +360,59 @@ struct RootView: View {
                   reason != .categoryChange
             else { return }
             voiceCoordinator.stopAll()
+        }
+    }
+
+    private func synchronizeICloudIfNeeded() async {
+        guard iCloudSyncEnabled, !isAutomaticallySyncing else { return }
+        isAutomaticallySyncing = true
+        defer { isAutomaticallySyncing = false }
+        do {
+            _ = try await ICloudSyncService().sync(
+                charts: savedCharts,
+                insights: savedInsights,
+                deletions: cloudDeletions,
+                modelContext: modelContext
+            )
+            let defaults = UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)
+            let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
+            if let pinned = currentCharts.first(where: \.isPinned) {
+                defaults?.set(pinned.id.uuidString, forKey: "shortcuts.pinned-chart-id")
+            } else {
+                defaults?.removeObject(forKey: "shortcuts.pinned-chart-id")
+            }
+        } catch {
+            // 保持啟用狀態，等下次進入前景或由使用者手動重試。
+        }
+    }
+
+    private func handle(url: URL) {
+        guard url.scheme == "mightyziwei" else { return }
+        switch url.host {
+        case "saved": navigation.selectedTab = .saved
+        case "ai": navigation.selectedTab = .ai
+        default: navigation.selectedTab = .home
+        }
+    }
+
+    private func handlePendingShortcut() {
+        let defaults = UserDefaults(suiteName: ReviewReminderScheduler.sharedDefaultsSuite)
+        guard let action = defaults?.string(forKey: "shortcuts.pending-action") else { return }
+        defaults?.removeObject(forKey: "shortcuts.pending-action")
+        switch action {
+        case "open-pinned", "new-note":
+            navigation.selectedTab = .saved
+            guard let value = defaults?.string(forKey: "shortcuts.pinned-chart-id"),
+                  let id = UUID(uuidString: value) else { return }
+            navigation.requestedSavedDestination = action == "new-note"
+                ? .journal(id)
+                : .chart(id)
+        case "ai-draft":
+            assistantStore.draft = defaults?.string(forKey: "shortcuts.pending-ai-draft") ?? ""
+            defaults?.removeObject(forKey: "shortcuts.pending-ai-draft")
+            navigation.selectedTab = .ai
+        default:
+            break
         }
     }
 }

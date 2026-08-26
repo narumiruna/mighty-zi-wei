@@ -6,8 +6,14 @@ struct OpenAIResponsesConfiguration: Equatable, Sendable {
     let endpoint: URL
     let model: String
     let apiKey: String?
+    let maximumAnswerCharacters: Int
 
-    init(endpoint: String, model: String, apiKey: String?) throws {
+    init(
+        endpoint: String,
+        model: String,
+        apiKey: String?,
+        maximumAnswerCharacters: Int = 1_200
+    ) throws {
         let trimmedEndpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAPIKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,6 +42,7 @@ struct OpenAIResponsesConfiguration: Equatable, Sendable {
         self.endpoint = url
         self.model = trimmedModel
         self.apiKey = trimmedAPIKey?.isEmpty == false ? trimmedAPIKey : nil
+        self.maximumAnswerCharacters = min(max(maximumAnswerCharacters, 300), 2_000)
     }
 
     private static func responsesPath(from path: String) -> String {
@@ -146,6 +153,7 @@ final class AIConfigurationStore {
     private enum DefaultsKey {
         static let endpoint = "ai.responses.endpoint"
         static let model = "ai.responses.model"
+        static let maximumAnswerCharacters = "ai.responses.maximum-answer-characters"
     }
 
     private let defaults: UserDefaults
@@ -154,6 +162,7 @@ final class AIConfigurationStore {
     private(set) var endpoint: String
     private(set) var model: String
     private(set) var hasAPIKey: Bool
+    private(set) var maximumAnswerCharacters: Int
 
     init(
         defaults: UserDefaults = .standard,
@@ -163,6 +172,8 @@ final class AIConfigurationStore {
         self.credentialStore = credentialStore
         endpoint = defaults.string(forKey: DefaultsKey.endpoint) ?? Self.defaultEndpoint
         model = defaults.string(forKey: DefaultsKey.model) ?? ""
+        let storedMaximum = defaults.integer(forKey: DefaultsKey.maximumAnswerCharacters)
+        maximumAnswerCharacters = storedMaximum == 0 ? 1_200 : min(max(storedMaximum, 300), 2_000)
         hasAPIKey = ((try? credentialStore.loadAPIKey()) ?? nil) != nil
     }
 
@@ -182,7 +193,8 @@ final class AIConfigurationStore {
         try OpenAIResponsesConfiguration(
             endpoint: endpoint,
             model: model,
-            apiKey: credentialStore.loadAPIKey()
+            apiKey: credentialStore.loadAPIKey(),
+            maximumAnswerCharacters: maximumAnswerCharacters
         )
     }
 
@@ -200,12 +212,19 @@ final class AIConfigurationStore {
         hasAPIKey = configuration.apiKey != nil
     }
 
+    func setMaximumAnswerCharacters(_ value: Int) {
+        maximumAnswerCharacters = min(max(value, 300), 2_000)
+        defaults.set(maximumAnswerCharacters, forKey: DefaultsKey.maximumAnswerCharacters)
+    }
+
     func clear() throws {
         try credentialStore.saveAPIKey(nil)
         defaults.removeObject(forKey: DefaultsKey.endpoint)
         defaults.removeObject(forKey: DefaultsKey.model)
+        defaults.removeObject(forKey: DefaultsKey.maximumAnswerCharacters)
         endpoint = Self.defaultEndpoint
         model = ""
+        maximumAnswerCharacters = 1_200
         hasAPIKey = false
     }
 }

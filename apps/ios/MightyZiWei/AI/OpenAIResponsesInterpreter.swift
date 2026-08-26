@@ -138,7 +138,9 @@ struct OpenAIResponsesInterpreter: Sendable {
                     "type": "json_schema",
                     "name": "chart_interpretation",
                     "strict": true,
-                    "schema": outputSchema()
+                    "schema": outputSchema(
+                        maximumContentCharacters: configuration.maximumAnswerCharacters
+                    )
                 ]
             ]
         ]
@@ -160,7 +162,8 @@ struct OpenAIResponsesInterpreter: Sendable {
                 question: question,
                 history: history,
                 facts: facts,
-                seeds: seeds
+                seeds: seeds,
+                maximumAnswerCharacters: configuration.maximumAnswerCharacters
             ),
             "stream": false,
             "store": false,
@@ -169,7 +172,10 @@ struct OpenAIResponsesInterpreter: Sendable {
                     "type": "json_schema",
                     "name": "chart_conversation_answer",
                     "strict": true,
-                    "schema": conversationSchema(factIDs: facts.map(\.id))
+                    "schema": conversationSchema(
+                        factIDs: facts.map(\.id),
+                        maximumAnswerCharacters: configuration.maximumAnswerCharacters
+                    )
                 ]
             ]
         ]
@@ -305,7 +311,8 @@ struct OpenAIResponsesInterpreter: Sendable {
         question: String,
         history: [ChartConversationTurn],
         facts: [ChartFact],
-        seeds: [InterpretationSeed]
+        seeds: [InterpretationSeed],
+        maximumAnswerCharacters: Int
     ) -> String {
         let factText = facts
             .map { "- \($0.id): \($0.displayText)" }
@@ -328,7 +335,7 @@ struct OpenAIResponsesInterpreter: Sendable {
         只有整個問題都無法根據現有資料回答，或要求健康、投資、法律建議或確定事件預測時，status 才回傳 unsupported，evidenceFactIDs 必須為空陣列。
         若問題有可回答的部分，status 必須回傳 answered，回答可驗證的部分並簡短說明資料限制；不要只因使用者提到年齡或一般背景就拒絕整個問題。
         回傳 answered 時，必須從本次提供的 fact ID 中逐字引用至少一個不重複的 ID。
-        回答請使用自然、簡潔的台灣正體中文與保留語氣。
+        回答請使用自然、簡潔的台灣正體中文與保留語氣，並限制在 \(maximumAnswerCharacters) 個字元以內。
 
         已驗證命盤事實：
         \(factText)
@@ -370,7 +377,10 @@ struct OpenAIResponsesInterpreter: Sendable {
     Copy evidence fact IDs exactly from the provided seeds.
     """
 
-    private func conversationSchema(factIDs: [String]) -> [String: Any] {
+    private func conversationSchema(
+        factIDs: [String],
+        maximumAnswerCharacters: Int
+    ) -> [String: Any] {
         [
             "type": "object",
             "properties": [
@@ -381,7 +391,7 @@ struct OpenAIResponsesInterpreter: Sendable {
                 "answer": [
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 2_000
+                    "maxLength": maximumAnswerCharacters
                 ],
                 "evidenceFactIDs": [
                     "type": "array",
@@ -396,7 +406,7 @@ struct OpenAIResponsesInterpreter: Sendable {
         ]
     }
 
-    private func outputSchema() -> [String: Any] {
+    private func outputSchema(maximumContentCharacters: Int) -> [String: Any] {
         [
             "type": "object",
             "properties": [
@@ -412,7 +422,11 @@ struct OpenAIResponsesInterpreter: Sendable {
                                 "enum": InterpretationCategory.allCases.map(\.rawValue)
                             ],
                             "title": ["type": "string"],
-                            "content": ["type": "string"],
+                            "content": [
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": maximumContentCharacters
+                            ],
                             "evidenceFactIDs": [
                                 "type": "array",
                                 "items": ["type": "string"]

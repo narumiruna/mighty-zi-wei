@@ -143,6 +143,8 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             let schema = try XCTUnwrap(format["schema"] as? [String: Any])
             XCTAssertEqual(schema["additionalProperties"] as? Bool, false)
             let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
+            let answer = try XCTUnwrap(properties["answer"] as? [String: Any])
+            XCTAssertEqual(answer["maxLength"] as? Int, 1_200)
             let evidence = try XCTUnwrap(properties["evidenceFactIDs"] as? [String: Any])
             let evidenceItems = try XCTUnwrap(evidence["items"] as? [String: Any])
             XCTAssertEqual(evidenceItems["enum"] as? [String], [fact.id])

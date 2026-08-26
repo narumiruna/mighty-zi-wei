@@ -12,6 +12,7 @@
 		117F7E9D16F29C60C2F31508 /* ZiWeiCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */; };
 		12B70251E6CBCBA13B163897 /* ZiWeiRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C567EF0828AE669C9B79739 /* ZiWeiRules.swift */; };
 		15E38F9F73DB17F7C87E8B6F /* InterpretationValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */; };
+		17CBAAB579EBEED439C31356 /* ClipboardWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F987B7515934AB8E6AD02B /* ClipboardWriter.swift */; };
 		1F2F3B8A8BF7AB56672F02B7 /* ChartFactBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */; };
 		24AC73DF96E1DCF2A3E5827F /* PalaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90937BEA13CCA793C63D751E /* PalaceDetailView.swift */; };
 		27E79E39D9D5C1A35BD66B4D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32476896280CD9A6DF081001 /* AboutView.swift */; };
@@ -32,11 +33,13 @@
 		50D6DAFAD4EF312A9EF60932 /* ChartEncyclopediaCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1CCACBD3CA56621DE4913A /* ChartEncyclopediaCatalog.swift */; };
 		52B96B2B373B180D2D88B3C6 /* BirthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11937549E0F84C51ADF1EF1E /* BirthProfile.swift */; };
 		559727E9F76947C3EE6C47D1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D12FE744C4E5E89927DD0FF /* SettingsView.swift */; };
+		5744018F5FA519C8502DA105 /* MightyZiWeiIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B2E15CD73C439D1234F95B /* MightyZiWeiIntents.swift */; };
 		579010C0A86DFD3F3330372F /* chart_009_hour_mao.json in Resources */ = {isa = PBXBuildFile; fileRef = 4B6A47B453849E7528D25DC7 /* chart_009_hour_mao.json */; };
 		58037B4CD027EFC5155F019F /* DualChartComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2192FBB516CC5FC644D563DF /* DualChartComparisonView.swift */; };
 		5861179212E650CF7A22E9F5 /* AdjacentHourComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91BAF8F510039A5580FACE7D /* AdjacentHourComparisonView.swift */; };
 		594F32C26E4B40FAC5BD01F0 /* EncryptedBackupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078AC63291D99571D39AD89C /* EncryptedBackupServiceTests.swift */; };
 		5B1DB5D632C20808500BC081 /* chart_006_1900_boundary.json in Resources */ = {isa = PBXBuildFile; fileRef = 18AABAE834D622A15AB7D45F /* chart_006_1900_boundary.json */; };
+		5B7CC6B8DB4C1E7353208F9F /* MightyZiWeiPrivacyWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 25E937CF6CA18F75DAD2867D /* MightyZiWeiPrivacyWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		654F208C3F823850E73D46CB /* chart_005_historical_dst.json in Resources */ = {isa = PBXBuildFile; fileRef = 0D504DB957AC3C401FBD7479 /* chart_005_historical_dst.json */; };
 		68C4ECB4B593B62A703D3083 /* chart_010_hour_chen.json in Resources */ = {isa = PBXBuildFile; fileRef = 02C1298AD9321509D74417EB /* chart_010_hour_chen.json */; };
 		698FE327FEA4864B152B9A27 /* DualChartInteractionReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74723849A1AB0BEDA5C03676 /* DualChartInteractionReference.swift */; };
@@ -51,6 +54,7 @@
 		75ACB7D63DFD2A9F8D3C83F0 /* ChartEncyclopediaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC61923675FBB482E967559F /* ChartEncyclopediaView.swift */; };
 		78EE09BEFE2BC8F3988A669A /* AdjacentHourComparisonBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */; };
 		7E67812BD2E12AA9B6990304 /* chart_001_normal.json in Resources */ = {isa = PBXBuildFile; fileRef = 034ACE4FDF7CBF7A8A3FB51C /* chart_001_normal.json */; };
+		7E68C17F3F2E7C5094350A5F /* AIUsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE2FA5253C45C5D92886F7E9 /* AIUsageStore.swift */; };
 		7E954F686A83DD6184AADD93 /* InterpretationSeedBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C389AE52A85ED6C0C074EF /* InterpretationSeedBuilder.swift */; };
 		7FB2BF58884A14E8A1BAD51E /* ChartSharingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7AF4EF700334C34F2261BEA /* ChartSharingView.swift */; };
 		8608035441A8D686A0843D5B /* SavedInsight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873BDF01B1D332DB57D5B156 /* SavedInsight.swift */; };
@@ -60,8 +64,11 @@
 		9DE3AC8EAF227B8CF9654AA5 /* CalendarNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBBCDC45378DE1542584A162 /* CalendarNormalizer.swift */; };
 		A358EA97D679804CEC760488 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BB733B679E4CC1FAC918ED /* HomeView.swift */; };
 		A780A7BB053C036AD90F2065 /* SavedInsightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B137F15DE4C1DFBDD7512 /* SavedInsightTests.swift */; };
+		A9434F7BC64F7162EFC349F4 /* ICloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A2DF22615AFE9F958AC27 /* ICloudSyncService.swift */; };
 		A975D4C60A3039ECB3D71A0B /* TimeZonePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C62A38C5D80DA4046E9E59 /* TimeZonePickerView.swift */; };
+		A98FF618A31D21FA256C04BE /* PrivacyWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5D067749E2CC4D558A5C1F /* PrivacyWidget.swift */; };
 		AA2809A40F4BE97CFC7AFD6E /* EncryptedBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */; };
+		AEE488BEDC58CB116EA5FE25 /* SavedConversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5BB6565FB64BE8A7F53CC8 /* SavedConversation.swift */; };
 		B6973CE82B56262EFED846B2 /* DualChartInteractionReferenceBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */; };
 		B9F3FDD5B321E77DC67D6814 /* Star.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43B88E143C001404E0389BC /* Star.swift */; };
 		BA6AAAA51FFFB71856E1A23C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED3EF7B33865609E6022E471 /* Assets.xcassets */; };
@@ -72,13 +79,17 @@
 		C52F8275E81188A8ECC57FB5 /* InterpretationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED571056EA26DE2392D57DF /* InterpretationModels.swift */; };
 		C8B9C8E91BFF07A45B68C25C /* chart_013_hour_you.json in Resources */ = {isa = PBXBuildFile; fileRef = 2D227946A31E4946C3AB4358 /* chart_013_hour_you.json */; };
 		CB305A656B8CD50DB66FDC2A /* VoiceCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43CB632168EA90C22A43E2D /* VoiceCoordinatorTests.swift */; };
+		CC011DAADB004332F55EABBA /* PracticalFeaturesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92B340638BB9192399A6528 /* PracticalFeaturesTests.swift */; };
 		CD57EA7976BC8FF7240B76D5 /* AppleVoiceOutputController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100D21B9C83D74470714BF27 /* AppleVoiceOutputController.swift */; };
 		CDC81E182D78CF5D3A964A5F /* chart_014_hour_xu.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F5C44BDBCC4F068F53F6930 /* chart_014_hour_xu.json */; };
 		CE0D3975202B78474E838061 /* chart_003_lunar_new_year.json in Resources */ = {isa = PBXBuildFile; fileRef = 512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */; };
+		D3B32803C19447C6D9F7C700 /* SavedConversationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B4AA025E631D823E7413A15 /* SavedConversationsView.swift */; };
 		D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */; };
 		D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */; };
 		D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */; };
 		D9EF6E38788E178FFCC290B2 /* ChartJournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 839272541C7ED25F0FBCA768 /* ChartJournalView.swift */; };
+		DCCE70B326B2D52E262598E5 /* AppLockStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED7B96BB6CAE69D1BBA7DFD /* AppLockStore.swift */; };
+		DDDE9FFEE1E0AA1B65ADE220 /* ReviewReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCADCB857D91BB96766B781B /* ReviewReminderScheduler.swift */; };
 		E40C3D0F7D9F72BE3EC5614C /* SavedChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */; };
 		EAC13B032EF813E1FDE19405 /* UITestVoiceControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA807418C099CED157D4DD8 /* UITestVoiceControllers.swift */; };
 		F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */; };
@@ -99,6 +110,13 @@
 			remoteGlobalIDString = 7A819FFA15F9F9BF0150E2C6;
 			remoteInfo = MightyZiWei;
 		};
+		C117363646BD126CABFE9D06 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1CA7437453123D308FD23FAB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6EBFCE12ECE67BAE60050CDE;
+			remoteInfo = MightyZiWeiPrivacyWidget;
+		};
 		C337B8F9ACA261A05384B730 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1CA7437453123D308FD23FAB /* Project object */;
@@ -107,6 +125,20 @@
 			remoteInfo = MightyZiWei;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5E183FE4EB25695464D79682 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5B7CC6B8DB4C1E7353208F9F /* MightyZiWeiPrivacyWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		02C1298AD9321509D74417EB /* chart_010_hour_chen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_010_hour_chen.json; sourceTree = "<group>"; };
@@ -124,6 +156,7 @@
 		1A41747DB3EB2606F350F913 /* AppleVoiceInputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVoiceInputController.swift; sourceTree = "<group>"; };
 		2192FBB516CC5FC644D563DF /* DualChartComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartComparisonView.swift; sourceTree = "<group>"; };
 		227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartInteractionReferenceBuilderTests.swift; sourceTree = "<group>"; };
+		25E937CF6CA18F75DAD2867D /* MightyZiWeiPrivacyWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MightyZiWeiPrivacyWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		297DA83F12C695DCD7F1E554 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIResponsesInterpreterTests.swift; sourceTree = "<group>"; };
 		2D227946A31E4946C3AB4358 /* chart_013_hour_you.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_013_hour_you.json; sourceTree = "<group>"; };
@@ -134,11 +167,15 @@
 		3AD3B6947F9662D390173554 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidatorTests.swift; sourceTree = "<group>"; };
 		4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjacentHourComparisonBuilderTests.swift; sourceTree = "<group>"; };
+		41F987B7515934AB8E6AD02B /* ClipboardWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardWriter.swift; sourceTree = "<group>"; };
 		4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContent.swift; sourceTree = "<group>"; };
+		46B2E15CD73C439D1234F95B /* MightyZiWeiIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiIntents.swift; sourceTree = "<group>"; };
 		47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationView.swift; sourceTree = "<group>"; };
+		4B5D067749E2CC4D558A5C1F /* PrivacyWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyWidget.swift; sourceTree = "<group>"; };
 		4B6A47B453849E7528D25DC7 /* chart_009_hour_mao.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_009_hour_mao.json; sourceTree = "<group>"; };
 		512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_003_lunar_new_year.json; sourceTree = "<group>"; };
 		5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationSeedBuilderTests.swift; sourceTree = "<group>"; };
+		593A2DF22615AFE9F958AC27 /* ICloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudSyncService.swift; sourceTree = "<group>"; };
 		5952F0C28AEB29C0531E015F /* chart_012_hour_shen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_012_hour_shen.json; sourceTree = "<group>"; };
 		5DA807418C099CED157D4DD8 /* UITestVoiceControllers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestVoiceControllers.swift; sourceTree = "<group>"; };
 		5E6484A79DA0CD399368BBE6 /* ChartSharingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSharingTests.swift; sourceTree = "<group>"; };
@@ -153,6 +190,7 @@
 		873BDF01B1D332DB57D5B156 /* SavedInsight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedInsight.swift; sourceTree = "<group>"; };
 		87669742859912449A36CAF5 /* ZiWeiCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiCalculator.swift; sourceTree = "<group>"; };
 		88CC4B5EAD24028B5FC725E1 /* VoiceCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCoordinator.swift; sourceTree = "<group>"; };
+		8B4AA025E631D823E7413A15 /* SavedConversationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConversationsView.swift; sourceTree = "<group>"; };
 		8F5C44BDBCC4F068F53F6930 /* chart_014_hour_xu.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_014_hour_xu.json; sourceTree = "<group>"; };
 		8F835B76EC191B0C90F4FD74 /* chart_004_leap_month.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_004_leap_month.json; sourceTree = "<group>"; };
 		90937BEA13CCA793C63D751E /* PalaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalaceDetailView.swift; sourceTree = "<group>"; };
@@ -162,10 +200,12 @@
 		97DB1AE2F8775CC76192AEF9 /* MightyZiWeiUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiUITests.swift; sourceTree = "<group>"; };
 		9A7A843D5A6D20F2B702F3E7 /* Transformation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transformation.swift; sourceTree = "<group>"; };
 		9C567EF0828AE669C9B79739 /* ZiWeiRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiRules.swift; sourceTree = "<group>"; };
+		9ED7B96BB6CAE69D1BBA7DFD /* AppLockStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockStore.swift; sourceTree = "<group>"; };
 		9EFE0F1F2C55985916423122 /* BirthInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthInputView.swift; sourceTree = "<group>"; };
 		9FE9EC7A6106AD1114964AEE /* AIConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationView.swift; sourceTree = "<group>"; };
 		A5E127D15AFEDE522FA72941 /* RuleBasedInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleBasedInterpreter.swift; sourceTree = "<group>"; };
 		AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MightyZiWeiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA5BB6565FB64BE8A7F53CC8 /* SavedConversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedConversation.swift; sourceTree = "<group>"; };
 		AB1CCACBD3CA56621DE4913A /* ChartEncyclopediaCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartEncyclopediaCatalog.swift; sourceTree = "<group>"; };
 		AB955C7DF656FDC943976E73 /* ZiWeiChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZiWeiChart.swift; sourceTree = "<group>"; };
 		AC61923675FBB482E967559F /* ChartEncyclopediaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartEncyclopediaView.swift; sourceTree = "<group>"; };
@@ -173,6 +213,7 @@
 		B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Celestial.swift; sourceTree = "<group>"; };
 		B5C389AE52A85ED6C0C074EF /* InterpretationSeedBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationSeedBuilder.swift; sourceTree = "<group>"; };
 		B66C62B7608BB514A7D0274E /* chart_015_hour_hai.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_015_hour_hai.json; sourceTree = "<group>"; };
+		BE2FA5253C45C5D92886F7E9 /* AIUsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIUsageStore.swift; sourceTree = "<group>"; };
 		BE918D554B9AC0A2BE8EAE7E /* BackupManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManagementView.swift; sourceTree = "<group>"; };
 		C08C471A48CC7C3E78AC21F9 /* ChartAssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartAssistantView.swift; sourceTree = "<group>"; };
 		C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EncryptedBackupService.swift; sourceTree = "<group>"; };
@@ -189,10 +230,12 @@
 		E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartFactBuilder.swift; sourceTree = "<group>"; };
 		E26E9269141F6F7F626FDDDF /* BackupPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupPayload.swift; sourceTree = "<group>"; };
 		E805C16803086335B0FA1EFC /* OpenAIResponsesInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIResponsesInterpreter.swift; sourceTree = "<group>"; };
+		E92B340638BB9192399A6528 /* PracticalFeaturesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticalFeaturesTests.swift; sourceTree = "<group>"; };
 		ED3EF7B33865609E6022E471 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EED571056EA26DE2392D57DF /* InterpretationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationModels.swift; sourceTree = "<group>"; };
 		F7AF4EF700334C34F2261BEA /* ChartSharingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSharingView.swift; sourceTree = "<group>"; };
 		FBBCDC45378DE1542584A162 /* CalendarNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarNormalizer.swift; sourceTree = "<group>"; };
+		FCADCB857D91BB96766B781B /* ReviewReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewReminderScheduler.swift; sourceTree = "<group>"; };
 		FDA1772BF3EF5EA2C29BCB4B /* BackupRestoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupRestoreService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -209,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				6EE69DB39BC996ED000FCCC4 /* AIConfigurationStore.swift */,
+				BE2FA5253C45C5D92886F7E9 /* AIUsageStore.swift */,
 				E805C16803086335B0FA1EFC /* OpenAIResponsesInterpreter.swift */,
 			);
 			path = AI;
@@ -289,6 +333,7 @@
 			children = (
 				C08C471A48CC7C3E78AC21F9 /* ChartAssistantView.swift */,
 				47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */,
+				8B4AA025E631D823E7413A15 /* SavedConversationsView.swift */,
 			);
 			path = Interpretation;
 			sourceTree = "<group>";
@@ -361,6 +406,14 @@
 			path = Calculator;
 			sourceTree = "<group>";
 		};
+		880AA7D3C91EBC61ABF49EA5 /* MightyZiWeiPrivacyWidget */ = {
+			isa = PBXGroup;
+			children = (
+				4B5D067749E2CC4D558A5C1F /* PrivacyWidget.swift */,
+			);
+			path = MightyZiWeiPrivacyWidget;
+			sourceTree = "<group>";
+		};
 		89284925A16EAE3D2197CB4F /* Rules */ = {
 			isa = PBXGroup;
 			children = (
@@ -391,6 +444,7 @@
 			isa = PBXGroup;
 			children = (
 				CE506A8D25088FF150C0D88A /* MightyZiWei.app */,
+				25E937CF6CA18F75DAD2867D /* MightyZiWeiPrivacyWidget.appex */,
 				05B9D7E0B4290D818DE087B0 /* MightyZiWeiTests.xctest */,
 				AA2AE3E6F6C03E0F09AB2F62 /* MightyZiWeiUITests.xctest */,
 			);
@@ -401,6 +455,7 @@
 			isa = PBXGroup;
 			children = (
 				C4B2B75D9200ED9114D8C5DA /* MightyZiWei */,
+				880AA7D3C91EBC61ABF49EA5 /* MightyZiWeiPrivacyWidget */,
 				BEEDB938A564BD6D9240A6E9 /* MightyZiWeiTests */,
 				9868BBF11766CC3E6ACF6095 /* MightyZiWeiUITests */,
 				9AA3D82497A01C9D2939DAA6 /* Products */,
@@ -420,6 +475,8 @@
 		A80584994038DA62A311ACF5 /* Platform */ = {
 			isa = PBXGroup;
 			children = (
+				41F987B7515934AB8E6AD02B /* ClipboardWriter.swift */,
+				FCADCB857D91BB96766B781B /* ReviewReminderScheduler.swift */,
 				B8BA54EF32C6A0740467BAB3 /* Speech */,
 			);
 			path = Platform;
@@ -439,7 +496,9 @@
 				E26E9269141F6F7F626FDDDF /* BackupPayload.swift */,
 				FDA1772BF3EF5EA2C29BCB4B /* BackupRestoreService.swift */,
 				C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */,
+				593A2DF22615AFE9F958AC27 /* ICloudSyncService.swift */,
 				2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */,
+				AA5BB6565FB64BE8A7F53CC8 /* SavedConversation.swift */,
 				873BDF01B1D332DB57D5B156 /* SavedInsight.swift */,
 			);
 			path = Persistence;
@@ -460,6 +519,7 @@
 		BEEDB938A564BD6D9240A6E9 /* MightyZiWeiTests */ = {
 			isa = PBXGroup;
 			children = (
+				E92B340638BB9192399A6528 /* PracticalFeaturesTests.swift */,
 				0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */,
 				673A3BA999DB7B3E683C2F06 /* AI */,
 				9DC2716039176B98C4C27187 /* Chart */,
@@ -492,8 +552,10 @@
 		C516DE0D83F77A41BF7669CA /* App */ = {
 			isa = PBXGroup;
 			children = (
+				9ED7B96BB6CAE69D1BBA7DFD /* AppLockStore.swift */,
 				3AD3B6947F9662D390173554 /* DesignSystem.swift */,
 				92A1E1F7A69B2D28FE44DC8D /* MightyZiWeiApp.swift */,
+				46B2E15CD73C439D1234F95B /* MightyZiWeiIntents.swift */,
 				297DA83F12C695DCD7F1E554 /* RootView.swift */,
 			);
 			path = App;
@@ -539,16 +601,35 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		6EBFCE12ECE67BAE60050CDE /* MightyZiWeiPrivacyWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CDAAD03159CEA2DA99721091 /* Build configuration list for PBXNativeTarget "MightyZiWeiPrivacyWidget" */;
+			buildPhases = (
+				DC22C76B3C576C584E4A0A99 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MightyZiWeiPrivacyWidget;
+			packageProductDependencies = (
+			);
+			productName = MightyZiWeiPrivacyWidget;
+			productReference = 25E937CF6CA18F75DAD2867D /* MightyZiWeiPrivacyWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		7A819FFA15F9F9BF0150E2C6 /* MightyZiWei */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1CA09D3281922A0541A6EAC7 /* Build configuration list for PBXNativeTarget "MightyZiWei" */;
 			buildPhases = (
 				93FCBF7A50FE1F72AED51E50 /* Sources */,
 				236E030003A47C534E03C264 /* Resources */,
+				5E183FE4EB25695464D79682 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				12CECAB77827F41379C16BE3 /* PBXTargetDependency */,
 			);
 			name = MightyZiWei;
 			packageProductDependencies = (
@@ -603,6 +684,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					6EBFCE12ECE67BAE60050CDE = {
+						DevelopmentTeam = A4YQL6FFTK;
+						ProvisioningStyle = Automatic;
+					};
 					7A819FFA15F9F9BF0150E2C6 = {
 						DevelopmentTeam = A4YQL6FFTK;
 						ProvisioningStyle = Automatic;
@@ -633,6 +718,7 @@
 			projectRoot = "";
 			targets = (
 				7A819FFA15F9F9BF0150E2C6 /* MightyZiWei */,
+				6EBFCE12ECE67BAE60050CDE /* MightyZiWeiPrivacyWidget */,
 				FEB43CA61087A004EEF52DDD /* MightyZiWeiTests */,
 				D60C11EA4D0EC6849030CE57 /* MightyZiWeiUITests */,
 			);
@@ -687,9 +773,11 @@
 			files = (
 				0B99698802F197747C75B731 /* AIConfigurationStore.swift in Sources */,
 				F3F83E81941E68E065CFFB63 /* AIConfigurationView.swift in Sources */,
+				7E68C17F3F2E7C5094350A5F /* AIUsageStore.swift in Sources */,
 				27E79E39D9D5C1A35BD66B4D /* AboutView.swift in Sources */,
 				3AFE81E685D9E35EA39AD8DB /* AdjacentHourComparison.swift in Sources */,
 				5861179212E650CF7A22E9F5 /* AdjacentHourComparisonView.swift in Sources */,
+				DCCE70B326B2D52E262598E5 /* AppLockStore.swift in Sources */,
 				0B33B52236D70B500B35C29E /* AppleVoiceInputController.swift in Sources */,
 				CD57EA7976BC8FF7240B76D5 /* AppleVoiceOutputController.swift in Sources */,
 				4D242F2CCC9CA04C6542ED53 /* BackupManagementView.swift in Sources */,
@@ -707,23 +795,29 @@
 				2FD092155F1006A5EEC58345 /* ChartLearningContent.swift in Sources */,
 				7FB2BF58884A14E8A1BAD51E /* ChartSharingView.swift in Sources */,
 				F8EF326921C0E66BFA373FFE /* ChartView.swift in Sources */,
+				17CBAAB579EBEED439C31356 /* ClipboardWriter.swift in Sources */,
 				4EAADCB9D0FF0FE23D4494D3 /* DesignSystem.swift in Sources */,
 				58037B4CD027EFC5155F019F /* DualChartComparisonView.swift in Sources */,
 				698FE327FEA4864B152B9A27 /* DualChartInteractionReference.swift in Sources */,
 				AA2809A40F4BE97CFC7AFD6E /* EncryptedBackupService.swift in Sources */,
 				A358EA97D679804CEC760488 /* HomeView.swift in Sources */,
+				A9434F7BC64F7162EFC349F4 /* ICloudSyncService.swift in Sources */,
 				C52F8275E81188A8ECC57FB5 /* InterpretationModels.swift in Sources */,
 				7E954F686A83DD6184AADD93 /* InterpretationSeedBuilder.swift in Sources */,
 				15E38F9F73DB17F7C87E8B6F /* InterpretationValidator.swift in Sources */,
 				BAB9B1BAC6436967C026FA9C /* InterpretationView.swift in Sources */,
 				4DF8DD0C73BC924FB5712213 /* MightyZiWeiApp.swift in Sources */,
+				5744018F5FA519C8502DA105 /* MightyZiWeiIntents.swift in Sources */,
 				4F34923999E919A440F0939B /* OpenAIResponsesInterpreter.swift in Sources */,
 				2C1E451C5864455CCEDE6CDC /* Palace.swift in Sources */,
 				24AC73DF96E1DCF2A3E5827F /* PalaceDetailView.swift in Sources */,
+				DDDE9FFEE1E0AA1B65ADE220 /* ReviewReminderScheduler.swift in Sources */,
 				6F295E1271F152D74D0BEE99 /* RootView.swift in Sources */,
 				C4ADD957C4D02683CF71C968 /* RuleBasedInterpreter.swift in Sources */,
 				E40C3D0F7D9F72BE3EC5614C /* SavedChart.swift in Sources */,
 				7317FC9CD6390C23ABE260D6 /* SavedChartsView.swift in Sources */,
+				AEE488BEDC58CB116EA5FE25 /* SavedConversation.swift in Sources */,
+				D3B32803C19447C6D9F7C700 /* SavedConversationsView.swift in Sources */,
 				8608035441A8D686A0843D5B /* SavedInsight.swift in Sources */,
 				559727E9F76947C3EE6C47D1 /* SettingsView.swift in Sources */,
 				B9F3FDD5B321E77DC67D6814 /* Star.swift in Sources */,
@@ -735,6 +829,14 @@
 				FDBC2F9789913CDF91AC7FB9 /* ZiWeiCalculator.swift in Sources */,
 				92D2115C7E6BB6EA9F1E1AA6 /* ZiWeiChart.swift in Sources */,
 				12B70251E6CBCBA13B163897 /* ZiWeiRules.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DC22C76B3C576C584E4A0A99 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A98FF618A31D21FA256C04BE /* PrivacyWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -753,6 +855,7 @@
 				D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */,
 				96C5BF79F91DF992D48C18CE /* InterpretationValidatorTests.swift in Sources */,
 				F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */,
+				CC011DAADB004332F55EABBA /* PracticalFeaturesTests.swift in Sources */,
 				4512C9F3380861D5A9160279 /* SavedChartTests.swift in Sources */,
 				A780A7BB053C036AD90F2065 /* SavedInsightTests.swift in Sources */,
 				CB305A656B8CD50DB66FDC2A /* VoiceCoordinatorTests.swift in Sources */,
@@ -763,6 +866,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		12CECAB77827F41379C16BE3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6EBFCE12ECE67BAE60050CDE /* MightyZiWeiPrivacyWidget */;
+			targetProxy = C117363646BD126CABFE9D06 /* PBXContainerItemProxy */;
+		};
 		14C4996177DF3F1620E5027E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 7A819FFA15F9F9BF0150E2C6 /* MightyZiWei */;
@@ -848,6 +956,26 @@
 			};
 			name = Debug;
 		};
+		1053046CF663406D4B164CE3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Configuration/MightyZiWeiPrivacyWidget.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/MightyZiWeiPrivacyWidget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWei.PrivacyWidget;
+				PRODUCT_NAME = "隱私回顧";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		55C1DFAB2D554AAE0412EA74 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -917,16 +1045,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Configuration/MightyZiWei.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "很牛的紫微斗數";
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "將你主動說出的命盤問題轉成可編輯文字，不會自動送出。";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "將你主動說出的命盤問題辨識成可編輯文字，不會自動送出。";
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/MightyZiWei-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -938,6 +1060,26 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
+		};
+		873D13DEEB413B04068D08C5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Configuration/MightyZiWeiPrivacyWidget.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/MightyZiWeiPrivacyWidget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.narumi.MightyZiWei.PrivacyWidget;
+				PRODUCT_NAME = "隱私回顧";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
 		};
 		8D6AB7CEE271A56E73E3BE96 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -1011,16 +1153,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Configuration/MightyZiWei.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "很牛的紫微斗數";
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "將你主動說出的命盤問題轉成可編輯文字，不會自動送出。";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "將你主動說出的命盤問題辨識成可編輯文字，不會自動送出。";
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Configuration/MightyZiWei-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1068,6 +1204,15 @@
 			buildConfigurations = (
 				0E606A557176FDFE732CC67C /* Debug */,
 				55C1DFAB2D554AAE0412EA74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CDAAD03159CEA2DA99721091 /* Build configuration list for PBXNativeTarget "MightyZiWeiPrivacyWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				873D13DEEB413B04068D08C5 /* Debug */,
+				1053046CF663406D4B164CE3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

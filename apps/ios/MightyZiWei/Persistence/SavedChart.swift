@@ -12,8 +12,15 @@ final class SavedChart {
     var ruleSetVersion: Int
     var appSchemaVersion: Int
     var chartCacheData: Data?
+    var tagsData: Data = Data("[]".utf8)
+    var isPinned: Bool = false
     var createdAt: Date
     var updatedAt: Date
+
+    var tags: [String] {
+        get { (try? JSONDecoder().decode([String].self, from: tagsData)) ?? [] }
+        set { tagsData = Self.encodeTags(newValue) }
+    }
 
     init(
         id: UUID = UUID(),
@@ -23,6 +30,8 @@ final class SavedChart {
         ruleSetVersion: Int,
         appSchemaVersion: Int = SavedChart.schemaVersion,
         chartCacheData: Data?,
+        tags: [String] = [],
+        isPinned: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -33,6 +42,8 @@ final class SavedChart {
         self.ruleSetVersion = ruleSetVersion
         self.appSchemaVersion = appSchemaVersion
         self.chartCacheData = chartCacheData
+        self.tagsData = Self.encodeTags(tags)
+        self.isPinned = isPinned
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -80,9 +91,47 @@ final class SavedChart {
         updatedAt = .now
     }
 
+    func updateTags(_ proposedTags: [String]) {
+        tags = proposedTags
+        updatedAt = .now
+    }
+
+    func setPinned(_ pinned: Bool) {
+        isPinned = pinned
+        updatedAt = .now
+    }
+
+    func hasSameBirthProfile(as other: SavedChart) -> Bool {
+        (try? birthProfile()) == (try? other.birthProfile())
+    }
+
+    func matchesSearch(_ query: String, calendar: Calendar = .current) -> Bool {
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return true }
+        let dateFormatter = DateFormatter()
+        dateFormatter.calendar = calendar
+        dateFormatter.locale = Locale(identifier: "zh_Hant_TW")
+        dateFormatter.dateFormat = "yyyy/MM/dd"
+        let values = [name, tags.joined(separator: " "), dateFormatter.string(from: createdAt)]
+        return values.contains { $0.localizedCaseInsensitiveContains(normalized) }
+    }
+
     private static func normalizedName(_ value: String, profile: BirthProfile) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { return trimmed }
         return "\(profile.localDate.year)/\(profile.localDate.month)/\(profile.localDate.day) 命盤"
+    }
+
+    private static func encodeTags(_ values: [String]) -> Data {
+        var seen = Set<String>()
+        let normalized = values.compactMap { value -> String? in
+            let tag = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !tag.isEmpty, tag.count <= 30 else { return nil }
+            let key = tag.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            return seen.insert(key).inserted ? tag : nil
+        }.prefix(20)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return (try? encoder.encode(Array(normalized))) ?? Data("[]".utf8)
     }
 }

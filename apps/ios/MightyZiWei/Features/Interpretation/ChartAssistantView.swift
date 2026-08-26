@@ -23,6 +23,7 @@ struct SavedChartAssistantSnapshot: Equatable {
 struct ChartAssistantView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AIConfigurationStore.self) private var configurationStore
+    @Environment(AIUsageStore.self) private var usageStore
     @Environment(ChartAssistantStore.self) private var assistantStore
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var savedCharts: [SavedChart]
@@ -30,6 +31,9 @@ struct ChartAssistantView: View {
     @FocusState private var composerIsFocused: Bool
     @State private var showsAPIConfiguration = false
     @State private var showsClearConfirmation = false
+    @State private var showsSendPreview = false
+    @State private var showsSaveConversation = false
+    @State private var conversationTitle = ""
     @State private var pendingChart: ChartAssistantChart?
     @State private var errorMessage: String?
 
@@ -45,40 +49,27 @@ struct ChartAssistantView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let chart = assistantStore.selectedChart {
-                    conversationContent(chart: chart)
-                } else if savedCharts.isEmpty {
-                    EmptyStateView(
-                        symbol: "sparkles",
-                        title: "還沒有可以詢問的命盤",
-                        message: "先建立一張命盤，AI 才能根據 App 已驗證的命盤資料回答問題。"
-                    )
-                    .overlay(alignment: .bottom) {
-                        NavigationLink {
-                            BirthInputView()
-                        } label: {
-                            Label("排一張命盤", systemImage: "plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding(.bottom, 80)
-                        .accessibilityIdentifier("assistant.createChart")
-                    }
-                } else {
-                    ProgressView("正在準備最近的命盤…")
-                }
-            }
+            screenContent
             .navigationTitle("命盤 AI")
             .toolbar {
-                if !assistantStore.turns.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        NavigationLink {
+                            SavedConversationsView()
+                        } label: {
+                            Label("已保存 AI 對話", systemImage: "tray.full")
+                        }
+                        if !assistantStore.turns.isEmpty {
+                            Button("保存本次對話", systemImage: "square.and.arrow.down") {
+                                conversationTitle = assistantStore.turns.first?.question ?? "命盤 AI 對話"
+                                showsSaveConversation = true
+                            }
                             Button("清除本次對話", systemImage: "trash", role: .destructive) {
                                 showsClearConfirmation = true
                             }
-                        } label: {
-                            Label("對話操作", systemImage: "ellipsis.circle")
                         }
+                    } label: {
+                        Label("對話操作", systemImage: "ellipsis.circle")
                     }
                 }
             }
@@ -103,6 +94,9 @@ struct ChartAssistantView: View {
             .sheet(isPresented: $showsAPIConfiguration) {
                 APIConfigurationSheet()
             }
+            .sheet(isPresented: $showsSendPreview) {
+                sendPreviewSheet
+            }
             .confirmationDialog(
                 "切換命盤並清除本次對話？",
                 isPresented: switchConfirmationIsPresented,
@@ -119,6 +113,13 @@ struct ChartAssistantView: View {
                 }
             } message: {
                 Text("不同命盤的對話依據不能混用。已完成的本次對話不會永久保存。")
+            }
+            .alert("保存本次對話", isPresented: $showsSaveConversation) {
+                TextField("對話標題", text: $conversationTitle)
+                Button("取消", role: .cancel) {}
+                Button("保存到本機") { saveConversation() }
+            } message: {
+                Text("會保存目前命盤名稱、命盤時間、模型與全部問答；不會自動同步或納入加密備份。")
             }
             .confirmationDialog(
                 "清除本次對話？",
@@ -137,6 +138,47 @@ struct ChartAssistantView: View {
                 Button("好", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "未知錯誤")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var screenContent: some View {
+        if let chart = assistantStore.selectedChart {
+            conversationContent(chart: chart)
+        } else if savedCharts.isEmpty {
+            EmptyStateView(
+                symbol: "sparkles",
+                title: "還沒有可以詢問的命盤",
+                message: "先建立一張命盤，AI 才能根據 App 已驗證的命盤資料回答問題。"
+            )
+            .overlay(alignment: .bottom) {
+                NavigationLink {
+                    BirthInputView()
+                } label: {
+                    Label("排一張命盤", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.bottom, 80)
+                .accessibilityIdentifier("assistant.createChart")
+            }
+        } else {
+            ProgressView("正在準備最近的命盤…")
+        }
+    }
+
+    @ViewBuilder
+    private var sendPreviewSheet: some View {
+        if let chart = assistantStore.selectedChart {
+            AITransmissionPreviewView(
+                chart: chart,
+                question: assistantStore.trimmedDraft,
+                historyCount: assistantStore.turns.count,
+                model: configurationStore.model,
+                remainingRequests: usageStore.remainingRequests
+            ) {
+                showsSendPreview = false
+                confirmedSendQuestion()
             }
         }
     }
@@ -220,6 +262,9 @@ struct ChartAssistantView: View {
                 }
                 switch state {
                 case .failed:
+                    if let code = assistantStore.lastDiagnosticCode {
+                        usageStore.record(code: code, kind: .conversation)
+                    }
                     AccessibilityNotification.Announcement("回答未完成，問題仍保留。")
                         .post()
                 case .cancelled:
@@ -378,7 +423,7 @@ struct ChartAssistantView: View {
                 Text(message)
                     .font(.footnote)
                 HStack {
-                    Button("再試一次") { sendQuestion() }
+                    Button("再試一次") { prepareToSendQuestion() }
                         .buttonStyle(.borderedProminent)
                         .disabled(voiceCoordinator.isInputActive)
                     Button("檢查 API 設定") {
@@ -436,7 +481,7 @@ struct ChartAssistantView: View {
                 .accessibilityIdentifier("voice.input.toggle")
 
                 Button {
-                    sendQuestion()
+                    prepareToSendQuestion()
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)
@@ -511,15 +556,49 @@ struct ChartAssistantView: View {
         }
     }
 
-    private func sendQuestion() {
+    private func prepareToSendQuestion() {
+        guard !voiceCoordinator.isInputActive, canSend else { return }
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-UITestMockAI"),
+           !arguments.contains("-UITestShowTransmissionPreview") {
+            confirmedSendQuestion()
+        } else {
+            showsSendPreview = true
+        }
+    }
+
+    private func confirmedSendQuestion() {
         guard !voiceCoordinator.isInputActive else { return }
         do {
-            assistantStore.send(configuration: try configurationStore.configuration())
+            let configuration = try configurationStore.configuration()
+            try usageStore.reserve(.conversation)
+            assistantStore.send(configuration: configuration)
             composerIsFocused = false
         } catch let error as LocalizedError {
+            usageStore.record(error: error, kind: .conversation)
             errorMessage = error.errorDescription ?? "目前無法讀取 API 設定。"
         } catch {
+            usageStore.record(error: error, kind: .conversation)
             errorMessage = "目前無法讀取 API 設定。"
+        }
+    }
+
+    private func saveConversation() {
+        guard let chart = assistantStore.selectedChart,
+              !assistantStore.turns.isEmpty else { return }
+        modelContext.insert(SavedConversation(
+            chartID: chart.savedChartID,
+            chartName: chart.name,
+            chartDetail: chart.detail,
+            modelIdentifier: configurationStore.model,
+            title: conversationTitle,
+            turns: assistantStore.turns
+        ))
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            errorMessage = "無法保存本機 AI 對話。"
         }
     }
 
@@ -591,6 +670,68 @@ struct ChartAssistantView: View {
             name: savedChart.name,
             chart: chart
         )
+    }
+}
+
+private struct AITransmissionPreviewView: View {
+    let chart: ChartAssistantChart
+    let question: String
+    let historyCount: Int
+    let model: String
+    let remainingRequests: Int?
+    let confirm: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("這次會傳送") {
+                    LabeledContent("目前問題", value: "\(question.count) 字")
+                    LabeledContent("本次對話", value: "\(historyCount) 輪")
+                    LabeledContent("已驗證命盤事實", value: "\(chart.facts.count) 項")
+                    LabeledContent("基礎解讀種子", value: "\(chart.seeds.count) 項")
+                    LabeledContent("模型", value: model)
+                }
+
+                Section("不會由 App 加入") {
+                    Label("命盤名稱", systemImage: "xmark.shield")
+                    Label("原始出生日期、時間與時區", systemImage: "xmark.shield")
+                    Label("API key、筆記、收藏與已保存對話", systemImage: "xmark.shield")
+                }
+
+                Section {
+                    if let remainingRequests {
+                        LabeledContent("確認後本月剩餘", value: "\(max(0, remainingRequests - 1)) 次")
+                    } else {
+                        LabeledContent("每月請求上限", value: "未設定")
+                    }
+                    Text("你在問題中自行輸入的個人資料仍會原樣傳送。第三方服務可能依其費率收費。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Button {
+                        confirm()
+                    } label: {
+                        Label("確認並送出", systemImage: "arrow.up.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("assistant.confirmSend")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            .navigationTitle("確認傳送內容")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+            }
+        }
     }
 }
 

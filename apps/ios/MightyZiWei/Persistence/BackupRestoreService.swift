@@ -25,6 +25,12 @@ enum BackupRestoreService {
 
         for insight in existingInsights where
             chartIDs.contains(insight.chartID) && !restoredInsightIDs.contains(insight.id) {
+            ICloudSyncService.recordDeletion(
+                entityID: insight.id,
+                entityType: "SavedInsight",
+                modelContext: modelContext
+            )
+            ReviewReminderScheduler().cancel(identifier: insight.reminderIdentifier)
             modelContext.delete(insight)
             insightsByID.removeValue(forKey: insight.id)
         }

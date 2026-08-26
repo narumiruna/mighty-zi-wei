@@ -2,6 +2,14 @@ import XCTest
 @testable import MightyZiWei
 
 final class ChartSharingTests: XCTestCase {
+    func test包含任何個資時分享前必須再次確認() {
+        let guardPolicy = ChartSharePrivacyGuard()
+
+        XCTAssertFalse(guardPolicy.requiresConfirmation(options: .init()))
+        XCTAssertTrue(guardPolicy.requiresConfirmation(options: .init(includesName: true)))
+        XCTAssertTrue(guardPolicy.requiresConfirmation(options: .init(includesBirthData: true)))
+    }
+
     func test預設分享隱藏姓名出生日期時間與時區() throws {
         let chart = try makeChart()
         let text = ChartShareBuilder().makeText(
