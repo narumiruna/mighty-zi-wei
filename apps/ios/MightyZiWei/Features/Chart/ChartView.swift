@@ -1,6 +1,20 @@
 import SwiftData
 import SwiftUI
 
+struct SavedChartReferenceResolver: Sendable {
+    static func existingID(
+        savedChartID: UUID?,
+        newlySavedChartID: UUID?,
+        availableIDs: Set<UUID>
+    ) -> UUID? {
+        guard let candidate = savedChartID ?? newlySavedChartID,
+              availableIDs.contains(candidate) else {
+            return nil
+        }
+        return candidate
+    }
+}
+
 struct ChartView: View {
     let chart: ZiWeiChart
     let name: String
@@ -11,6 +25,7 @@ struct ChartView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppNavigationState.self) private var navigation
     @Environment(ChartAssistantStore.self) private var assistantStore
+    @Query private var savedCharts: [SavedChart]
     @State private var assistantChartID = UUID()
     @State private var showsAssistantSwitchConfirmation = false
     @State private var showsSharing = false
@@ -79,7 +94,10 @@ struct ChartView: View {
                 .accessibilityIdentifier("chart.compareHours")
 
                 if let saveMessage {
-                    Label(saveMessage, systemImage: "checkmark.circle.fill")
+                    Label(
+                        saveMessage,
+                        systemImage: isSaved ? "checkmark.circle.fill" : "info.circle"
+                    )
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .transition(.opacity)
@@ -131,6 +149,9 @@ struct ChartView: View {
         .onAppear {
             assistantStore.offer(assistantChart)
         }
+        .onChange(of: savedCharts.map(\.id)) { _, availableIDs in
+            reconcileSavedChartState(availableIDs: Set(availableIDs))
+        }
         .toolbar {
             if allowsSaving {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -180,12 +201,16 @@ struct ChartView: View {
     }
 
     private var effectiveSavedChartID: UUID? {
-        savedChartID ?? newlySavedChartID
+        SavedChartReferenceResolver.existingID(
+            savedChartID: savedChartID,
+            newlySavedChartID: newlySavedChartID,
+            availableIDs: Set(savedCharts.map(\.id))
+        )
     }
 
     private var assistantChart: ChartAssistantChart {
         ChartAssistantChart.make(
-            id: savedChartID ?? assistantChartID,
+            id: effectiveSavedChartID ?? assistantChartID,
             savedChartID: effectiveSavedChartID,
             name: name,
             chart: chart
@@ -216,11 +241,19 @@ struct ChartView: View {
     private func saveChart() {
         errorMessage = nil
         do {
+            let previousAssistantID = assistantChart.id
             let saved = try SavedChart.make(name: name, profile: chart.birthProfile, chart: chart)
             modelContext.insert(saved)
             try modelContext.save()
             newlySavedChartID = saved.id
-            assistantStore.offer(assistantChart)
+            let savedAssistantChart = ChartAssistantChart.make(
+                id: saved.id,
+                savedChartID: saved.id,
+                name: name,
+                chart: chart
+            )
+            assistantStore.migrateSelection(from: previousAssistantID, to: savedAssistantChart)
+            assistantStore.offer(savedAssistantChart)
             withAnimation {
                 isSaved = true
                 saveMessage = "命盤已儲存在這台裝置。"
@@ -229,6 +262,26 @@ struct ChartView: View {
             modelContext.rollback()
             errorMessage = "本機資料寫入失敗，目前命盤仍保留。你可以再試一次。"
         }
+    }
+
+    private func reconcileSavedChartState(availableIDs: Set<UUID>) {
+        guard let newlySavedChartID,
+              !availableIDs.contains(newlySavedChartID) else {
+            return
+        }
+        let unsavedAssistantChart = ChartAssistantChart.make(
+            id: assistantChartID,
+            savedChartID: nil,
+            name: name,
+            chart: chart
+        )
+        assistantStore.migrateSelection(
+            from: newlySavedChartID,
+            to: unsavedAssistantChart
+        )
+        self.newlySavedChartID = nil
+        isSaved = false
+        saveMessage = "原本儲存的命盤已刪除，你可以重新儲存。"
     }
 }
 

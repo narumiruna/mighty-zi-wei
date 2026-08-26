@@ -8,6 +8,7 @@ struct ChartJournalView: View {
     var suggestedTitle = "命盤筆記"
 
     @Environment(\.modelContext) private var modelContext
+    @Query private var savedCharts: [SavedChart]
     @Query(sort: \SavedInsight.updatedAt, order: .reverse) private var allInsights: [SavedInsight]
     @State private var editingInsight: SavedInsight?
     @State private var createsNewNote = false
@@ -25,8 +26,19 @@ struct ChartJournalView: View {
         insights.filter { $0.kind == .bookmark }
     }
 
+    private var chartExists: Bool {
+        savedCharts.contains { $0.id == chartID }
+    }
+
     var body: some View {
         List {
+            if !chartExists {
+                Section {
+                    Label("這張命盤已刪除，無法再新增或修改內容。", systemImage: "info.circle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 Text("筆記與收藏由 App 保存在本機，也可能依 iOS 設定納入裝置備份或移轉；只有你主動建立加密備份時，App 才會匯出這些內容。")
                     .font(.footnote)
@@ -47,7 +59,7 @@ struct ChartJournalView: View {
                         .buttonStyle(.plain)
                     }
                     .onDelete { offsets in
-                        delete(notes: offsets.map { notes[$0] })
+                        delete(insights: offsets.map { notes[$0] })
                     }
                 }
 
@@ -56,6 +68,7 @@ struct ChartJournalView: View {
                 } label: {
                     Label("新增筆記", systemImage: "square.and.pencil")
                 }
+                .disabled(!chartExists)
                 .accessibilityIdentifier("journal.addNote")
             }
 
@@ -65,10 +78,15 @@ struct ChartJournalView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(bookmarks) { insight in
-                        InsightRow(insight: insight)
+                        NavigationLink {
+                            SavedBookmarkDetailView(insight: insight)
+                        } label: {
+                            InsightRow(insight: insight)
+                        }
+                        .accessibilityIdentifier("journal.bookmark")
                     }
                     .onDelete { offsets in
-                        delete(notes: offsets.map { bookmarks[$0] })
+                        delete(insights: offsets.map { bookmarks[$0] })
                     }
                 }
             }
@@ -104,14 +122,44 @@ struct ChartJournalView: View {
         )
     }
 
-    private func delete(notes: [SavedInsight]) {
-        notes.forEach(modelContext.delete)
+    private func delete(insights: [SavedInsight]) {
+        insights.forEach(modelContext.delete)
         do {
             try modelContext.save()
         } catch {
             modelContext.rollback()
             errorMessage = "無法刪除本機內容。"
         }
+    }
+}
+
+private struct SavedBookmarkDetailView: View {
+    let insight: SavedInsight
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
+                Text(insight.title)
+                    .font(.largeTitle.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Text(insight.content)
+                    .lineSpacing(5)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("journal.bookmarkDetail.content")
+                if !insight.evidenceFactIDs.isEmpty {
+                    Label(
+                        "保留 \(insight.evidenceFactIDs.count) 項命盤依據",
+                        systemImage: "checkmark.seal"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+        }
+        .navigationTitle("收藏內容")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -152,6 +200,7 @@ private struct InsightNoteEditor: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query private var savedCharts: [SavedChart]
     @State private var title: String
     @State private var content: String
     @State private var marker: SavedInsight.Marker
@@ -219,6 +268,10 @@ private struct InsightNoteEditor: View {
     }
 
     private func save() {
+        guard savedCharts.contains(where: { $0.id == chartID }) else {
+            errorMessage = "這張命盤已刪除，無法儲存筆記。"
+            return
+        }
         let target = insight ?? SavedInsight(
             chartID: chartID,
             kind: .note,
@@ -248,13 +301,22 @@ struct InsightBookmarkButton: View {
     let evidenceFactIDs: [String]
 
     @Environment(\.modelContext) private var modelContext
+    @Query private var savedCharts: [SavedChart]
     @Query private var allInsights: [SavedInsight]
     @State private var errorMessage: String?
 
+    private var validChartID: UUID? {
+        guard let chartID,
+              savedCharts.contains(where: { $0.id == chartID }) else {
+            return nil
+        }
+        return chartID
+    }
+
     private var existing: SavedInsight? {
-        guard let chartID else { return nil }
+        guard let validChartID else { return nil }
         return allInsights.first {
-            $0.chartID == chartID
+            $0.chartID == validChartID
                 && $0.kind == .bookmark
                 && $0.locationID == locationID
         }
@@ -269,8 +331,8 @@ struct InsightBookmarkButton: View {
                 systemImage: existing == nil ? "bookmark" : "bookmark.fill"
             )
         }
-        .disabled(chartID == nil)
-        .accessibilityHint(chartID == nil ? "請先儲存命盤" : "收藏會保留內容與命盤依據")
+        .disabled(validChartID == nil)
+        .accessibilityHint(validChartID == nil ? "請先儲存命盤" : "收藏會保留內容與命盤依據")
         .alert("操作未完成", isPresented: errorIsPresented) {
             Button("好", role: .cancel) {}
         } message: {
@@ -286,7 +348,7 @@ struct InsightBookmarkButton: View {
     }
 
     private func toggle() {
-        guard let chartID else { return }
+        guard let chartID = validChartID else { return }
         if let existing {
             modelContext.delete(existing)
         } else {

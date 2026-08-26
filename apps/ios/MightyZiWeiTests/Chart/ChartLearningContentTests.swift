@@ -95,14 +95,33 @@ final class ChartLearningContentTests: XCTestCase {
         XCTAssertTrue(supported[1].contains("只根據 App 已有解讀"))
         XCTAssertTrue(supported[2].contains("區分盤面事實與解讀"))
 
-        let unsupported = PalaceQuestionSuggestionBuilder().make(
+        let mismatchedCategory = PalaceQuestionSuggestionBuilder().make(
             palaceKind: .life,
             mainStars: [.ziWei],
             facts: [fact],
-            seeds: []
+            seeds: [InterpretationSeed(
+                id: "seed.overview.ziwei.life",
+                category: .overview,
+                meaning: "這個分類不能支持命宮主題。",
+                evidenceFactIDs: [fact.id]
+            )]
         )
-        XCTAssertTrue(unsupported[1].contains("只能確認位置"))
-        XCTAssertFalse(unsupported.joined().contains("預測"))
+        XCTAssertTrue(mismatchedCategory[1].contains("只能確認位置"))
+
+        let healthFact = makeStarFact(star: .ziWei, palace: .health)
+        let unsupportedPalace = PalaceQuestionSuggestionBuilder().make(
+            palaceKind: .health,
+            mainStars: [.ziWei],
+            facts: [healthFact],
+            seeds: [InterpretationSeed(
+                id: "seed.overview.ziwei.health",
+                category: .overview,
+                meaning: "只能用於總覽，不能解讀身心節奏。",
+                evidenceFactIDs: [healthFact.id]
+            )]
+        )
+        XCTAssertTrue(unsupportedPalace[1].contains("只能確認位置"))
+        XCTAssertFalse(unsupportedPalace.joined().contains("預測"))
     }
 
     func test無主星與缺少Seed時提供誠實的部分狀態() {

@@ -136,6 +136,25 @@ final class MightyZiWeiUITests: XCTestCase {
         scrollToElement(bookmark)
         bookmark.tap()
         XCTAssertTrue(app.buttons["已收藏"].firstMatch.waitForExistence(timeout: 3))
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
+        scrollToElement(journalButton)
+        journalButton.tap()
+        let savedBookmark = app.descendants(matching: .any)["journal.bookmark"].firstMatch
+        XCTAssertTrue(savedBookmark.waitForExistence(timeout: 5))
+        savedBookmark.tap()
+        XCTAssertTrue(app.navigationBars["收藏內容"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["journal.bookmarkDetail.content"]
+                .waitForExistence(timeout: 5)
+        )
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        scrollToElement(interpretationButton)
+        interpretationButton.tap()
+        XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
         scrollToElement(configureAIButton)
         configureAIButton.tap()
         XCTAssertTrue(app.navigationBars["AI API 設定"].waitForExistence(timeout: 5))

@@ -30,7 +30,8 @@ struct BackupManagementView: View {
     @Query private var insights: [SavedInsight]
 
     @State private var exportDocument: BackupDocument?
-    @State private var recoveryKey = ""
+    @State private var exportRecoveryKey = ""
+    @State private var importRecoveryKey = ""
     @State private var showsExporter = false
     @State private var showsImporter = false
     @State private var importedData: Data?
@@ -56,11 +57,11 @@ struct BackupManagementView: View {
                 .disabled(charts.isEmpty)
                 .accessibilityIdentifier("backup.export")
 
-                if !recoveryKey.isEmpty {
+                if !exportRecoveryKey.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("復原金鑰只顯示於本次畫面")
                             .font(.headline)
-                        Text(recoveryKey)
+                        Text(exportRecoveryKey)
                             .font(.footnote.monospaced())
                             .textSelection(.enabled)
                             .accessibilityIdentifier("backup.recoveryKey")
@@ -81,7 +82,7 @@ struct BackupManagementView: View {
 
                 if let importedFilename {
                     LabeledContent("已選擇", value: importedFilename)
-                    TextField("貼上復原金鑰", text: $recoveryKey)
+                    TextField("貼上復原金鑰", text: $importRecoveryKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.footnote.monospaced())
@@ -90,7 +91,7 @@ struct BackupManagementView: View {
                         restore()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(recoveryKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("backup.restore")
                     Text("相同識別碼的本機命盤、筆記與收藏會由備份內容取代；其他本機資料會保留。")
                         .font(.footnote)
@@ -147,7 +148,7 @@ struct BackupManagementView: View {
                 savedInsights: includedInsights
             )
             exportDocument = BackupDocument(data: backup.data)
-            recoveryKey = backup.recoveryKey.encoded
+            exportRecoveryKey = backup.recoveryKey.encoded
             statusMessage = nil
             showsExporter = true
         } catch {
@@ -180,7 +181,7 @@ struct BackupManagementView: View {
             }
             importedData = data
             importedFilename = url.lastPathComponent
-            recoveryKey = ""
+            importRecoveryKey = ""
             statusMessage = nil
         } catch {
             importedData = nil
@@ -192,7 +193,7 @@ struct BackupManagementView: View {
     private func restore() {
         guard let backupData = importedData else { return }
         do {
-            let key = recoveryKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = importRecoveryKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let payload = try EncryptedBackupService.restore(
                 from: backupData,
                 encodedRecoveryKey: key
@@ -206,7 +207,7 @@ struct BackupManagementView: View {
 
             importedData = nil
             importedFilename = nil
-            recoveryKey = ""
+            importRecoveryKey = ""
             statusMessage = "已還原 \(result.chartCount) 張命盤與 \(result.insightCount) 則筆記或收藏。"
         } catch {
             modelContext.rollback()

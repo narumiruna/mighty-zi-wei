@@ -104,6 +104,11 @@ final class ChartAssistantStore {
         applySelection(chart, clearsConversation: shouldClear)
     }
 
+    func migrateSelection(from previousID: UUID, to chart: ChartAssistantChart) {
+        guard selectedChart?.id == previousID else { return }
+        applySelection(chart, clearsConversation: false)
+    }
+
     func clearSelection() {
         cancelRequest()
         selectedChart = nil

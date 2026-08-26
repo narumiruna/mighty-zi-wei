@@ -37,6 +37,25 @@ final class SavedChartTests: XCTestCase {
         XCTAssertNotNil(try JSONDecoder().decode(ZiWeiChart.self, from: XCTUnwrap(saved.chartCacheData)))
     }
 
+    func test命盤識別只在對應SwiftData紀錄仍存在時有效() {
+        let existingID = UUID()
+        let deletedID = UUID()
+
+        XCTAssertEqual(
+            SavedChartReferenceResolver.existingID(
+                savedChartID: nil,
+                newlySavedChartID: existingID,
+                availableIDs: [existingID]
+            ),
+            existingID
+        )
+        XCTAssertNil(SavedChartReferenceResolver.existingID(
+            savedChartID: nil,
+            newlySavedChartID: deletedID,
+            availableIDs: [existingID]
+        ))
+    }
+
     func testSwiftData可新增重新命名與刪除() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: SavedChart.self, configurations: configuration)

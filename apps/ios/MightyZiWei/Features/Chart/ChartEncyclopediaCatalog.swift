@@ -15,11 +15,15 @@ enum ChartEncyclopediaReference: Hashable, Sendable {
 }
 
 struct ChartEncyclopediaEntry: Identifiable, Equatable, Sendable {
+    static let currentProductLanguageSource =
+        "ChartLearningContent.swift（current-product-language，待專家與內容安全審核）"
+
     let id: String
     let title: String
     let category: ChartEncyclopediaCategory
     let reference: ChartEncyclopediaReference
-    let ruleSetSection: String
+    let placementRuleSection: String
+    let explanatorySource: String?
 }
 
 enum ChartEncyclopediaCatalog {
@@ -29,9 +33,10 @@ enum ChartEncyclopediaCatalog {
             title: star.displayName,
             category: .star,
             reference: .star(star),
-            ruleSetSection: star.category == .main
+            placementRuleSection: star.category == .main
                 ? "RULESET.md 第 10 節〈十四主星〉"
-                : "RULESET.md 第 11 節〈六吉、六煞、祿存與天馬〉"
+                : "RULESET.md 第 11 節〈六吉、六煞、祿存與天馬〉",
+            explanatorySource: ChartEncyclopediaEntry.currentProductLanguageSource
         )
     }
 
@@ -41,7 +46,8 @@ enum ChartEncyclopediaCatalog {
             title: palace.displayName,
             category: .palace,
             reference: .palace(palace),
-            ruleSetSection: "RULESET.md 第 7 節〈命宮、身宮與十二宮〉"
+            placementRuleSection: "RULESET.md 第 7 節〈命宮、身宮與十二宮〉",
+            explanatorySource: ChartEncyclopediaEntry.currentProductLanguageSource
         )
     }
 
@@ -51,7 +57,8 @@ enum ChartEncyclopediaCatalog {
             title: transformation.displayName,
             category: .transformation,
             reference: .transformation(transformation),
-            ruleSetSection: "RULESET.md 第 12 節〈生年四化〉"
+            placementRuleSection: "RULESET.md 第 12 節〈生年四化〉",
+            explanatorySource: nil
         )
     }
 
@@ -60,7 +67,8 @@ enum ChartEncyclopediaCatalog {
         title: "三方四正",
         category: .sanFangSiZheng,
         reference: .sanFangSiZheng,
-        ruleSetSection: "RULESET.md 第 13 節〈三方四正〉"
+        placementRuleSection: "RULESET.md 第 13 節〈三方四正〉",
+        explanatorySource: nil
     )
 
     static let allEntries: [ChartEncyclopediaEntry] =

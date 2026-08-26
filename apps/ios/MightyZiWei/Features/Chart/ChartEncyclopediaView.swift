@@ -51,16 +51,28 @@ private struct ChartEncyclopediaDetailView: View {
                 content
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("規則來源", systemImage: "books.vertical")
+                    Label("排盤與結構規則", systemImage: "books.vertical")
                         .font(.headline)
-                    Text(entry.ruleSetSection)
+                    Text(entry.placementRuleSection)
                     Text("規則集：taiwan-traditional-sanhe v1")
                         .foregroundStyle(.secondary)
-                    Text("目前規則狀態為 implemented-pending-expert-review。")
+                    Text("規則狀態：implemented-pending-expert-review。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 .cardStyle()
+
+                if let explanatorySource = entry.explanatorySource {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("說明文字來源", systemImage: "text.book.closed")
+                            .font(.headline)
+                        Text(explanatorySource)
+                        Text("這些說明是現行 App 編輯文案，不等同 RULESET.md 的 canonical 排盤規則。")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .cardStyle()
+                }
 
                 DisclaimerView(compact: true)
             }

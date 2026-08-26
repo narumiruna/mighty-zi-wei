@@ -124,8 +124,10 @@ struct PalaceQuestionSuggestionBuilder: Sendable {
         let learning = ChartLearningCatalog.palace(palaceKind)
         let validFactIDs = Set(facts.map(\.id))
         let starFactIDs = Set(mainStars.map { "natal.star.\($0.rawValue).palace" })
+        let supportedCategory = supportedCategory(for: palaceKind)
         let hasSupportedMeaning = seeds.contains { seed in
-            !seed.evidenceFactIDs.isEmpty
+            seed.category == supportedCategory
+                && !seed.evidenceFactIDs.isEmpty
                 && seed.evidenceFactIDs.allSatisfy(validFactIDs.contains)
                 && seed.evidenceFactIDs.contains(where: starFactIDs.contains)
         }
@@ -136,6 +138,17 @@ struct PalaceQuestionSuggestionBuilder: Sendable {
             : "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？"
         let boundaryQuestion = "請區分盤面事實與解讀，說明\(palaceKind.displayName)目前能回答到什麼範圍。"
         return [evidenceQuestion, meaningQuestion, boundaryQuestion]
+    }
+
+    private func supportedCategory(for palaceKind: PalaceKind) -> InterpretationCategory? {
+        switch palaceKind {
+        case .life: .personality
+        case .spouse: .relationships
+        case .wealth: .wealth
+        case .career: .career
+        case .siblings, .children, .health, .travel, .friends, .property, .fortune, .parents:
+            nil
+        }
     }
 }
 

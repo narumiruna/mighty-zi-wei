@@ -531,6 +531,40 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         XCTAssertEqual(store.lastSelectedSavedChartID, secondChart.savedChartID)
     }
 
+    func test儲存目前命盤時遷移識別且不清除對話() async throws {
+        let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
+        let answerer = SequenceConversationAnswerer(results: [
+            .success(ChartConversationAnswer(
+                status: .answered,
+                content: "保留這則回答。",
+                evidenceFactIDs: [fact.id]
+            ))
+        ])
+        let store = ChartAssistantStore(answerer: answerer, defaults: defaults)
+        let temporaryChart = makeAssistantChart()
+        let savedID = UUID()
+        let savedChart = ChartAssistantChart(
+            id: savedID,
+            savedChartID: savedID,
+            name: temporaryChart.name,
+            detail: temporaryChart.detail,
+            facts: temporaryChart.facts,
+            seeds: temporaryChart.seeds
+        )
+        store.select(temporaryChart)
+        store.draft = "先保留這段對話"
+        store.send(configuration: try makeConfiguration(apiKey: nil))
+        await waitForRequestToFinish(store)
+
+        store.migrateSelection(from: temporaryChart.id, to: savedChart)
+
+        XCTAssertEqual(store.selectedChart?.id, savedID)
+        XCTAssertEqual(store.selectedChart?.savedChartID, savedID)
+        XCTAssertEqual(store.turns.map(\.answer), ["保留這則回答。"])
+        XCTAssertFalse(store.requiresConfirmation(toSelect: savedChart))
+        XCTAssertEqual(store.lastSelectedSavedChartID, savedID)
+    }
+
     private func waitForRequestToFinish(_ store: ChartAssistantStore) async {
         for _ in 0..<100 where store.isRequesting {
             try? await Task.sleep(for: .milliseconds(10))
