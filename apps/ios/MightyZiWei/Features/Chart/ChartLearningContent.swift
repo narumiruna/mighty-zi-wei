@@ -145,12 +145,19 @@ struct PalaceQuestionSuggestionBuilder: Sendable {
                 && seed.evidenceFactIDs.contains(where: starFactIDs.contains)
         }
 
-        let observationQuestion = hasSupportedMeaning
-            ? "關於\(learning.focusTitle)，我有哪些值得自我觀察的傾向？"
-            : "關於\(learning.focusTitle)，目前可以從命盤了解什麼？"
-        let practicalQuestion = "\(learning.relatedLabel)有哪些可能值得留意的地方？"
-        let evidenceQuestion = "這些說法有哪些已驗證的命盤依據？"
-        return [observationQuestion, practicalQuestion, evidenceQuestion]
+        if hasSupportedMeaning {
+            return [
+                "關於\(learning.focusTitle)，我有哪些值得自我觀察的傾向？",
+                "\(learning.relatedLabel)有哪些可能值得留意的地方？",
+                "這些說法有哪些已驗證的命盤依據？"
+            ]
+        }
+
+        return [
+            "關於\(learning.focusTitle)，目前可以確認哪些盤面事實？",
+            "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？",
+            "請區分盤面事實與解讀，說明\(palaceKind.displayName)目前能回答到什麼範圍。"
+        ]
     }
 }
 

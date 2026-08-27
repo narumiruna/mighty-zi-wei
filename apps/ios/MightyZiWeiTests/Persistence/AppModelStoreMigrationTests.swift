@@ -111,6 +111,54 @@ final class AppModelStoreMigrationTests: XCTestCase {
         XCTAssertEqual(migrated.first?.turns.first?.answer, "舊回答")
     }
 
+    func test重建會清除舊共享與本機資料避免再次匯入() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appending(path: "AppModelStoreResetTests.\(UUID().uuidString)")
+        let sourceURL = root.appending(path: "group/default.store")
+        let destinationURL = root.appending(path: "local/default.store")
+        try FileManager.default.createDirectory(
+            at: sourceURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let suffixes = ["", "-journal", "-shm", "-wal"]
+        for suffix in suffixes {
+            try Data("legacy\(suffix)".utf8).write(
+                to: URL(filePath: sourceURL.path + suffix)
+            )
+            try Data("local\(suffix)".utf8).write(
+                to: URL(filePath: destinationURL.path + suffix)
+            )
+        }
+
+        try AppModelContainerLoader.resetPersistentStores(
+            legacyStoreURL: sourceURL,
+            destinationStoreURL: destinationURL
+        )
+        try AppModelStoreMigrator(
+            sourceURL: sourceURL,
+            destinationURL: destinationURL
+        ).migrateIfNeeded()
+
+        for suffix in suffixes {
+            XCTAssertFalse(
+                FileManager.default.fileExists(
+                    atPath: URL(filePath: sourceURL.path + suffix).path
+                )
+            )
+            XCTAssertFalse(
+                FileManager.default.fileExists(
+                    atPath: URL(filePath: destinationURL.path + suffix).path
+                )
+            )
+        }
+    }
+
     func test既有本機資料庫不會被舊共享容器資料覆寫() throws {
         let root = FileManager.default.temporaryDirectory
             .appending(path: "AppModelStoreMigratorTests.\(UUID().uuidString)")

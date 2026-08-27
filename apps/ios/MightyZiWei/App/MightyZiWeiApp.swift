@@ -47,7 +47,23 @@ enum AppModelContainerLoader {
     static func resetPersistentStore(arguments: [String]) throws {
         guard !arguments.contains("-UITestResetData") else { return }
         let configuration = makeConfiguration(arguments: arguments)
-        try AppModelStoreResetter(storeURL: configuration.url).resetStoreFiles()
+        let legacyConfiguration = ModelConfiguration(schema: makeSchema())
+        try resetPersistentStores(
+            legacyStoreURL: legacyConfiguration.url,
+            destinationStoreURL: configuration.url
+        )
+    }
+
+    static func resetPersistentStores(
+        legacyStoreURL: URL,
+        destinationStoreURL: URL
+    ) throws {
+        let storeURLs = [legacyStoreURL, destinationStoreURL]
+            .map(\.standardizedFileURL)
+        var resetPaths: Set<String> = []
+        for storeURL in storeURLs where resetPaths.insert(storeURL.path).inserted {
+            try AppModelStoreResetter(storeURL: storeURL).resetStoreFiles()
+        }
     }
 
     private static func makeSchema() -> Schema {
