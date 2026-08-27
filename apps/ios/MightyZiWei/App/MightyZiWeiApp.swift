@@ -7,19 +7,23 @@ private struct UITestCredentialStore: APICredentialStoring {
 }
 
 enum AppModelContainerLoader {
-    static func load(arguments: [String]) -> Result<ModelContainer, any Error> {
-        let schema = Schema([
-            SavedChart.self,
-            SavedInsight.self,
-            SavedConversation.self,
-            CloudDeletion.self
-        ])
-        let configuration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: arguments.contains("-UITestResetData")
+    static func makeConfiguration(arguments: [String]) -> ModelConfiguration {
+        // App Group 只供小工具共享設定，iCloud 同步則由 ICloudSyncService 主動執行。
+        ModelConfiguration(
+            schema: makeSchema(),
+            isStoredInMemoryOnly: arguments.contains("-UITestResetData"),
+            groupContainer: .none,
+            cloudKitDatabase: .none
         )
+    }
+
+    static func load(arguments: [String]) -> Result<ModelContainer, any Error> {
+        let configuration = makeConfiguration(arguments: arguments)
         return load {
-            try ModelContainer(for: schema, configurations: [configuration])
+            try ModelContainer(
+                for: makeSchema(),
+                configurations: [configuration]
+            )
         }
     }
 
@@ -35,31 +39,32 @@ enum AppModelContainerLoader {
 
     static func resetPersistentStore(arguments: [String]) throws {
         guard !arguments.contains("-UITestResetData") else { return }
-        try AppModelStoreResetter().resetDefaultStoreFiles()
+        let configuration = makeConfiguration(arguments: arguments)
+        try AppModelStoreResetter(storeURL: configuration.url).resetStoreFiles()
+    }
+
+    private static func makeSchema() -> Schema {
+        Schema([
+            SavedChart.self,
+            SavedInsight.self,
+            SavedConversation.self,
+            CloudDeletion.self
+        ])
     }
 }
 
 struct AppModelStoreResetter {
     var fileManager = FileManager.default
-    var storeDirectory: URL = FileManager.default.urls(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask
-    ).first ?? FileManager.default.temporaryDirectory
+    var storeURL: URL
 
-    func resetDefaultStoreFiles() throws {
-        guard fileManager.fileExists(atPath: storeDirectory.path) else { return }
-        let defaultStoreFileNames: Set<String> = [
-            "default.store",
-            "default.store-journal",
-            "default.store-shm",
-            "default.store-wal"
+    func resetStoreFiles() throws {
+        let storeFiles = [
+            storeURL,
+            URL(filePath: storeURL.path + "-journal"),
+            URL(filePath: storeURL.path + "-shm"),
+            URL(filePath: storeURL.path + "-wal")
         ]
-        let storeFiles = try fileManager.contentsOfDirectory(
-            at: storeDirectory,
-            includingPropertiesForKeys: nil
-        ).filter { defaultStoreFileNames.contains($0.lastPathComponent) }
-
-        for file in storeFiles {
+        for file in storeFiles where fileManager.fileExists(atPath: file.path) {
             try fileManager.removeItem(at: file)
         }
     }

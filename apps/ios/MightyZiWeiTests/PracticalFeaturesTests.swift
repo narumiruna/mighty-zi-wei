@@ -27,6 +27,14 @@ final class PracticalFeaturesTests: XCTestCase {
         }
     }
 
+    func test本機資料容器不會因App權限自動改用共享容器或CloudKit() {
+        let configuration = AppModelContainerLoader.makeConfiguration(arguments: [])
+
+        XCTAssertNil(configuration.groupAppContainerIdentifier)
+        XCTAssertNil(configuration.cloudKitContainerIdentifier)
+        XCTAssertFalse(configuration.isStoredInMemoryOnly)
+    }
+
     func test重建後重新載入失敗會回報錯誤() {
         let result: Result<Int, any Error> = .failure(ModelContainerTestError.cannotLoad)
 
@@ -94,7 +102,9 @@ final class PracticalFeaturesTests: XCTestCase {
             try Data("keep".utf8).write(to: directory.appending(path: file))
         }
 
-        try AppModelStoreResetter(storeDirectory: directory).resetDefaultStoreFiles()
+        try AppModelStoreResetter(
+            storeURL: directory.appending(path: "default.store")
+        ).resetStoreFiles()
 
         for file in storeFiles {
             XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appending(path: file).path))
