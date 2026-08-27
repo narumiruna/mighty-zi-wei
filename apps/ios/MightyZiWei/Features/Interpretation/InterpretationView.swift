@@ -16,7 +16,7 @@ struct InterpretationView: View {
     @State private var generationTask: Task<Void, Never>?
     @State private var generationID: UUID?
     @State private var showsAPIConfiguration = false
-    @State private var showsTransmissionConfirmation = false
+    @State private var showsTransmissionPreview = false
 
     private let modelInterpreter = OpenAIResponsesInterpreter()
 
@@ -44,6 +44,8 @@ struct InterpretationView: View {
                     )
                 }
 
+                sourceHeader
+
                 DisclaimerView()
 
                 VStack(alignment: .leading, spacing: 12) {
@@ -61,8 +63,6 @@ struct InterpretationView: View {
                         )
                     }
                 }
-
-                sourceHeader
             }
             .padding()
         }
@@ -83,15 +83,16 @@ struct InterpretationView: View {
         .sheet(isPresented: $showsAPIConfiguration) {
             APIConfigurationSheet()
         }
-        .confirmationDialog(
-            "傳送命盤依據給第三方 API？",
-            isPresented: $showsTransmissionConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("確認並使用雲端整理") { generateWithAI() }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("將傳送 \(facts.count) 項已驗證事實與 \(seeds.count) 項基礎解讀，不包含姓名、原始出生資料、API key、筆記或收藏。使用模型 \(aiConfigurationStore.model)，可能產生費用。")
+        .sheet(isPresented: $showsTransmissionPreview) {
+            AIInterpretationPreviewView(
+                factCount: facts.count,
+                seedCount: seeds.count,
+                model: aiConfigurationStore.model,
+                remainingRequests: usageStore.remainingRequests
+            ) {
+                showsTransmissionPreview = false
+                generateWithAI()
+            }
         }
     }
 
@@ -101,8 +102,9 @@ struct InterpretationView: View {
 
     private var sourceHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("解讀方式")
+            Text("解讀版本")
                 .font(.headline)
+                .accessibilityIdentifier("interpretation.source")
 
             HStack {
                 Label(
@@ -121,20 +123,26 @@ struct InterpretationView: View {
                 Text(statusMessage)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("interpretation.status")
             }
+
+            Text("基本解讀已包含完整內容。App 會要求 AI 只整理既有文字，並檢查回傳格式、內容安全與引用的命盤依據，但無法保證 AI 不會改變語意；你可以隨時對照基本解讀。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             if aiConfigurationStore.isConfigured {
                 Button {
-                    showsTransmissionConfirmation = true
+                    showsTransmissionPreview = true
                 } label: {
                     Label(
-                        interpretation.source == .remoteAI ? "重新整理" : "使用雲端 AI 整理",
+                        interpretation.source == .remoteAI ? "重新整理文字" : "用 AI 整理文字",
                         systemImage: "sparkles"
                     )
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isGenerating)
+                .accessibilityIdentifier("interpretation.organizeWithAI")
             } else {
                 Text("完成 API 設定後，才會在你主動要求時傳送命盤事實與基礎解讀。")
                     .font(.footnote)
@@ -169,16 +177,12 @@ struct InterpretationView: View {
             do {
                 let configuration = try aiConfigurationStore.configuration()
                 try usageStore.reserve(.interpretation)
-                let result = try await modelInterpreter.generate(
-                    facts: facts,
-                    seeds: seeds,
-                    configuration: configuration
-                )
+                let result = try await generateInterpretation(configuration: configuration)
                 try Task.checkCancellation()
                 guard generationID == identifier else { return }
                 voiceCoordinator.stopOutput()
                 interpretation = result
-                statusMessage = "內容已通過命盤依據驗證。"
+                statusMessage = "已確認回傳格式、內容安全與引用的命盤依據。"
             } catch is CancellationError {
                 guard generationID == identifier else { return }
                 statusMessage = "已停止整理，保留目前內容。"
@@ -194,6 +198,26 @@ struct InterpretationView: View {
             generationTask = nil
             generationID = nil
         }
+    }
+
+    private func generateInterpretation(
+        configuration: OpenAIResponsesConfiguration
+    ) async throws -> ChartInterpretation {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-UITestMockAI") else {
+            return try await modelInterpreter.generate(
+                facts: facts,
+                seeds: seeds,
+                configuration: configuration
+            )
+        }
+
+        try await Task.sleep(for: .seconds(3))
+        if arguments.contains("-UITestMockAIInterpretationFailure") {
+            throw OpenAIResponsesInterpreter.InterpreterError.timedOut
+        }
+        let fallback = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
+        return ChartInterpretation(sections: fallback.sections, source: .remoteAI)
     }
 
     private func cancelGeneration() {
@@ -224,6 +248,75 @@ struct InterpretationView: View {
             return "目前無法讀取 API key；請回到 API 設定確認，基本解讀仍可正常使用。"
         }
         return "雲端整理未完成，繼續顯示完整的基本解讀。"
+    }
+}
+
+private struct AIInterpretationPreviewView: View {
+    let factCount: Int
+    let seedCount: Int
+    let model: String
+    let remainingRequests: Int?
+    let confirm: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var showsDetails = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("AI 會做什麼") {
+                    Text("把目前完整基本解讀整理成更自然、好讀的版本，不會改變命盤或加入新的命理含義。")
+                    Label("完成本機命盤依據驗證後才會顯示", systemImage: "checkmark.seal")
+                }
+
+                Section("這次會使用") {
+                    Label("目前命盤的必要解讀依據", systemImage: "text.book.closed")
+                    LabeledContent("本機請求紀錄", value: "增加 1 次")
+                    if let remainingRequests {
+                        LabeledContent("整理後本月剩餘", value: "\(max(0, remainingRequests - 1)) 次")
+                    } else {
+                        LabeledContent("每月請求上限", value: "未設定")
+                    }
+                }
+
+                Section {
+                    DisclosureGroup("查看傳送詳細資料", isExpanded: $showsDetails) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            LabeledContent("已驗證命盤事實", value: "\(factCount) 項")
+                            LabeledContent("基礎解讀種子", value: "\(seedCount) 項")
+                            LabeledContent("模型", value: model)
+                            Divider()
+                            Label("不傳送命盤名稱與原始出生資料", systemImage: "xmark.shield")
+                            Label("不傳送 API key、筆記或收藏", systemImage: "xmark.shield")
+                        }
+                        .padding(.top, 8)
+                    }
+                    .accessibilityIdentifier("interpretation.preview.details")
+                } footer: {
+                    Text("第三方服務可能依其費率收費。")
+                }
+
+                Section {
+                    Button {
+                        confirm()
+                    } label: {
+                        Label("開始整理", systemImage: "sparkles")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("interpretation.confirmOrganize")
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            .navigationTitle("確認 AI 整理")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("返回閱讀") { dismiss() }
+                }
+            }
+        }
     }
 }
 

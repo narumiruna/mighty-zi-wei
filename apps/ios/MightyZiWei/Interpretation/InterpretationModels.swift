@@ -83,17 +83,49 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
     let question: String
     let answer: String
     let evidenceFactIDs: [String]
+    let status: ChartConversationAnswer.Status
 
     init(
         id: UUID = UUID(),
         question: String,
         answer: String,
-        evidenceFactIDs: [String]
+        evidenceFactIDs: [String],
+        status: ChartConversationAnswer.Status = .answered
     ) {
         self.id = id
         self.question = question
         self.answer = answer
         self.evidenceFactIDs = evidenceFactIDs
+        self.status = status
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case question
+        case answer
+        case evidenceFactIDs
+        case status
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        question = try container.decode(String.self, forKey: .question)
+        answer = try container.decode(String.self, forKey: .answer)
+        evidenceFactIDs = try container.decode([String].self, forKey: .evidenceFactIDs)
+        status = try container.decodeIfPresent(
+            ChartConversationAnswer.Status.self,
+            forKey: .status
+        ) ?? (evidenceFactIDs.isEmpty ? .unsupported : .answered)
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(question, forKey: .question)
+        try container.encode(answer, forKey: .answer)
+        try container.encode(evidenceFactIDs, forKey: .evidenceFactIDs)
+        try container.encode(status, forKey: .status)
     }
 }
 

@@ -7,19 +7,30 @@ private struct UITestCredentialStore: APICredentialStoring {
 }
 
 enum AppModelContainerLoader {
-    static func load(arguments: [String]) -> Result<ModelContainer, any Error> {
-        let schema = Schema([
-            SavedChart.self,
-            SavedInsight.self,
-            SavedConversation.self,
-            CloudDeletion.self
-        ])
-        let configuration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: arguments.contains("-UITestResetData")
+    static func makeConfiguration(arguments: [String]) -> ModelConfiguration {
+        // App Group 只供小工具共享設定，iCloud 同步則由 ICloudSyncService 主動執行。
+        ModelConfiguration(
+            schema: makeSchema(),
+            isStoredInMemoryOnly: arguments.contains("-UITestResetData"),
+            groupContainer: .none,
+            cloudKitDatabase: .none
         )
+    }
+
+    static func load(arguments: [String]) -> Result<ModelContainer, any Error> {
+        let configuration = makeConfiguration(arguments: arguments)
         return load {
-            try ModelContainer(for: schema, configurations: [configuration])
+            if !configuration.isStoredInMemoryOnly {
+                let legacyConfiguration = ModelConfiguration(schema: makeSchema())
+                try AppModelStoreMigrator(
+                    sourceURL: legacyConfiguration.url,
+                    destinationURL: configuration.url
+                ).migrateIfNeeded()
+            }
+            return try ModelContainer(
+                for: makeSchema(),
+                configurations: [configuration]
+            )
         }
     }
 
@@ -35,31 +46,120 @@ enum AppModelContainerLoader {
 
     static func resetPersistentStore(arguments: [String]) throws {
         guard !arguments.contains("-UITestResetData") else { return }
-        try AppModelStoreResetter().resetDefaultStoreFiles()
+        let configuration = makeConfiguration(arguments: arguments)
+        let legacyConfiguration = ModelConfiguration(schema: makeSchema())
+        try resetPersistentStores(
+            legacyStoreURL: legacyConfiguration.url,
+            destinationStoreURL: configuration.url
+        )
+    }
+
+    static func resetPersistentStores(
+        legacyStoreURL: URL,
+        destinationStoreURL: URL
+    ) throws {
+        let storeURLs = [legacyStoreURL, destinationStoreURL]
+            .map(\.standardizedFileURL)
+        var resetPaths: Set<String> = []
+        for storeURL in storeURLs where resetPaths.insert(storeURL.path).inserted {
+            try AppModelStoreResetter(storeURL: storeURL).resetStoreFiles()
+        }
+    }
+
+    private static func makeSchema() -> Schema {
+        Schema([
+            SavedChart.self,
+            SavedInsight.self,
+            SavedConversation.self,
+            CloudDeletion.self
+        ])
+    }
+}
+
+struct AppModelStoreMigrator {
+    private static let storeSuffixes = ["", "-journal", "-shm", "-wal"]
+
+    var fileManager = FileManager.default
+    var sourceURL: URL
+    var destinationURL: URL
+
+    func migrateIfNeeded() throws {
+        let sourceURL = sourceURL.standardizedFileURL
+        let destinationURL = destinationURL.standardizedFileURL
+        guard sourceURL != destinationURL,
+              !fileManager.fileExists(atPath: destinationURL.path),
+              fileManager.fileExists(atPath: sourceURL.path) else { return }
+
+        try fileManager.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try cleanupTemporaryFiles(destinationURL: destinationURL)
+        for suffix in Self.storeSuffixes.dropFirst() {
+            let incompleteSidecar = storeFile(baseURL: destinationURL, suffix: suffix)
+            if fileManager.fileExists(atPath: incompleteSidecar.path) {
+                try fileManager.removeItem(at: incompleteSidecar)
+            }
+        }
+        do {
+            for suffix in Self.storeSuffixes {
+                let source = storeFile(baseURL: sourceURL, suffix: suffix)
+                guard fileManager.fileExists(atPath: source.path) else { continue }
+                try fileManager.copyItem(
+                    at: source,
+                    to: temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
+                )
+            }
+
+            for suffix in Self.storeSuffixes.dropFirst() {
+                let temporary = temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
+                guard fileManager.fileExists(atPath: temporary.path) else { continue }
+                let destination = storeFile(baseURL: destinationURL, suffix: suffix)
+                if fileManager.fileExists(atPath: destination.path) {
+                    try fileManager.removeItem(at: destination)
+                }
+                try fileManager.moveItem(at: temporary, to: destination)
+            }
+            try fileManager.moveItem(
+                at: temporaryStoreFile(baseURL: destinationURL, suffix: ""),
+                to: destinationURL
+            )
+        } catch {
+            try? cleanupTemporaryFiles(destinationURL: destinationURL)
+            throw error
+        }
+    }
+
+    private func cleanupTemporaryFiles(destinationURL: URL) throws {
+        for suffix in Self.storeSuffixes {
+            let temporary = temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
+            if fileManager.fileExists(atPath: temporary.path) {
+                try fileManager.removeItem(at: temporary)
+            }
+        }
+    }
+
+    private func storeFile(baseURL: URL, suffix: String) -> URL {
+        URL(filePath: baseURL.path + suffix)
+    }
+
+    private func temporaryStoreFile(baseURL: URL, suffix: String) -> URL {
+        URL(filePath: baseURL.path + suffix + ".migration")
     }
 }
 
 struct AppModelStoreResetter {
     var fileManager = FileManager.default
-    var storeDirectory: URL = FileManager.default.urls(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask
-    ).first ?? FileManager.default.temporaryDirectory
+    var storeURL: URL
 
-    func resetDefaultStoreFiles() throws {
-        guard fileManager.fileExists(atPath: storeDirectory.path) else { return }
-        let defaultStoreFileNames: Set<String> = [
-            "default.store",
-            "default.store-journal",
-            "default.store-shm",
-            "default.store-wal"
+    func resetStoreFiles() throws {
+        let storeFiles = [
+            storeURL,
+            URL(filePath: storeURL.path + "-journal"),
+            URL(filePath: storeURL.path + "-shm"),
+            URL(filePath: storeURL.path + "-wal")
         ]
-        let storeFiles = try fileManager.contentsOfDirectory(
-            at: storeDirectory,
-            includingPropertiesForKeys: nil
-        ).filter { defaultStoreFileNames.contains($0.lastPathComponent) }
-
-        for file in storeFiles {
+        for file in storeFiles where fileManager.fileExists(atPath: file.path) {
             try fileManager.removeItem(at: file)
         }
     }
@@ -140,7 +240,13 @@ struct MightyZiWeiApp: App {
         _modelContainerResult = State(
             initialValue: AppModelContainerLoader.load(arguments: arguments)
         )
-        _aiUsageStore = State(initialValue: AIUsageStore())
+        if arguments.contains("-UITestMockAI") {
+            let defaults = UserDefaults(suiteName: "MightyZiWei.UITesting.AIUsage")!
+            defaults.removePersistentDomain(forName: "MightyZiWei.UITesting.AIUsage")
+            _aiUsageStore = State(initialValue: AIUsageStore(defaults: defaults))
+        } else {
+            _aiUsageStore = State(initialValue: AIUsageStore())
+        }
         _appLockStore = State(initialValue: AppLockStore())
         _iCloudSyncCoordinator = State(initialValue: ICloudSyncCoordinator())
         if arguments.contains("-UITestMockSpeech") {

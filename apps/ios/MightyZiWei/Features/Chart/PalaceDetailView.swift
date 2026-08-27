@@ -64,11 +64,15 @@ struct PalaceDetailView: View {
         .navigationTitle(palace.kind.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
-            "切換命盤並清除本次 AI 對話？",
+            "切換命盤並開始新對話？",
             isPresented: pendingQuestionIsPresented,
             titleVisibility: .visible
         ) {
-            Button("切換並填入問題", role: .destructive) {
+            Button("返回目前對話") {
+                pendingQuestion = nil
+                navigation.selectedTab = .ai
+            }
+            Button(palaceSwitchActionTitle, role: .destructive) {
                 guard let pendingQuestion else { return }
                 assistantStore.select(assistantChart)
                 assistantStore.draft = pendingQuestion
@@ -79,8 +83,25 @@ struct PalaceDetailView: View {
                 pendingQuestion = nil
             }
         } message: {
-            Text("目前 AI 對話使用另一張命盤。切換後會清除該次對話，但不會自動送出新問題。")
+            Text(palaceSwitchMessage)
         }
+    }
+
+    private var palaceSwitchActionTitle: String {
+        let hasUnpreservedWork = !assistantStore.trimmedDraft.isEmpty
+            || assistantStore.hasUnsavedChanges
+            || assistantStore.isRequesting
+        return hasUnpreservedWork ? "不保存，切換並填入問題" : "切換並填入問題"
+    }
+
+    private var palaceSwitchMessage: String {
+        if !assistantStore.trimmedDraft.isEmpty, assistantStore.turns.isEmpty {
+            return "目前問題草稿屬於另一張命盤。你可以先返回；直接切換會捨棄草稿，但不會自動送出新問題。"
+        }
+        if assistantStore.hasUnsavedChanges || assistantStore.isRequesting {
+            return "目前對話屬於另一張命盤。你可以先返回保存；直接切換會清除未保存內容，但不會自動送出新問題。"
+        }
+        return "目前對話已保存。切換後會清除畫面上的舊脈絡並填入新問題，但不會自動送出。"
     }
 
     private var pendingQuestionIsPresented: Binding<Bool> {

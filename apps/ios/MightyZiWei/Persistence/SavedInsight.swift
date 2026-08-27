@@ -109,7 +109,7 @@ final class SavedInsight {
             return "命盤解讀"
         }
         if locationID.hasPrefix("assistant.") {
-            return "命盤 AI 回答"
+            return "命盤助理回答"
         }
         return "整張命盤"
     }
