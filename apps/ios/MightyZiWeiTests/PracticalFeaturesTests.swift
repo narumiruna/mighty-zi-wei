@@ -27,6 +27,26 @@ final class PracticalFeaturesTests: XCTestCase {
         }
     }
 
+    func test本機資料重建只刪除SwiftData預設資料檔() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "AppModelStoreResetterTests.\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let storeFiles = ["default.store", "default.store-shm", "default.store-wal"]
+        for file in storeFiles {
+            try Data("test".utf8).write(to: directory.appending(path: file))
+        }
+        try Data("keep".utf8).write(to: directory.appending(path: "user-export.json"))
+
+        try AppModelStoreResetter(storeDirectory: directory).resetDefaultStoreFiles()
+
+        for file in storeFiles {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appending(path: file).path))
+        }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appending(path: "user-export.json").path))
+    }
+
     func test隱私遮罩在背景或鎖定時都必須顯示() {
         let policy = AppPrivacyShieldPolicy()
 
