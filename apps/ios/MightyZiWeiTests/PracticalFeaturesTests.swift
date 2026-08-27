@@ -35,11 +35,33 @@ final class PracticalFeaturesTests: XCTestCase {
         }
     }
 
+    func test復原操作進行中不會啟動重疊操作() {
+        var gate = PersistenceRecoveryGate()
+
+        XCTAssertTrue(gate.begin(.retry))
+        XCTAssertTrue(gate.isRunning)
+        XCTAssertFalse(gate.begin(.reset))
+        XCTAssertEqual(gate.operation?.statusMessage, "正在重新載入本機資料…")
+
+        gate.finish()
+
+        XCTAssertTrue(gate.begin(.reset))
+        XCTAssertEqual(gate.operation?.statusMessage, "正在重建本機資料…")
+    }
+
     func test復原畫面不會顯示系統原始錯誤文字() {
         let frameworkError = CocoaError(.fileReadCorruptFile)
         let message = PersistenceRecoveryMessage.resetFailure(for: frameworkError)
 
         XCTAssertEqual(PersistenceRecoveryMessage.unavailable, "系統目前無法讀取這台裝置的本機資料。")
+        XCTAssertEqual(
+            PersistenceRecoveryMessage.retryFailure,
+            "仍無法讀取本機資料。你可以再次重試，或重建本機資料。"
+        )
+        XCTAssertEqual(
+            PersistenceRecoveryMessage.iCloudRestoration,
+            "如果先前已開啟 iCloud 同步，重建成功後會自動同步已存在 iCloud 的命盤、筆記與收藏。對話只儲存在本機，不會復原。"
+        )
         XCTAssertEqual(message, "目前無法重建本機資料。請確認裝置有足夠儲存空間後再試。")
         XCTAssertFalse(message.contains(frameworkError.localizedDescription))
         XCTAssertEqual(
@@ -54,11 +76,20 @@ final class PracticalFeaturesTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let storeFiles = ["default.store", "default.store-shm", "default.store-wal"]
+        let storeFiles = [
+            "default.store",
+            "default.store-journal",
+            "default.store-shm",
+            "default.store-wal"
+        ]
         for file in storeFiles {
             try Data("test".utf8).write(to: directory.appending(path: file))
         }
-        let preservedFiles = ["default.store-backup", "user-export.json"]
+        let preservedFiles = [
+            "default.store-backup",
+            "default.store-journal-backup",
+            "user-export.json"
+        ]
         for file in preservedFiles {
             try Data("keep".utf8).write(to: directory.appending(path: file))
         }

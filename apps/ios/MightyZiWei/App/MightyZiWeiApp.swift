@@ -50,6 +50,7 @@ struct AppModelStoreResetter {
         guard fileManager.fileExists(atPath: storeDirectory.path) else { return }
         let defaultStoreFileNames: Set<String> = [
             "default.store",
+            "default.store-journal",
             "default.store-shm",
             "default.store-wal"
         ]
@@ -79,6 +80,8 @@ struct PersistenceResetReloadValidator {
 
 struct PersistenceRecoveryMessage {
     static let unavailable = "系統目前無法讀取這台裝置的本機資料。"
+    static let retryFailure = "仍無法讀取本機資料。你可以再次重試，或重建本機資料。"
+    static let iCloudRestoration = "如果先前已開啟 iCloud 同步，重建成功後會自動同步已存在 iCloud 的命盤、筆記與收藏。對話只儲存在本機，不會復原。"
 
     static func resetFailure(for error: any Error) -> String {
         guard let resetError = error as? PersistenceResetError else {
@@ -90,6 +93,36 @@ struct PersistenceRecoveryMessage {
         case .reloadFailed:
             return "本機資料已清除，但仍無法建立新的資料庫。請確認裝置有足夠儲存空間後再試。"
         }
+    }
+}
+
+enum PersistenceRecoveryOperation {
+    case retry
+    case reset
+
+    var statusMessage: String {
+        switch self {
+        case .retry:
+            return "正在重新載入本機資料…"
+        case .reset:
+            return "正在重建本機資料…"
+        }
+    }
+}
+
+struct PersistenceRecoveryGate {
+    private(set) var operation: PersistenceRecoveryOperation?
+
+    var isRunning: Bool { operation != nil }
+
+    mutating func begin(_ newOperation: PersistenceRecoveryOperation) -> Bool {
+        guard operation == nil else { return false }
+        operation = newOperation
+        return true
+    }
+
+    mutating func finish() {
+        operation = nil
     }
 }
 
@@ -159,10 +192,13 @@ struct MightyZiWeiApp: App {
         }
     }
 
-    private func reloadModelContainer() {
-        modelContainerResult = AppModelContainerLoader.load(
+    private func reloadModelContainer() -> Bool {
+        let reloadResult = AppModelContainerLoader.load(
             arguments: ProcessInfo.processInfo.arguments
         )
+        modelContainerResult = reloadResult
+        guard case .success = reloadResult else { return false }
+        return true
     }
 
     private func resetPersistentStoreAndReload() async throws {
@@ -182,11 +218,13 @@ struct MightyZiWeiApp: App {
 }
 
 private struct PersistenceUnavailableView: View {
-    let retry: () -> Void
+    let retry: () -> Bool
     let resetAndReload: () async throws -> Void
 
     @State private var isShowingResetConfirmation = false
-    @State private var resetErrorMessage: String?
+    @State private var recoveryGate = PersistenceRecoveryGate()
+    @State private var recoveryErrorTitle = ""
+    @State private var recoveryErrorMessage: String?
 
     var body: some View {
         ScrollView {
@@ -197,8 +235,9 @@ private struct PersistenceUnavailableView: View {
                     Text("你可以先重試。若仍無法開啟，可重建空白本機資料庫讓 App 立即恢復使用。")
                 } actions: {
                     VStack(spacing: 12) {
-                        Button("再試一次", action: retry)
+                        Button("再試一次", action: performRetry)
                             .buttonStyle(.borderedProminent)
+                            .disabled(recoveryGate.isRunning)
                             .accessibilityIdentifier("startup.persistenceRetry")
 
                         Button("重建空白本機資料") {
@@ -206,13 +245,19 @@ private struct PersistenceUnavailableView: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.red)
+                        .disabled(recoveryGate.isRunning)
                         .accessibilityIdentifier("startup.persistenceReset")
                     }
                 }
 
+                if let operation = recoveryGate.operation {
+                    ProgressView(operation.statusMessage)
+                        .accessibilityIdentifier("startup.persistenceRecoveryProgress")
+                }
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("重建會刪除這台裝置上的本機命盤、筆記、收藏與對話。")
-                    Text("如果你之前已開啟 iCloud 同步，重建後可到設定重新同步。")
+                    Text(PersistenceRecoveryMessage.iCloudRestoration)
                     Text(PersistenceRecoveryMessage.unavailable)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -231,41 +276,69 @@ private struct PersistenceUnavailableView: View {
             titleVisibility: .visible
         ) {
             Button("重建空白本機資料", role: .destructive) {
-                Task {
-                    do {
-                        try await resetAndReload()
-                    } catch {
-                        resetErrorMessage = PersistenceRecoveryMessage.resetFailure(for: error)
-                    }
-                }
+                Task { await performReset() }
             }
+            .disabled(recoveryGate.isRunning)
             Button("取消", role: .cancel) {}
         } message: {
-            Text("這只會清除這台裝置的本機資料。已存在 iCloud 的資料不會因這個動作被刪除。")
+            Text("這只會清除這台裝置的本機資料。\(PersistenceRecoveryMessage.iCloudRestoration)")
         }
-        .alert("重建失敗", isPresented: resetErrorMessageBinding) {
+        .alert(recoveryErrorTitle, isPresented: recoveryErrorMessageBinding) {
             Button("好", role: .cancel) {
-                resetErrorMessage = nil
+                recoveryErrorMessage = nil
             }
         } message: {
-            Text(resetErrorMessage ?? "請稍後再試。")
+            Text(recoveryErrorMessage ?? "請稍後再試。")
         }
     }
 
-    private var resetErrorMessageBinding: Binding<Bool> {
+    private var recoveryErrorMessageBinding: Binding<Bool> {
         Binding(
-            get: { resetErrorMessage != nil },
+            get: { recoveryErrorMessage != nil },
             set: { isPresented in
-                if !isPresented { resetErrorMessage = nil }
+                if !isPresented { recoveryErrorMessage = nil }
             }
         )
+    }
+
+    private func performRetry() {
+        Task {
+            guard recoveryGate.begin(.retry) else { return }
+            defer { recoveryGate.finish() }
+            await Task.yield()
+            guard retry() else {
+                presentRecoveryError(
+                    title: "重試失敗",
+                    message: PersistenceRecoveryMessage.retryFailure
+                )
+                return
+            }
+        }
+    }
+
+    private func performReset() async {
+        guard recoveryGate.begin(.reset) else { return }
+        defer { recoveryGate.finish() }
+        do {
+            try await resetAndReload()
+        } catch {
+            presentRecoveryError(
+                title: "重建失敗",
+                message: PersistenceRecoveryMessage.resetFailure(for: error)
+            )
+        }
+    }
+
+    private func presentRecoveryError(title: String, message: String) {
+        recoveryErrorTitle = title
+        recoveryErrorMessage = message
     }
 }
 
 private struct PersistenceUnavailableViewPreview: PreviewProvider {
     static var previews: some View {
         PersistenceUnavailableView(
-            retry: {},
+            retry: { false },
             resetAndReload: {}
         )
     }
