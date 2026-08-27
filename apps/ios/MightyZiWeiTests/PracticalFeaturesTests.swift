@@ -5,6 +5,28 @@ import XCTest
 
 @MainActor
 final class PracticalFeaturesTests: XCTestCase {
+    private enum ModelContainerTestError: Error {
+        case cannotLoad
+    }
+
+    func test啟動時本機資料容器載入失敗不會觸發FatalError() {
+        let result = AppModelContainerLoader.load {
+            throw ModelContainerTestError.cannotLoad
+        }
+
+        guard case .failure = result else {
+            return XCTFail("資料容器載入失敗時應回傳可處理的錯誤。")
+        }
+    }
+
+    func testUI測試啟動時可建立記憶體資料容器() {
+        let result = AppModelContainerLoader.load(arguments: ["-UITestResetData"])
+
+        guard case .success = result else {
+            return XCTFail("應可建立記憶體資料容器。")
+        }
+    }
+
     func test隱私遮罩在背景或鎖定時都必須顯示() {
         let policy = AppPrivacyShieldPolicy()
 
