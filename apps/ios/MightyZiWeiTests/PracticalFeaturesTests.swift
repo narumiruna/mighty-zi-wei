@@ -86,9 +86,13 @@ final class PracticalFeaturesTests: XCTestCase {
 
         let storeFiles = [
             "default.store",
+            "default.store.migration",
             "default.store-journal",
+            "default.store-journal.migration",
             "default.store-shm",
-            "default.store-wal"
+            "default.store-shm.migration",
+            "default.store-wal",
+            "default.store-wal.migration"
         ]
         for file in storeFiles {
             try Data("test".utf8).write(to: directory.appending(path: file))

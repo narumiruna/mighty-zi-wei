@@ -76,9 +76,11 @@ enum AppModelContainerLoader {
     }
 }
 
-struct AppModelStoreMigrator {
-    private static let storeSuffixes = ["", "-journal", "-shm", "-wal"]
+private enum AppModelStoreFiles {
+    static let suffixes = ["", "-journal", "-shm", "-wal"]
+}
 
+struct AppModelStoreMigrator {
     var fileManager = FileManager.default
     var sourceURL: URL
     var destinationURL: URL
@@ -95,14 +97,14 @@ struct AppModelStoreMigrator {
             withIntermediateDirectories: true
         )
         try cleanupTemporaryFiles(destinationURL: destinationURL)
-        for suffix in Self.storeSuffixes.dropFirst() {
+        for suffix in AppModelStoreFiles.suffixes.dropFirst() {
             let incompleteSidecar = storeFile(baseURL: destinationURL, suffix: suffix)
             if fileManager.fileExists(atPath: incompleteSidecar.path) {
                 try fileManager.removeItem(at: incompleteSidecar)
             }
         }
         do {
-            for suffix in Self.storeSuffixes {
+            for suffix in AppModelStoreFiles.suffixes {
                 let source = storeFile(baseURL: sourceURL, suffix: suffix)
                 guard fileManager.fileExists(atPath: source.path) else { continue }
                 try fileManager.copyItem(
@@ -111,7 +113,7 @@ struct AppModelStoreMigrator {
                 )
             }
 
-            for suffix in Self.storeSuffixes.dropFirst() {
+            for suffix in AppModelStoreFiles.suffixes.dropFirst() {
                 let temporary = temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
                 guard fileManager.fileExists(atPath: temporary.path) else { continue }
                 let destination = storeFile(baseURL: destinationURL, suffix: suffix)
@@ -131,7 +133,7 @@ struct AppModelStoreMigrator {
     }
 
     private func cleanupTemporaryFiles(destinationURL: URL) throws {
-        for suffix in Self.storeSuffixes {
+        for suffix in AppModelStoreFiles.suffixes {
             let temporary = temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
             if fileManager.fileExists(atPath: temporary.path) {
                 try fileManager.removeItem(at: temporary)
@@ -153,12 +155,11 @@ struct AppModelStoreResetter {
     var storeURL: URL
 
     func resetStoreFiles() throws {
-        let storeFiles = [
-            storeURL,
-            URL(filePath: storeURL.path + "-journal"),
-            URL(filePath: storeURL.path + "-shm"),
-            URL(filePath: storeURL.path + "-wal")
-        ]
+        let storeFiles = AppModelStoreFiles.suffixes.flatMap { suffix in
+            let liveFile = URL(filePath: storeURL.path + suffix)
+            let migrationFile = URL(filePath: liveFile.path + ".migration")
+            return [liveFile, migrationFile]
+        }
         for file in storeFiles where fileManager.fileExists(atPath: file.path) {
             try fileManager.removeItem(at: file)
         }

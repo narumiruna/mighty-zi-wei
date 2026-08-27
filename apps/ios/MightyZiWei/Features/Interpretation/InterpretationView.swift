@@ -265,8 +265,8 @@ private struct AIInterpretationPreviewView: View {
         NavigationStack {
             Form {
                 Section("AI 會做什麼") {
-                    Text("把目前完整基本解讀整理成更自然、好讀的版本，不會改變命盤或加入新的命理含義。")
-                    Label("完成本機命盤依據驗證後才會顯示", systemImage: "checkmark.seal")
+                    Text("App 會要求 AI 只把完整基本解讀整理得更自然、好讀，不改變命盤或加入新的命理含義。這是模型指示，App 無法保證 AI 不會改變語意，請對照基本解讀。")
+                    Label("完成回傳格式、內容安全與引用依據檢查後才會顯示", systemImage: "checkmark.seal")
                 }
 
                 Section("這次會使用") {

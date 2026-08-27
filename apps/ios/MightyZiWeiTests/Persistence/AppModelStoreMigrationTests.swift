@@ -128,11 +128,15 @@ final class AppModelStoreMigrationTests: XCTestCase {
 
         let suffixes = ["", "-journal", "-shm", "-wal"]
         for suffix in suffixes {
-            try Data("legacy\(suffix)".utf8).write(
-                to: URL(filePath: sourceURL.path + suffix)
+            let sourceFile = URL(filePath: sourceURL.path + suffix)
+            let destinationFile = URL(filePath: destinationURL.path + suffix)
+            try Data("legacy\(suffix)".utf8).write(to: sourceFile)
+            try Data("legacy-staging\(suffix)".utf8).write(
+                to: URL(filePath: sourceFile.path + ".migration")
             )
-            try Data("local\(suffix)".utf8).write(
-                to: URL(filePath: destinationURL.path + suffix)
+            try Data("local\(suffix)".utf8).write(to: destinationFile)
+            try Data("local-staging\(suffix)".utf8).write(
+                to: URL(filePath: destinationFile.path + ".migration")
             )
         }
 
@@ -146,16 +150,16 @@ final class AppModelStoreMigrationTests: XCTestCase {
         ).migrateIfNeeded()
 
         for suffix in suffixes {
-            XCTAssertFalse(
-                FileManager.default.fileExists(
-                    atPath: URL(filePath: sourceURL.path + suffix).path
-                )
-            )
-            XCTAssertFalse(
-                FileManager.default.fileExists(
-                    atPath: URL(filePath: destinationURL.path + suffix).path
-                )
-            )
+            let sourcePath = sourceURL.path + suffix
+            let destinationPath = destinationURL.path + suffix
+            for path in [
+                sourcePath,
+                sourcePath + ".migration",
+                destinationPath,
+                destinationPath + ".migration"
+            ] {
+                XCTAssertFalse(FileManager.default.fileExists(atPath: path), path)
+            }
         }
     }
 

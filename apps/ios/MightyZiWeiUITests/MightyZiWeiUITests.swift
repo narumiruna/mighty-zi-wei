@@ -422,14 +422,13 @@ final class MightyZiWeiUITests: XCTestCase {
         attachScreenshot(name: "最大動態字級命盤助理")
     }
 
-    func test實用功能的出生檢查個資確認傳送預覽與本機對話保存() {
+    func test實用功能的出生檢查個資揭露與本機對話保存() {
         app.terminate()
         app = XCUIApplication()
         app.launchArguments = localizationArguments + [
             "-UIPreferredContentSizeCategoryName",
             "UICTContentSizeCategoryL",
-            "-UITestMockAI",
-            "-UITestShowTransmissionPreview"
+            "-UITestMockAI"
         ]
         app.launch()
 
@@ -437,6 +436,9 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(createChart.waitForExistence(timeout: 5))
         createChart.tap()
         let auditCard = app.buttons["birthInput.auditCard"]
+        if !auditCard.waitForExistence(timeout: 5), createChart.exists {
+            createChart.tap()
+        }
         XCTAssertTrue(auditCard.waitForExistence(timeout: 5))
         scrollToElement(auditCard)
         auditCard.tap()
@@ -464,24 +466,12 @@ final class MightyZiWeiUITests: XCTestCase {
         scrollToElement(askAI)
         askAI.tap()
         XCTAssertTrue(app.navigationBars["命盤助理"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "會直接傳送到你設定的第三方 API")
+        ).firstMatch.exists)
         app.buttons["assistant.suggestion.0"].tap()
-        app.buttons["assistant.send"].tap()
-        XCTAssertTrue(app.navigationBars["確認傳送內容"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["目前命盤的必要解讀依據"].exists)
-        XCTAssertTrue(app.staticTexts["本機請求紀錄"].exists)
-        let previewDetails = app.buttons["assistant.preview.details"]
-        XCTAssertTrue(previewDetails.waitForExistence(timeout: 3))
-        previewDetails.tap()
-        let verifiedFacts = app.staticTexts["已驗證命盤事實"]
-        if !verifiedFacts.waitForExistence(timeout: 3) {
-            previewDetails.tap()
-        }
-        XCTAssertTrue(verifiedFacts.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["基礎解讀種子"].exists)
-        XCTAssertTrue(app.staticTexts["不加入 API key、筆記、收藏與已保存對話"].exists)
-        let confirmSend = app.buttons["assistant.confirmSend"]
-        scrollToElement(confirmSend)
-        confirmSend.tap()
+        startQuestionRequest()
+        XCTAssertFalse(app.navigationBars["確認傳送內容"].exists)
         XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
         XCTAssertTrue(waitForNonExistence(app.keyboards.firstMatch, timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["assistant.saveStatus"].exists)
@@ -497,9 +487,8 @@ final class MightyZiWeiUITests: XCTestCase {
         let composer = app.textFields["assistant.composer"]
         composer.tap()
         composer.typeText("可以再說清楚一點嗎？")
-        app.buttons["assistant.send"].tap()
-        XCTAssertTrue(app.navigationBars["確認傳送內容"].waitForExistence(timeout: 5))
-        app.buttons["assistant.confirmSend"].tap()
+        tapSendQuestion()
+        XCTAssertFalse(app.navigationBars["確認傳送內容"].exists)
         XCTAssertTrue(
             app.staticTexts
                 .matching(identifier: "assistant.answer.verified")
@@ -597,24 +586,16 @@ final class MightyZiWeiUITests: XCTestCase {
         )
     }
 
-    func test傳送預覽返回修改會保留草稿且不產生回答() {
-        relaunchMockAI(extraArguments: ["-UITestShowTransmissionPreview"])
+    func test送出問題不會顯示額外確認頁面() {
+        relaunchMockAI()
         createDefaultChart()
         openChartAssistant()
 
         app.buttons["assistant.suggestion.0"].tap()
-        let composer = app.textFields["assistant.composer"]
-        let question = composer.value as? String
-        app.buttons["assistant.send"].tap()
-        XCTAssertTrue(app.navigationBars["確認傳送內容"].waitForExistence(timeout: 5))
-        app.buttons["返回修改"].tap()
+        startQuestionRequest()
 
-        XCTAssertTrue(app.navigationBars["命盤助理"].waitForExistence(timeout: 5))
-        XCTAssertEqual(composer.value as? String, question)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        composer.typeText("補充")
-        XCTAssertEqual(composer.value as? String, "\(question ?? "")補充")
-        XCTAssertFalse(app.otherElements["assistant.answer"].exists)
+        XCTAssertFalse(app.navigationBars["確認傳送內容"].exists)
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
     }
 
     func test只有草稿時切換命盤會先確認且取消不清除內容() {
@@ -811,6 +792,10 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(organize.waitForExistence(timeout: 5))
         organize.tap()
         XCTAssertTrue(app.navigationBars["確認 AI 整理"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "這是模型指示，App 無法保證 AI 不會改變語意")
+        ).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["完成回傳格式、內容安全與引用依據檢查後才會顯示"].exists)
         app.buttons["返回閱讀"].tap()
         XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["基本解讀"].exists)
