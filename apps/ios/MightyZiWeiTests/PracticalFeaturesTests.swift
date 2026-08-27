@@ -27,6 +27,27 @@ final class PracticalFeaturesTests: XCTestCase {
         }
     }
 
+    func test重建後重新載入失敗會回報錯誤() {
+        let result: Result<Int, any Error> = .failure(ModelContainerTestError.cannotLoad)
+
+        XCTAssertThrowsError(try PersistenceResetReloadValidator().validate(result)) { error in
+            XCTAssertEqual(error as? PersistenceResetError, .reloadFailed)
+        }
+    }
+
+    func test復原畫面不會顯示系統原始錯誤文字() {
+        let frameworkError = CocoaError(.fileReadCorruptFile)
+        let message = PersistenceRecoveryMessage.resetFailure(for: frameworkError)
+
+        XCTAssertEqual(PersistenceRecoveryMessage.unavailable, "系統目前無法讀取這台裝置的本機資料。")
+        XCTAssertEqual(message, "目前無法重建本機資料。請確認裝置有足夠儲存空間後再試。")
+        XCTAssertFalse(message.contains(frameworkError.localizedDescription))
+        XCTAssertEqual(
+            PersistenceRecoveryMessage.resetFailure(for: PersistenceResetError.reloadFailed),
+            "本機資料已清除，但仍無法建立新的資料庫。請確認裝置有足夠儲存空間後再試。"
+        )
+    }
+
     func test本機資料重建只刪除SwiftData預設資料檔() throws {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "AppModelStoreResetterTests.\(UUID().uuidString)")
@@ -74,22 +95,27 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertTrue(store.isLocked)
     }
 
-    func testApp鎖啟用時重建必須通過身分驗證() async {
-        let policy = PersistenceResetAuthorizationPolicy()
+    func testApp鎖啟用時重建驗證不會解除鎖定() async throws {
+        let suite = "AppLockResetTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: "privacy.app-lock.enabled")
+        let store = AppLockStore(defaults: defaults)
         var authenticationCount = 0
 
-        let denied = await policy.authorize(isAppLockEnabled: true) {
+        let denied = await store.authorizeDataReset(using: {
             authenticationCount += 1
             return false
-        }
-        let allowedWithoutLock = await policy.authorize(isAppLockEnabled: false) {
+        })
+        let authorized = await store.authorizeDataReset(using: {
             authenticationCount += 1
-            return false
-        }
+            return true
+        })
 
         XCTAssertFalse(denied)
-        XCTAssertTrue(allowedWithoutLock)
-        XCTAssertEqual(authenticationCount, 1)
+        XCTAssertTrue(authorized)
+        XCTAssertTrue(store.isLocked)
+        XCTAssertEqual(authenticationCount, 2)
     }
 
     func test命盤標籤釘選與姓名標籤建立日期搜尋() throws {
@@ -263,14 +289,18 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertNotEqual(first, second)
     }
 
-    func test重建只會取消App建立的回顧提醒() {
-        let identifiers = ReviewReminderScheduler.reviewReminderIdentifiers(in: [
-            "review.first",
-            "other.notification",
-            "review.second"
+    func test重建會辨識待發送與已發送的App回顧提醒() {
+        let pendingIdentifiers = ReviewReminderScheduler.reviewReminderIdentifiers(in: [
+            "review.pending",
+            "other.pending"
+        ])
+        let deliveredIdentifiers = ReviewReminderScheduler.reviewReminderIdentifiers(in: [
+            "other.delivered",
+            "review.delivered"
         ])
 
-        XCTAssertEqual(identifiers, ["review.first", "review.second"])
+        XCTAssertEqual(pendingIdentifiers, ["review.pending"])
+        XCTAssertEqual(deliveredIdentifiers, ["review.delivered"])
     }
 
     func test套用遠端筆記時會保留舊提醒直到替代通知儲存成功() {

@@ -75,6 +75,17 @@ final class AppLockStore {
         return true
     }
 
+    func authorizeDataReset() async -> Bool {
+        await authorizeDataReset(using: {
+            await evaluate(reason: "重建空白本機資料")
+        })
+    }
+
+    func authorizeDataReset(using authenticate: () async -> Bool) async -> Bool {
+        guard isEnabled else { return true }
+        return await authenticate()
+    }
+
     func clearError() {
         errorMessage = nil
     }

@@ -100,13 +100,22 @@ struct ReviewReminderScheduler: Sendable {
 
     func cancelAllReviewReminders() async {
         let center = UNUserNotificationCenter.current()
-        let requests = await center.pendingNotificationRequests()
-        let identifiers = Self.reviewReminderIdentifiers(
-            in: requests.map(\.identifier)
+        let pendingRequests = await center.pendingNotificationRequests()
+        let pendingIdentifiers = Self.reviewReminderIdentifiers(
+            in: pendingRequests.map(\.identifier)
         )
-        if !identifiers.isEmpty {
-            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        if !pendingIdentifiers.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
         }
+
+        let deliveredNotifications = await center.deliveredNotifications()
+        let deliveredIdentifiers = Self.reviewReminderIdentifiers(
+            in: deliveredNotifications.map { $0.request.identifier }
+        )
+        if !deliveredIdentifiers.isEmpty {
+            center.removeDeliveredNotifications(withIdentifiers: deliveredIdentifiers)
+        }
+
         let defaults = UserDefaults(suiteName: Self.sharedDefaultsSuite)
         Self.storeWidgetReminderDates([], defaults: defaults)
         WidgetCenter.shared.reloadTimelines(ofKind: Self.privacyWidgetKind)

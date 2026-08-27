@@ -64,22 +64,32 @@ struct AppModelStoreResetter {
     }
 }
 
-@MainActor
-struct PersistenceResetAuthorizationPolicy {
-    func authorize(
-        isAppLockEnabled: Bool,
-        authenticate: () async -> Bool
-    ) async -> Bool {
-        guard isAppLockEnabled else { return true }
-        return await authenticate()
+enum PersistenceResetError: Error, Equatable {
+    case authenticationFailed
+    case reloadFailed
+}
+
+struct PersistenceResetReloadValidator {
+    func validate<Success>(_ result: Result<Success, any Error>) throws {
+        guard case .success = result else {
+            throw PersistenceResetError.reloadFailed
+        }
     }
 }
 
-private enum PersistenceResetError: LocalizedError {
-    case authenticationFailed
+struct PersistenceRecoveryMessage {
+    static let unavailable = "系統目前無法讀取這台裝置的本機資料。"
 
-    var errorDescription: String? {
-        "身分驗證未完成，本機資料未重建。"
+    static func resetFailure(for error: any Error) -> String {
+        guard let resetError = error as? PersistenceResetError else {
+            return "目前無法重建本機資料。請確認裝置有足夠儲存空間後再試。"
+        }
+        switch resetError {
+        case .authenticationFailed:
+            return "身分驗證未完成，本機資料未重建。"
+        case .reloadFailed:
+            return "本機資料已清除，但仍無法建立新的資料庫。請確認裝置有足夠儲存空間後再試。"
+        }
     }
 }
 
@@ -140,9 +150,8 @@ struct MightyZiWeiApp: App {
                     .environment(iCloudSyncCoordinator)
                     .environment(voiceCoordinator)
                     .modelContainer(modelContainer)
-            case .failure(let error):
+            case .failure:
                 PersistenceUnavailableView(
-                    error: error,
                     retry: reloadModelContainer,
                     resetAndReload: resetPersistentStoreAndReload
                 )
@@ -157,23 +166,22 @@ struct MightyZiWeiApp: App {
     }
 
     private func resetPersistentStoreAndReload() async throws {
-        let isAuthorized = await PersistenceResetAuthorizationPolicy().authorize(
-            isAppLockEnabled: appLockStore.isEnabled,
-            authenticate: { await appLockStore.unlock() }
-        )
-        guard isAuthorized else { throw PersistenceResetError.authenticationFailed }
+        guard await appLockStore.authorizeDataReset() else {
+            throw PersistenceResetError.authenticationFailed
+        }
 
-        try AppModelContainerLoader.resetPersistentStore(
-            arguments: ProcessInfo.processInfo.arguments
-        )
+        let arguments = ProcessInfo.processInfo.arguments
+        try AppModelContainerLoader.resetPersistentStore(arguments: arguments)
         await ReviewReminderScheduler().cancelAllReviewReminders()
         PinnedChartShortcut.reconcile(charts: [])
-        reloadModelContainer()
+
+        let reloadResult = AppModelContainerLoader.load(arguments: arguments)
+        modelContainerResult = reloadResult
+        try PersistenceResetReloadValidator().validate(reloadResult)
     }
 }
 
 private struct PersistenceUnavailableView: View {
-    let error: any Error
     let retry: () -> Void
     let resetAndReload: () async throws -> Void
 
@@ -205,7 +213,7 @@ private struct PersistenceUnavailableView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("重建會刪除這台裝置上的本機命盤、筆記、收藏與對話。")
                     Text("如果你之前已開啟 iCloud 同步，重建後可到設定重新同步。")
-                    Text("錯誤資訊：\(error.localizedDescription)")
+                    Text(PersistenceRecoveryMessage.unavailable)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -227,7 +235,7 @@ private struct PersistenceUnavailableView: View {
                     do {
                         try await resetAndReload()
                     } catch {
-                        resetErrorMessage = error.localizedDescription
+                        resetErrorMessage = PersistenceRecoveryMessage.resetFailure(for: error)
                     }
                 }
             }
@@ -257,7 +265,6 @@ private struct PersistenceUnavailableView: View {
 private struct PersistenceUnavailableViewPreview: PreviewProvider {
     static var previews: some View {
         PersistenceUnavailableView(
-            error: CocoaError(.fileReadCorruptFile),
             retry: {},
             resetAndReload: {}
         )
