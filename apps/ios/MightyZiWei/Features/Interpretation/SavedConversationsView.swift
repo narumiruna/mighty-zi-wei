@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SavedConversationsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(ChartAssistantStore.self) private var assistantStore
     @Query(sort: \SavedConversation.updatedAt, order: .reverse)
     private var conversations: [SavedConversation]
 
@@ -54,8 +55,13 @@ struct SavedConversationsView: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
+                            let deletedID = conversation.id
                             modelContext.delete(conversation)
-                            save(errorText: "無法刪除本機對話。")
+                            if save(errorText: "無法刪除本機對話。") {
+                                assistantStore.reconcileSavedConversationIDs(
+                                    Set(conversations.lazy.map(\.id)).subtracting([deletedID])
+                                )
+                            }
                         } label: {
                             Label("刪除", systemImage: "trash")
                         }
@@ -97,12 +103,15 @@ struct SavedConversationsView: View {
         )
     }
 
-    private func save(errorText: String) {
+    @discardableResult
+    private func save(errorText: String) -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
             modelContext.rollback()
             errorMessage = errorText
+            return false
         }
     }
 }

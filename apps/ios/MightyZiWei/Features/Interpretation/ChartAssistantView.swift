@@ -1,24 +1,7 @@
 import Accessibility
 import SwiftData
 import SwiftUI
-
-struct SavedChartAssistantSnapshot: Equatable {
-    let id: UUID
-    let name: String
-    let birthProfileData: Data
-    let ruleSetID: String
-    let ruleSetVersion: Int
-    let appSchemaVersion: Int
-
-    init(_ chart: SavedChart) {
-        id = chart.id
-        name = chart.name
-        birthProfileData = chart.birthProfileData
-        ruleSetID = chart.ruleSetID
-        ruleSetVersion = chart.ruleSetVersion
-        appSchemaVersion = chart.appSchemaVersion
-    }
-}
+import UIKit
 
 struct ChartAssistantView: View {
     @Environment(\.modelContext) private var modelContext
@@ -27,11 +10,13 @@ struct ChartAssistantView: View {
     @Environment(ChartAssistantStore.self) private var assistantStore
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var savedCharts: [SavedChart]
+    @Query private var savedConversations: [SavedConversation]
 
     @FocusState private var composerIsFocused: Bool
     @State private var showsAPIConfiguration = false
     @State private var showsSendPreview = false
     @State private var restoresComposerAfterPreview = false
+    @State private var composerFocusTask: Task<Void, Never>?
     @State private var pendingTransition: PendingTransition?
     @State private var errorMessage: String?
     @State private var saveMessage: String?
@@ -44,6 +29,10 @@ struct ChartAssistantView: View {
 
     private var savedChartSnapshots: [SavedChartAssistantSnapshot] {
         savedCharts.map(SavedChartAssistantSnapshot.init)
+    }
+
+    private var savedConversationIDs: Set<UUID> {
+        Set(savedConversations.map(\.id))
     }
 
     var body: some View {
@@ -69,10 +58,14 @@ struct ChartAssistantView: View {
                 .onChange(of: savedChartSnapshots) { previous, current in
                     reconcileSavedCharts(previous: previous, current: current)
                 }
+                .onChange(of: savedConversationIDs) { _, identifiers in
+                    assistantStore.reconcileSavedConversationIDs(identifiers)
+                }
                 .onChange(of: assistantStore.turns.count) { _, _ in
                     saveMessage = nil
                 }
                 .onDisappear {
+                    composerFocusTask?.cancel()
                     voiceCoordinator.stopAll()
                 }
                 .sheet(isPresented: $showsAPIConfiguration) {
@@ -154,7 +147,7 @@ struct ChartAssistantView: View {
             ) {
                 restoresComposerAfterPreview = false
                 showsSendPreview = false
-                confirmedSendQuestion()
+                confirmedSendQuestion(dismissesComposerImmediately: false)
             }
         }
     }
@@ -162,7 +155,7 @@ struct ChartAssistantView: View {
     private func conversationContent(chart: ChartAssistantChart) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
+                VStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
                     chartSelector(chart: chart)
 
                     if !configurationStore.isConfigured {
@@ -201,6 +194,11 @@ struct ChartAssistantView: View {
 
                         requestStatus
                             .id("assistant.requestStatus")
+
+                        Color.clear
+                            .frame(height: 1)
+                            .accessibilityHidden(true)
+                            .id("assistant.contentEnd")
                     }
                 }
                 .padding()
@@ -218,8 +216,9 @@ struct ChartAssistantView: View {
             }
             .onChange(of: assistantStore.requestState) { _, state in
                 if state != .idle {
-                    withAnimation {
-                        proxy.scrollTo("assistant.requestStatus", anchor: .bottom)
+                    Task { @MainActor in
+                        await Task.yield()
+                        proxy.scrollTo("assistant.contentEnd", anchor: .bottom)
                     }
                 }
                 announceRequestState(state)
@@ -234,6 +233,10 @@ struct ChartAssistantView: View {
 
     private func chartSelector(chart: ChartAssistantChart) -> some View {
         Menu {
+            if savedCharts.isEmpty {
+                Button("目前沒有其他已儲存命盤") {}
+                    .disabled(true)
+            }
             ForEach(savedCharts) { savedChart in
                 Button {
                     prepareSelection(savedChart)
@@ -253,12 +256,10 @@ struct ChartAssistantView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("目前命盤")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
                     Text(chart.name)
                         .font(.headline)
                     Text(chart.detail)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 if !savedCharts.isEmpty {
@@ -270,7 +271,6 @@ struct ChartAssistantView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
-        .disabled(savedCharts.isEmpty)
         .accessibilityIdentifier("assistant.chartSelector")
         .accessibilityLabel("目前命盤：\(chart.name)，\(chart.detail)")
         .accessibilityHint(savedCharts.isEmpty ? "目前沒有其他已儲存命盤" : "點兩下切換命盤")
@@ -324,7 +324,6 @@ struct ChartAssistantView: View {
             Text("健康診斷、投資或法律建議，以及確定事件預測。")
             Text("問題、本次對話與必要命盤依據會傳送到你設定的第三方 API。每次送出前都會先讓你確認。")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
@@ -337,7 +336,6 @@ struct ChartAssistantView: View {
                 .font(.title2.bold())
                 .accessibilityAddTraits(.isHeader)
             Text("選擇後只會填入草稿，不會自動送出或產生費用。")
-                .foregroundStyle(.secondary)
 
             ForEach(Array(suggestedQuestions.enumerated()), id: \.offset) { index, question in
                 Button {
@@ -369,7 +367,6 @@ struct ChartAssistantView: View {
                 .accessibilityIdentifier("assistant.saveStatus")
             Text(saveStatusDetail)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
             Button {
                 _ = saveConversation()
             } label: {
@@ -440,6 +437,7 @@ struct ChartAssistantView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("assistant.loading")
                 Text(question)
                 Divider()
                 ViewThatFits(in: .horizontal) {
@@ -468,7 +466,6 @@ struct ChartAssistantView: View {
                 }
             }
             .cardStyle()
-            .accessibilityIdentifier("assistant.loading")
         case .failed(let message):
             VStack(alignment: .leading, spacing: 12) {
                 Label("回答未完成", systemImage: "exclamationmark.triangle")
@@ -522,22 +519,33 @@ struct ChartAssistantView: View {
     private var composer: some View {
         VStack(spacing: 6) {
             HStack(alignment: .bottom, spacing: 10) {
-                TextField(
-                    "輸入想問的問題…",
-                    text: Binding(
-                        get: { assistantStore.draft },
-                        set: { assistantStore.draft = $0 }
-                    ),
-                    axis: .vertical
-                )
-                .lineLimit(1...5)
-                .focused($composerIsFocused)
-                .disabled(
-                    assistantStore.isRequesting
-                        || assistantStore.hasReachedRoundLimit
-                        || voiceCoordinator.isInputActive
-                )
-                .accessibilityIdentifier("assistant.composer")
+                ZStack(alignment: .leading) {
+                    if assistantStore.draft.isEmpty {
+                        Text("輸入想問的問題…")
+                            .foregroundStyle(.primary)
+                            .accessibilityHidden(true)
+                    }
+                    TextField(
+                        "",
+                        text: Binding(
+                            get: { assistantStore.draft },
+                            set: { assistantStore.draft = $0 }
+                        ),
+                        axis: .vertical
+                    )
+                    .lineLimit(1...5)
+                    .focused($composerIsFocused)
+                    .disabled(
+                        assistantStore.isRequesting
+                            || assistantStore.hasReachedRoundLimit
+                            || voiceCoordinator.isInputActive
+                    )
+                    .accessibilityLabel("命盤問題")
+                    .accessibilityValue(
+                        assistantStore.draft.isEmpty ? "尚未輸入" : assistantStore.draft
+                    )
+                    .accessibilityIdentifier("assistant.composer")
+                }
 
                 Button {
                     toggleVoiceInput()
@@ -577,14 +585,14 @@ struct ChartAssistantView: View {
             } else if let composerStatusMessage {
                 Text(composerStatusMessage)
                     .font(.caption)
-                    .foregroundStyle(composerStatusIsError ? .red : .secondary)
+                    .foregroundStyle(composerStatusIsError ? .red : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("assistant.composerStatus")
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
-        .background(.bar)
+        .background(Color(uiColor: .systemBackground))
     }
 
     private var composerBlockReason: AssistantComposerBlockReason? {
@@ -668,20 +676,36 @@ struct ChartAssistantView: View {
     }
 
     private func restoreComposerAfterPreview() {
-        guard restoresComposerAfterPreview,
-              !assistantStore.isRequesting,
-              !assistantStore.trimmedDraft.isEmpty else { return }
+        let shouldRestoreFocus = restoresComposerAfterPreview
+            && !assistantStore.isRequesting
+            && !assistantStore.trimmedDraft.isEmpty
         restoresComposerAfterPreview = false
-        composerIsFocused = true
+        composerFocusTask?.cancel()
+        composerFocusTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            composerIsFocused = shouldRestoreFocus
+            if !shouldRestoreFocus {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder),
+                    to: nil,
+                    from: nil,
+                    for: nil
+                )
+            }
+        }
     }
 
-    private func confirmedSendQuestion() {
+    private func confirmedSendQuestion(dismissesComposerImmediately: Bool = true) {
         guard !voiceCoordinator.isInputActive else { return }
+        errorMessage = nil
         do {
             let configuration = try configurationStore.configuration()
             try usageStore.reserve(.conversation)
             assistantStore.send(configuration: configuration)
-            composerIsFocused = false
+            if dismissesComposerImmediately {
+                composerIsFocused = false
+            }
         } catch let error as LocalizedError {
             usageStore.record(error: error, kind: .conversation)
             errorMessage = error.errorDescription ?? "目前無法讀取 API 設定。"
@@ -695,6 +719,7 @@ struct ChartAssistantView: View {
     private func saveConversation() -> Bool {
         guard let chart = assistantStore.selectedChart,
               !assistantStore.turns.isEmpty else { return false }
+        errorMessage = nil
         do {
             let conversation = try AssistantConversationPersistence().save(
                 chart: chart,
@@ -952,36 +977,5 @@ private extension ChartAssistantView {
 
     enum TransitionError: Error {
         case saveFailed
-    }
-}
-
-extension ChartAssistantChart {
-    static func make(
-        id: UUID,
-        savedChartID: UUID?,
-        name: String,
-        chart: ZiWeiChart
-    ) -> ChartAssistantChart {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let displayName = trimmedName.isEmpty ? "未命名命盤" : trimmedName
-        let date = chart.birthProfile.localDate
-        let time = chart.birthProfile.localTime
-        let detail = String(
-            format: "%04d/%02d/%02d　%02d:%02d",
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute
-        )
-        let facts = ChartFactBuilder().makeFacts(from: chart)
-        return ChartAssistantChart(
-            id: id,
-            savedChartID: savedChartID,
-            name: displayName,
-            detail: detail,
-            facts: facts,
-            seeds: InterpretationSeedBuilder().makeSeeds(from: facts)
-        )
     }
 }

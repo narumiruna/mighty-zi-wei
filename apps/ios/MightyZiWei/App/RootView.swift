@@ -184,6 +184,13 @@ final class ChartAssistantStore {
         savedTurnCount = turns.count
     }
 
+    func reconcileSavedConversationIDs(_ identifiers: Set<UUID>) {
+        guard let savedConversationID,
+              !identifiers.contains(savedConversationID) else { return }
+        self.savedConversationID = nil
+        savedTurnCount = 0
+    }
+
     func send(configuration: OpenAIResponsesConfiguration) {
         guard !isRequesting,
               !hasReachedRoundLimit,
@@ -305,7 +312,10 @@ private struct UITestChartConversationAnswerer: ChartConversationAnswering {
         seeds: [InterpretationSeed],
         configuration: OpenAIResponsesConfiguration
     ) async throws -> ChartConversationAnswer {
-        try await Task.sleep(for: .seconds(3))
+        let delay: Duration = arguments.contains("-UITestMockAISlow")
+            ? .seconds(30)
+            : .seconds(3)
+        try await Task.sleep(for: delay)
         if arguments.contains("-UITestMockAIFailure") {
             throw OpenAIResponsesInterpreter.InterpreterError.timedOut
         }

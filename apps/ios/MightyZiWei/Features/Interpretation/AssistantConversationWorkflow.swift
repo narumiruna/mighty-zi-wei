@@ -1,6 +1,24 @@
 import Foundation
 import SwiftData
 
+struct SavedChartAssistantSnapshot: Equatable {
+    let id: UUID
+    let name: String
+    let birthProfileData: Data
+    let ruleSetID: String
+    let ruleSetVersion: Int
+    let appSchemaVersion: Int
+
+    init(_ chart: SavedChart) {
+        id = chart.id
+        name = chart.name
+        birthProfileData = chart.birthProfileData
+        ruleSetID = chart.ruleSetID
+        ruleSetVersion = chart.ruleSetVersion
+        appSchemaVersion = chart.appSchemaVersion
+    }
+}
+
 enum AssistantTransitionRisk: Equatable, Sendable {
     case none
     case draft
@@ -153,5 +171,36 @@ struct AssistantFollowUpSuggestionBuilder: Sendable {
                 "我的工作方式可能有什麼特色？"
             ]
         }
+    }
+}
+
+extension ChartAssistantChart {
+    static func make(
+        id: UUID,
+        savedChartID: UUID?,
+        name: String,
+        chart: ZiWeiChart
+    ) -> ChartAssistantChart {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = trimmedName.isEmpty ? "未命名命盤" : trimmedName
+        let date = chart.birthProfile.localDate
+        let time = chart.birthProfile.localTime
+        let detail = String(
+            format: "%04d/%02d/%02d　%02d:%02d",
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute
+        )
+        let facts = ChartFactBuilder().makeFacts(from: chart)
+        return ChartAssistantChart(
+            id: id,
+            savedChartID: savedChartID,
+            name: displayName,
+            detail: detail,
+            facts: facts,
+            seeds: InterpretationSeedBuilder().makeSeeds(from: facts)
+        )
     }
 }

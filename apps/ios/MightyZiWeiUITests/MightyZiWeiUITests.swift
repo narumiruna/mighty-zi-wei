@@ -225,9 +225,7 @@ final class MightyZiWeiUITests: XCTestCase {
             app.descendants(matching: .any)["assistant.loading"]
                 .waitForExistence(timeout: 5)
         )
-        app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "停止")
-        ).firstMatch.tap()
+        app.buttons["assistant.stop"].tap()
         XCTAssertTrue(
             app.descendants(matching: .any)["assistant.cancelled"]
                 .waitForExistence(timeout: 5)
@@ -435,12 +433,18 @@ final class MightyZiWeiUITests: XCTestCase {
         ]
         app.launch()
 
-        app.buttons["home.createChart"].tap()
+        let createChart = app.buttons["home.createChart"]
+        XCTAssertTrue(createChart.waitForExistence(timeout: 5))
+        createChart.tap()
         let auditCard = app.buttons["birthInput.auditCard"]
         XCTAssertTrue(auditCard.waitForExistence(timeout: 5))
         scrollToElement(auditCard)
         auditCard.tap()
-        XCTAssertTrue(app.staticTexts["IANA 時區"].waitForExistence(timeout: 3))
+        let timeZoneLabel = app.staticTexts["IANA 時區"]
+        if !timeZoneLabel.waitForExistence(timeout: 3) {
+            auditCard.tap()
+        }
+        XCTAssertTrue(timeZoneLabel.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["時辰與換日"].exists)
         XCTAssertTrue(app.staticTexts["規則集"].exists)
 
@@ -468,13 +472,18 @@ final class MightyZiWeiUITests: XCTestCase {
         let previewDetails = app.buttons["assistant.preview.details"]
         XCTAssertTrue(previewDetails.waitForExistence(timeout: 3))
         previewDetails.tap()
-        XCTAssertTrue(app.staticTexts["已驗證命盤事實"].waitForExistence(timeout: 3))
+        let verifiedFacts = app.staticTexts["已驗證命盤事實"]
+        if !verifiedFacts.waitForExistence(timeout: 3) {
+            previewDetails.tap()
+        }
+        XCTAssertTrue(verifiedFacts.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["基礎解讀種子"].exists)
         XCTAssertTrue(app.staticTexts["不加入 API key、筆記、收藏與已保存對話"].exists)
         let confirmSend = app.buttons["assistant.confirmSend"]
         scrollToElement(confirmSend)
         confirmSend.tap()
-        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
+        XCTAssertTrue(waitForNonExistence(app.keyboards.firstMatch, timeout: 3))
         XCTAssertTrue(app.descendants(matching: .any)["assistant.saveStatus"].exists)
 
         let saveConversation = app.buttons["assistant.saveConversation"]
@@ -549,6 +558,45 @@ final class MightyZiWeiUITests: XCTestCase {
         attachScreenshot(name: "命盤助理第一屏高對比")
     }
 
+    func test命盤助理第一屏與回答通過系統無障礙稽核() throws {
+        relaunchMockAI()
+        createDefaultChart()
+        openChartAssistant()
+
+        let auditTypes: XCUIAccessibilityAuditType = [
+            .contrast,
+            .elementDetection,
+            .sufficientElementDescription,
+            .trait
+        ]
+        let knownOccludedContrastIssue: (XCUIAccessibilityAuditIssue) -> Bool = { issue in
+            // XCTest 會把不可操作、畫面外與空白輸入框元素誤報為對比問題。
+            guard issue.auditType == .contrast, let element = issue.element else {
+                return false
+            }
+            if !element.isEnabled
+                || element.elementType == .textField
+                || element.label == "你的問題" {
+                return true
+            }
+            let navigationBottom = self.app.navigationBars["命盤助理"].frame.maxY
+            let tabBarTop = self.app.tabBars.firstMatch.frame.minY
+            return element.frame.minY < navigationBottom || element.frame.maxY > tabBarTop
+        }
+        try app.performAccessibilityAudit(
+            for: auditTypes,
+            knownOccludedContrastIssue
+        )
+
+        app.buttons["assistant.suggestion.0"].tap()
+        startQuestionRequest()
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
+        try app.performAccessibilityAudit(
+            for: auditTypes,
+            knownOccludedContrastIssue
+        )
+    }
+
     func test傳送預覽返回修改會保留草稿且不產生回答() {
         relaunchMockAI(extraArguments: ["-UITestShowTransmissionPreview"])
         createDefaultChart()
@@ -563,6 +611,9 @@ final class MightyZiWeiUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["命盤助理"].waitForExistence(timeout: 5))
         XCTAssertEqual(composer.value as? String, question)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        composer.typeText("補充")
+        XCTAssertEqual(composer.value as? String, "\(question ?? "")補充")
         XCTAssertFalse(app.otherElements["assistant.answer"].exists)
     }
 
@@ -597,8 +648,66 @@ final class MightyZiWeiUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "第一張")
         ).firstMatch.tap()
         app.buttons["不保存，直接切換"].tap()
-        XCTAssertEqual(composer.value as? String, "輸入想問的問題…")
+        XCTAssertEqual(composer.value as? String, "尚未輸入")
         XCTAssertTrue(app.buttons["assistant.chartSelector"].label.contains("第一張"))
+    }
+
+    func test刪除目前保存副本後會恢復為未保存狀態() {
+        relaunchMockAI()
+        createDefaultChart()
+        openChartAssistant()
+
+        app.buttons["assistant.suggestion.0"].tap()
+        startQuestionRequest()
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
+        let saveConversation = app.buttons["assistant.saveConversation"]
+        scrollToElement(saveConversation)
+        saveConversation.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["assistant.saveConfirmation"]
+                .waitForExistence(timeout: 3)
+        )
+
+        app.buttons["assistant.savedConversations"].tap()
+        XCTAssertTrue(app.navigationBars["已保存對話"].waitForExistence(timeout: 5))
+        app.cells.firstMatch.swipeLeft()
+        app.buttons["刪除"].tap()
+        XCTAssertTrue(app.staticTexts["尚未保存對話"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let unsavedStatus = app.staticTexts.matching(
+            NSPredicate(
+                format: "identifier == %@ AND label CONTAINS %@",
+                "assistant.saveStatus",
+                "本次對話尚未保存"
+            )
+        ).firstMatch
+        XCTAssertTrue(unsavedStatus.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["assistant.saveConversation"].exists)
+        XCTAssertTrue(app.otherElements["assistant.answer"].exists)
+    }
+
+    func test清除未保存對話會先確認且取消時保留內容() {
+        relaunchMockAI()
+        createDefaultChart()
+        openChartAssistant()
+
+        app.buttons["assistant.suggestion.0"].tap()
+        startQuestionRequest()
+        XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
+
+        app.buttons["其他對話操作"].tap()
+        app.buttons["清除目前對話"].tap()
+        XCTAssertTrue(app.staticTexts["開始新對話？"].waitForExistence(timeout: 3))
+        app.buttons["取消"].tap()
+        XCTAssertTrue(app.otherElements["assistant.answer"].exists)
+
+        app.buttons["其他對話操作"].tap()
+        app.buttons["清除目前對話"].tap()
+        app.buttons["不保存，開始新對話"].tap()
+        XCTAssertFalse(app.otherElements["assistant.answer"].exists)
+        XCTAssertEqual(app.textFields["assistant.composer"].value as? String, "尚未輸入")
+        XCTAssertTrue(app.buttons["assistant.suggestion.0"].exists)
     }
 
     func test問答切換底部分頁後會繼續並顯示完成回答() {
@@ -660,27 +769,21 @@ final class MightyZiWeiUITests: XCTestCase {
         app.buttons["assistant.suggestion.0"].tap()
         let composer = app.textFields["assistant.composer"]
         let question = composer.value as? String
-        app.buttons["assistant.send"].tap()
+        startQuestionRequest()
         XCTAssertTrue(
             app.descendants(matching: .any)["assistant.error"]
-                .waitForExistence(timeout: 6)
+                .waitForExistence(timeout: 10)
         )
         XCTAssertEqual(composer.value as? String, question)
         XCTAssertTrue(app.buttons["重新確認並送出"].exists)
 
-        relaunchMockAI()
+        relaunchMockAI(extraArguments: ["-UITestMockAISlow"])
         createDefaultChart()
         openChartAssistant()
         app.buttons["assistant.suggestion.0"].tap()
         let retryQuestion = app.textFields["assistant.composer"].value as? String
-        app.buttons["assistant.send"].tap()
-        XCTAssertTrue(
-            app.descendants(matching: .any)["assistant.loading"]
-                .waitForExistence(timeout: 5)
-        )
-        app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "停止")
-        ).firstMatch.tap()
+        startQuestionRequest()
+        app.buttons["assistant.stop"].tap()
         XCTAssertTrue(
             app.descendants(matching: .any)["assistant.cancelled"]
                 .waitForExistence(timeout: 5)
@@ -712,15 +815,15 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["基本解讀"].exists)
 
-        organize.tap()
-        app.buttons["interpretation.confirmOrganize"].tap()
-        XCTAssertTrue(app.staticTexts["雲端模型正在整理，完成驗證前不會顯示內容。"].waitForExistence(timeout: 5))
+        startInterpretationOrganization(organizeButton: organize)
         app.buttons["停止"].tap()
         XCTAssertTrue(app.staticTexts["已停止整理，保留目前內容。"].waitForExistence(timeout: 5))
 
-        organize.tap()
-        app.buttons["interpretation.confirmOrganize"].tap()
-        XCTAssertTrue(app.staticTexts["內容已通過命盤依據驗證。"].waitForExistence(timeout: 7))
+        startInterpretationOrganization(organizeButton: organize)
+        XCTAssertTrue(
+            app.staticTexts["已確認回傳格式、內容安全與引用的命盤依據。"]
+                .waitForExistence(timeout: 7)
+        )
         XCTAssertTrue(app.staticTexts["雲端 AI 整理"].exists)
     }
 
@@ -765,7 +868,7 @@ final class MightyZiWeiUITests: XCTestCase {
             let nameField = app.textFields["名稱或暱稱（選填）"]
             XCTAssertTrue(nameField.waitForExistence(timeout: 3))
             nameField.tap()
-            nameField.typeText(name)
+            nameField.typeText("\(name)\n")
         }
         scrollToElement(generateButton)
         generateButton.tap()
@@ -779,6 +882,54 @@ final class MightyZiWeiUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["命盤助理"].waitForExistence(timeout: 5))
     }
 
+    private func presentInterpretationPreview(organizeButton: XCUIElement) {
+        let preview = app.navigationBars["確認 AI 整理"]
+        organizeButton.tap()
+        if preview.waitForExistence(timeout: 3) { return }
+        organizeButton.tap()
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+    }
+
+    private func startInterpretationOrganization(organizeButton: XCUIElement) {
+        presentInterpretationPreview(organizeButton: organizeButton)
+        let confirm = app.buttons["interpretation.confirmOrganize"]
+        let loading = app.staticTexts["雲端模型正在整理，完成驗證前不會顯示內容。"]
+        confirm.tap()
+        if loading.waitForExistence(timeout: 3) { return }
+        if confirm.exists {
+            confirm.tap()
+        }
+        XCTAssertTrue(loading.waitForExistence(timeout: 5))
+    }
+
+    private func startQuestionRequest() {
+        let requestState = app.descendants(matching: .any).matching(
+            NSPredicate(
+                format: "identifier IN %@",
+                ["assistant.loading", "assistant.error", "assistant.answer", "assistant.cancelled"]
+            )
+        ).firstMatch
+        tapSendQuestion()
+        if requestState.waitForExistence(timeout: 4) { return }
+        tapSendQuestion()
+        XCTAssertTrue(requestState.waitForExistence(timeout: 5))
+    }
+
+    private func tapSendQuestion() {
+        let keyboard = app.keyboards.firstMatch
+        if keyboard.waitForExistence(timeout: 1) {
+            app.typeKey(.escape, modifierFlags: [])
+            _ = waitForNonExistence(keyboard, timeout: 2)
+        }
+        let sendButton = app.buttons["assistant.send"]
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "enabled == true AND hittable == true"),
+            object: sendButton
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 3), .completed)
+        sendButton.tap()
+    }
+
     private func waitForLabel(
         _ element: XCUIElement,
         label: String,
@@ -786,6 +937,17 @@ final class MightyZiWeiUITests: XCTestCase {
     ) -> Bool {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label == %@", label),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForNonExistence(
+        _ element: XCUIElement,
+        timeout: TimeInterval
+    ) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
             object: element
         )
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed

@@ -199,7 +199,7 @@ flowchart LR
 
 命盤助理必須清楚顯示目前使用的命盤，並允許使用者切換已儲存命盤。
 
-命盤解讀第一屏必須顯示目前是完整基本解讀或已通過依據驗證的 AI 整理版。
+命盤解讀第一屏必須顯示目前是完整基本解讀或已完成格式、安全與引用依據檢查的 AI 整理版。
 
 AI 整理只改寫既有解讀文字，不得改變命盤或加入 App 未提供的新命理含義。
 
@@ -795,6 +795,7 @@ SavedInsight
 
 `BirthProfile` 是 source of truth。
 `ZiWeiChart` 是 derived cache，不是不可變的歷史事實。
+SwiftData store 使用 App 本機容器；若舊版本的自動設定曾解析到 App Group，共享 store 必須先完整遷移，且不得以空白本機 store 取代既有資料。
 
 開啟已儲存命盤時，如果 rule set 或 schema version 不相容，App 必須重新計算命盤或執行明確 migration。
 不得在規則修正後靜默顯示舊的錯誤 cache。

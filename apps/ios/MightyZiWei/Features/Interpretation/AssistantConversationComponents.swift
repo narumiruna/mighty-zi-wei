@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AITransmissionPreviewView: View {
     let chart: ChartAssistantChart
@@ -86,14 +87,14 @@ struct ConversationTurnView: View {
         VStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("你的問題")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color(uiColor: .label))
                 Text(turn.question)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                .tint.opacity(0.12),
+                Color(uiColor: .secondarySystemBackground),
                 in: RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius)
             )
             .accessibilityElement(children: .combine)
@@ -113,9 +114,8 @@ struct ConversationTurnView: View {
             Label("命盤助理", systemImage: "sparkles")
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
-            Label("已通過命盤依據驗證", systemImage: "checkmark.seal")
+            Label("已確認引用命盤依據", systemImage: "checkmark.seal")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
                 .accessibilityIdentifier("assistant.answer.verified")
             Text(turn.answer)
                 .lineSpacing(5)
@@ -146,7 +146,6 @@ struct ConversationTurnView: View {
                         if let fact = factsByID[identifier] {
                             Label(fact.displayText, systemImage: "checkmark.seal")
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
                                 .accessibilityLabel("已驗證依據：\(fact.displayText)")
                         }
                     }
@@ -178,7 +177,6 @@ struct ConversationTurnView: View {
                 .lineSpacing(5)
             Text("可以改問個性、工作方式、財務傾向、感情或人際互動。")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()

@@ -126,7 +126,7 @@ struct InterpretationView: View {
                     .accessibilityIdentifier("interpretation.status")
             }
 
-            Text("基本解讀已包含完整內容。AI 只會把既有文字整理得更自然，不會改變命盤或加入新的命理含義。")
+            Text("基本解讀已包含完整內容。App 會要求 AI 只整理既有文字，並檢查回傳格式、內容安全與引用的命盤依據，但無法保證 AI 不會改變語意；你可以隨時對照基本解讀。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -182,7 +182,7 @@ struct InterpretationView: View {
                 guard generationID == identifier else { return }
                 voiceCoordinator.stopOutput()
                 interpretation = result
-                statusMessage = "內容已通過命盤依據驗證。"
+                statusMessage = "已確認回傳格式、內容安全與引用的命盤依據。"
             } catch is CancellationError {
                 guard generationID == identifier else { return }
                 statusMessage = "已停止整理，保留目前內容。"
