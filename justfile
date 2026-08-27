@@ -1,4 +1,5 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
+set working-directory := "apps/ios"
 
 xcode_dev_dir := env_var_or_default("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
 project := "MightyZiWei.xcodeproj"
