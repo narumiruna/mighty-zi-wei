@@ -414,6 +414,125 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         await fulfillment(of: [stopped], timeout: 2)
     }
 
+    func test舊版對話JSON可推導回答狀態且新格式可往返() throws {
+        let answeredID = UUID()
+        let legacyAnswered = """
+        {
+          "id": "\(answeredID.uuidString)",
+          "question": "我的工作方式如何？",
+          "answer": "你可能傾向先掌握方向。",
+          "evidenceFactIDs": ["\(fact.id)"],
+          "futureField": "應忽略"
+        }
+        """
+        let legacyUnsupported = """
+        {
+          "id": "\(UUID().uuidString)",
+          "question": "請預測確定事件",
+          "answer": "目前無法用命盤回答。",
+          "evidenceFactIDs": []
+        }
+        """
+
+        let decoder = JSONDecoder()
+        let answered = try decoder.decode(
+            ChartConversationTurn.self,
+            from: Data(legacyAnswered.utf8)
+        )
+        let unsupported = try decoder.decode(
+            ChartConversationTurn.self,
+            from: Data(legacyUnsupported.utf8)
+        )
+
+        XCTAssertEqual(answered.id, answeredID)
+        XCTAssertEqual(answered.status, .answered)
+        XCTAssertEqual(unsupported.status, .unsupported)
+
+        let encoded = try JSONEncoder().encode(unsupported)
+        let roundTrip = try decoder.decode(ChartConversationTurn.self, from: encoded)
+        XCTAssertEqual(roundTrip, unsupported)
+        XCTAssertTrue(String(decoding: encoded, as: UTF8.self).contains("status"))
+    }
+
+    func test缺少必要欄位的舊版對話JSON不會產生不完整回答() {
+        let malformed = """
+        {
+          "id": "\(UUID().uuidString)",
+          "answer": "缺少問題的回答。",
+          "evidenceFactIDs": ["\(fact.id)"]
+        }
+        """
+
+        XCTAssertThrowsError(
+            try JSONDecoder().decode(
+                ChartConversationTurn.self,
+                from: Data(malformed.utf8)
+            )
+        )
+    }
+
+    func test草稿也屬於未保存工作且切換命盤前需要確認() {
+        let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
+        let store = ChartAssistantStore(answerer: SlowConversationAnswerer(), defaults: defaults)
+        let first = makeAssistantChart()
+        let second = makeAssistantChart()
+        store.select(first)
+
+        store.draft = "   "
+        XCTAssertFalse(store.hasUnsavedWork)
+        XCTAssertFalse(store.requiresConfirmation(toSelect: second))
+
+        store.draft = "保留這個草稿"
+        XCTAssertTrue(store.hasUnsavedWork)
+        XCTAssertTrue(store.requiresConfirmation(toSelect: second))
+        XCTAssertEqual(store.selectedChart?.id, first.id)
+        XCTAssertEqual(store.draft, "保留這個草稿")
+    }
+
+    func test對話保存狀態會追蹤同一副本與尚未保存輪數() async throws {
+        let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
+        let answerer = SequenceConversationAnswerer(results: [
+            .success(ChartConversationAnswer(
+                status: .answered,
+                content: "第一個回答。",
+                evidenceFactIDs: [fact.id]
+            )),
+            .success(ChartConversationAnswer(
+                status: .answered,
+                content: "第二個回答。",
+                evidenceFactIDs: [fact.id]
+            ))
+        ])
+        let store = ChartAssistantStore(answerer: answerer, defaults: defaults)
+        store.select(makeAssistantChart())
+        store.draft = "第一題"
+        store.send(configuration: try makeConfiguration(apiKey: nil))
+        await waitForRequestToFinish(store)
+
+        XCTAssertNil(store.savedConversationID)
+        XCTAssertEqual(store.unsavedTurnCount, 1)
+        XCTAssertTrue(store.hasUnsavedChanges)
+
+        let savedID = UUID()
+        store.markConversationSaved(id: savedID)
+        XCTAssertEqual(store.savedConversationID, savedID)
+        XCTAssertEqual(store.savedTurnCount, 1)
+        XCTAssertEqual(store.unsavedTurnCount, 0)
+        XCTAssertFalse(store.hasUnsavedChanges)
+
+        store.draft = "第二題"
+        store.send(configuration: try makeConfiguration(apiKey: nil))
+        await waitForRequestToFinish(store)
+        XCTAssertEqual(store.savedConversationID, savedID)
+        XCTAssertEqual(store.unsavedTurnCount, 1)
+        XCTAssertTrue(store.hasUnsavedChanges)
+
+        store.clearConversation()
+        XCTAssertNil(store.savedConversationID)
+        XCTAssertEqual(store.savedTurnCount, 0)
+        XCTAssertEqual(store.unsavedTurnCount, 0)
+    }
+
     func test對話狀態成功後原子加入回答並清除草稿() async throws {
         let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
         let answerer = SequenceConversationAnswerer(results: [
@@ -434,6 +553,7 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
 
         XCTAssertEqual(store.turns.count, 1)
         XCTAssertEqual(store.turns.first?.question, "我的工作性格如何？")
+        XCTAssertEqual(store.turns.first?.status, .answered)
         XCTAssertEqual(store.draft, "")
         XCTAssertEqual(store.requestState, .idle)
     }
@@ -477,6 +597,42 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         XCTAssertEqual(slowStore.draft, "保留這個問題")
         XCTAssertEqual(slowStore.requestState, .cancelled)
         XCTAssertTrue(slowStore.turns.isEmpty)
+    }
+
+    func test所有問答API錯誤都有可恢復的安全訊息() async throws {
+        let cases: [(OpenAIResponsesInterpreter.InterpreterError, String)] = [
+            (.invalidRequest, "無法建立"),
+            (.connectionFailed, "無法連上"),
+            (.timedOut, "逾時"),
+            (.unauthorized, "授權"),
+            (.rateLimited, "速率"),
+            (.httpError(404), "endpoint"),
+            (.httpError(500), "無法完成"),
+            (.refusal, "拒絕"),
+            (.emptyResponse, "沒有產生"),
+            (.invalidResponse, "格式不相容"),
+            (.responseTooLarge, "超過"),
+            (.invalidGeneratedContent, "格式不相容")
+        ]
+
+        for (error, expectedText) in cases {
+            let defaults = UserDefaults(suiteName: "ChartAssistantErrorTests.\(UUID().uuidString)")!
+            let store = ChartAssistantStore(
+                answerer: SequenceConversationAnswerer(results: [.failure(error)]),
+                defaults: defaults
+            )
+            store.select(makeAssistantChart())
+            store.draft = "保留問題"
+            store.send(configuration: try makeConfiguration(apiKey: nil))
+            await waitForRequestToFinish(store)
+
+            guard case .failed(let message) = store.requestState else {
+                return XCTFail("\(error) 應轉成失敗狀態")
+            }
+            XCTAssertTrue(message.contains(expectedText), "\(error) 的訊息不具體：\(message)")
+            XCTAssertEqual(store.draft, "保留問題")
+            XCTAssertTrue(store.turns.isEmpty)
+        }
     }
 
     func test本次對話最多十輪且不會靜默丟棄舊內容() async throws {

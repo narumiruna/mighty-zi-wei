@@ -273,6 +273,190 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertTrue(exported.contains("natal.palace.life.branch"))
     }
 
+    func test舊版已保存對話可由既有SwiftDataStore讀取與搜尋() throws {
+        let id = UUID()
+        let legacyTurns = """
+        [{
+          "id": "\(id.uuidString)",
+          "question": "舊版問題",
+          "answer": "舊版回答",
+          "evidenceFactIDs": ["natal.palace.life.branch"]
+        }]
+        """
+        let conversation = SavedConversation(
+            chartID: UUID(),
+            chartName: "舊版命盤",
+            chartDetail: "1990/06/15　10:30",
+            modelIdentifier: "legacy-model",
+            title: "舊版對話",
+            turns: []
+        )
+        conversation.turnsData = Data(legacyTurns.utf8)
+        let container = try ModelContainer(
+            for: SavedConversation.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        context.insert(conversation)
+        try context.save()
+
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<SavedConversation>()).first)
+        XCTAssertEqual(restored.turns.count, 1)
+        XCTAssertEqual(restored.turns.first?.status, .answered)
+        XCTAssertTrue(restored.matchesSearch("舊版問題"))
+        XCTAssertTrue(restored.exportText().contains("舊版回答"))
+    }
+
+    func test保存同一AI對話會更新既有副本且刪除後會建立新副本() throws {
+        let chart = ChartAssistantChart(
+            id: UUID(),
+            savedChartID: UUID(),
+            name: "常用命盤",
+            detail: "1990/06/15　10:30",
+            facts: [],
+            seeds: []
+        )
+        let firstTurn = ChartConversationTurn(
+            question: "第一題",
+            answer: "第一個回答。",
+            evidenceFactIDs: ["natal.palace.life.branch"]
+        )
+        let secondTurn = ChartConversationTurn(
+            question: "第二題",
+            answer: "第二個回答。",
+            evidenceFactIDs: ["natal.palace.life.branch"]
+        )
+        let container = try ModelContainer(
+            for: SavedConversation.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        let persistence = AssistantConversationPersistence()
+
+        let first = try persistence.save(
+            chart: chart,
+            turns: [firstTurn],
+            modelIdentifier: "model-a",
+            title: "第一題",
+            existingID: nil,
+            modelContext: context
+        )
+        let updated = try persistence.save(
+            chart: chart,
+            turns: [firstTurn, secondTurn],
+            modelIdentifier: "model-b",
+            title: "不應覆寫既有標題",
+            existingID: first.id,
+            modelContext: context
+        )
+
+        XCTAssertEqual(updated.id, first.id)
+        XCTAssertEqual(updated.title, "第一題")
+        XCTAssertEqual(updated.modelIdentifier, "model-b")
+        XCTAssertEqual(updated.turns.count, 2)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SavedConversation>()), 1)
+
+        context.delete(updated)
+        try context.save()
+        let replacement = try persistence.save(
+            chart: chart,
+            turns: [firstTurn, secondTurn],
+            modelIdentifier: "model-b",
+            title: "重新保存",
+            existingID: first.id,
+            modelContext: context
+        )
+        XCTAssertNotEqual(replacement.id, first.id)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<SavedConversation>()), 1)
+    }
+
+    func test保存失敗時不會執行待處理切換() {
+        enum ExpectedError: Error { case saveFailed }
+        var didApply = false
+
+        XCTAssertThrowsError(try AssistantAtomicTransition().perform(
+            save: { throw ExpectedError.saveFailed },
+            apply: { didApply = true }
+        ))
+        XCTAssertFalse(didApply)
+    }
+
+    func test切換風險會區分草稿已保存與未保存對話() {
+        let policy = AssistantTransitionPolicy()
+
+        XCTAssertEqual(
+            policy.risk(hasDraft: false, isRequesting: false, turnCount: 0, hasUnsavedChanges: false),
+            .none
+        )
+        XCTAssertEqual(
+            policy.risk(hasDraft: true, isRequesting: false, turnCount: 0, hasUnsavedChanges: false),
+            .draft
+        )
+        XCTAssertEqual(
+            policy.risk(hasDraft: false, isRequesting: false, turnCount: 1, hasUnsavedChanges: false),
+            .savedConversation
+        )
+        XCTAssertEqual(
+            policy.risk(hasDraft: true, isRequesting: false, turnCount: 1, hasUnsavedChanges: false),
+            .draft
+        )
+        XCTAssertEqual(
+            policy.risk(hasDraft: false, isRequesting: false, turnCount: 1, hasUnsavedChanges: true),
+            .unsavedConversation
+        )
+        XCTAssertEqual(
+            policy.risk(hasDraft: false, isRequesting: true, turnCount: 0, hasUnsavedChanges: false),
+            .unsavedConversation
+        )
+    }
+
+    func test命盤助理輸入狀態會說明所有停用原因與字數邊界() {
+        let policy = AssistantComposerPolicy()
+
+        XCTAssertEqual(
+            policy.blockReason(draft: "   ", isRequesting: false, hasReachedRoundLimit: false, isVoiceActive: false),
+            .empty
+        )
+        XCTAssertNil(
+            policy.blockReason(
+                draft: String(repeating: "問", count: 500),
+                isRequesting: false,
+                hasReachedRoundLimit: false,
+                isVoiceActive: false
+            )
+        )
+        XCTAssertEqual(
+            policy.blockReason(
+                draft: String(repeating: "問", count: 501),
+                isRequesting: false,
+                hasReachedRoundLimit: false,
+                isVoiceActive: false
+            ),
+            .tooLong
+        )
+        XCTAssertEqual(
+            policy.blockReason(draft: "問題", isRequesting: true, hasReachedRoundLimit: false, isVoiceActive: false),
+            .requesting
+        )
+        XCTAssertEqual(
+            policy.blockReason(draft: "問題", isRequesting: false, hasReachedRoundLimit: true, isVoiceActive: false),
+            .roundLimit
+        )
+        XCTAssertEqual(
+            policy.blockReason(draft: "問題", isRequesting: false, hasReachedRoundLimit: false, isVoiceActive: true),
+            .voiceActive
+        )
+        XCTAssertTrue(AssistantComposerBlockReason.tooLong.message.contains("500"))
+    }
+
+    func test回答後續建議依狀態產生且不需要模型() {
+        let builder = AssistantFollowUpSuggestionBuilder()
+
+        XCTAssertEqual(builder.make(for: .answered).count, 2)
+        XCTAssertEqual(builder.make(for: .unsupported).count, 2)
+        XCTAssertTrue(builder.make(for: .unsupported).allSatisfy { $0.contains("個性") || $0.contains("工作") })
+    }
+
     func testAPI用量上限與安全診斷不含敏感內容() throws {
         let suite = "AIUsageStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -494,6 +678,40 @@ final class PracticalFeaturesTests: XCTestCase {
             defaults.array(forKey: ReviewReminderScheduler.reminderDatesKey) as? [Double],
             []
         )
+    }
+
+    func test命盤助理深層連結維持既有導覽相容() throws {
+        let policy = AppURLNavigationPolicy()
+
+        XCTAssertEqual(
+            policy.tab(for: try XCTUnwrap(URL(string: "mightyziwei://ai"))),
+            .ai
+        )
+        XCTAssertEqual(
+            policy.tab(for: try XCTUnwrap(URL(string: "mightyziwei://saved"))),
+            .saved
+        )
+        XCTAssertEqual(
+            policy.tab(for: try XCTUnwrap(URL(string: "mightyziwei://unknown"))),
+            .home
+        )
+        XCTAssertNil(policy.tab(for: try XCTUnwrap(URL(string: "https://example.com/ai"))))
+    }
+
+    func test命盤助理AppIntent只建立五百字內草稿() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: ShortcutBridge.suite))
+        defer {
+            defaults.removeObject(forKey: ShortcutBridge.pendingActionKey)
+            defaults.removeObject(forKey: ShortcutBridge.pendingDraftKey)
+        }
+        let question = String(repeating: "命", count: 550)
+        let intent = PrepareChartQuestionIntent()
+        intent.question = question
+
+        _ = try await intent.perform()
+
+        XCTAssertEqual(defaults.string(forKey: ShortcutBridge.pendingActionKey), "ai-draft")
+        XCTAssertEqual(defaults.string(forKey: ShortcutBridge.pendingDraftKey)?.count, 500)
     }
 
     func test重建後會清除已刪除命盤的釘選捷徑() throws {

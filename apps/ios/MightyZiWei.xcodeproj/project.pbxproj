@@ -74,6 +74,7 @@
 		BA6AAAA51FFFB71856E1A23C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED3EF7B33865609E6022E471 /* Assets.xcassets */; };
 		BAB9B1BAC6436967C026FA9C /* InterpretationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */; };
 		BBFC7F29C250D32C01527485 /* Celestial.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */; };
+		BDD774F1DC67EE5B78E6DE85 /* AssistantConversationComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD98F245A37EAD4EB55E3F7 /* AssistantConversationComponents.swift */; };
 		C4ADD957C4D02683CF71C968 /* RuleBasedInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E127D15AFEDE522FA72941 /* RuleBasedInterpreter.swift */; };
 		C5025C73AFA6918B7CF6D948 /* ChartSharingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6484A79DA0CD399368BBE6 /* ChartSharingTests.swift */; };
 		C52F8275E81188A8ECC57FB5 /* InterpretationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED571056EA26DE2392D57DF /* InterpretationModels.swift */; };
@@ -91,6 +92,7 @@
 		DCCE70B326B2D52E262598E5 /* AppLockStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED7B96BB6CAE69D1BBA7DFD /* AppLockStore.swift */; };
 		DDDE9FFEE1E0AA1B65ADE220 /* ReviewReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCADCB857D91BB96766B781B /* ReviewReminderScheduler.swift */; };
 		E40C3D0F7D9F72BE3EC5614C /* SavedChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */; };
+		EA17099092CB3DE0009CA707 /* AssistantConversationWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AE3E81B69CE978A2A69BE69 /* AssistantConversationWorkflow.swift */; };
 		EAC13B032EF813E1FDE19405 /* UITestVoiceControllers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA807418C099CED157D4DD8 /* UITestVoiceControllers.swift */; };
 		F24AD4E66BC2CEFECD9C44DD /* OpenAIResponsesInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */; };
 		F3F83E81941E68E065CFFB63 /* AIConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE9EC7A6106AD1114964AEE /* AIConfigurationView.swift */; };
@@ -158,6 +160,7 @@
 		227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartInteractionReferenceBuilderTests.swift; sourceTree = "<group>"; };
 		25E937CF6CA18F75DAD2867D /* MightyZiWeiPrivacyWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MightyZiWeiPrivacyWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		297DA83F12C695DCD7F1E554 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		2AE3E81B69CE978A2A69BE69 /* AssistantConversationWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantConversationWorkflow.swift; sourceTree = "<group>"; };
 		2C6C61E578A073E5D22EC017 /* OpenAIResponsesInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIResponsesInterpreterTests.swift; sourceTree = "<group>"; };
 		2D227946A31E4946C3AB4358 /* chart_013_hour_you.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_013_hour_you.json; sourceTree = "<group>"; };
 		2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedChart.swift; sourceTree = "<group>"; };
@@ -171,6 +174,7 @@
 		4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContent.swift; sourceTree = "<group>"; };
 		46B2E15CD73C439D1234F95B /* MightyZiWeiIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiIntents.swift; sourceTree = "<group>"; };
 		47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationView.swift; sourceTree = "<group>"; };
+		4AD98F245A37EAD4EB55E3F7 /* AssistantConversationComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantConversationComponents.swift; sourceTree = "<group>"; };
 		4B5D067749E2CC4D558A5C1F /* PrivacyWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyWidget.swift; sourceTree = "<group>"; };
 		4B6A47B453849E7528D25DC7 /* chart_009_hour_mao.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_009_hour_mao.json; sourceTree = "<group>"; };
 		512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_003_lunar_new_year.json; sourceTree = "<group>"; };
@@ -331,6 +335,8 @@
 		43A424EDF0319B408EDD18F6 /* Interpretation */ = {
 			isa = PBXGroup;
 			children = (
+				4AD98F245A37EAD4EB55E3F7 /* AssistantConversationComponents.swift */,
+				2AE3E81B69CE978A2A69BE69 /* AssistantConversationWorkflow.swift */,
 				C08C471A48CC7C3E78AC21F9 /* ChartAssistantView.swift */,
 				47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */,
 				8B4AA025E631D823E7413A15 /* SavedConversationsView.swift */,
@@ -780,6 +786,8 @@
 				DCCE70B326B2D52E262598E5 /* AppLockStore.swift in Sources */,
 				0B33B52236D70B500B35C29E /* AppleVoiceInputController.swift in Sources */,
 				CD57EA7976BC8FF7240B76D5 /* AppleVoiceOutputController.swift in Sources */,
+				BDD774F1DC67EE5B78E6DE85 /* AssistantConversationComponents.swift in Sources */,
+				EA17099092CB3DE0009CA707 /* AssistantConversationWorkflow.swift in Sources */,
 				4D242F2CCC9CA04C6542ED53 /* BackupManagementView.swift in Sources */,
 				F5AD6B59616539FFB4F4E59E /* BackupPayload.swift in Sources */,
 				4B118F7E9AEC01848ABB8B30 /* BackupRestoreService.swift in Sources */,

@@ -25,7 +25,7 @@ enum PinnedChartShortcut {
     }
 }
 
-private enum ShortcutBridge {
+enum ShortcutBridge {
     static let suite = ReviewReminderScheduler.sharedDefaultsSuite
     static let pendingActionKey = "shortcuts.pending-action"
     static let pendingDraftKey = "shortcuts.pending-ai-draft"
@@ -62,7 +62,7 @@ struct AddPinnedChartNoteIntent: AppIntent {
 }
 
 struct PrepareChartQuestionIntent: AppIntent {
-    static let title: LocalizedStringResource = "準備命盤 AI 問題"
+    static let title: LocalizedStringResource = "準備命盤助理問題"
     static let description = IntentDescription("把問題放入可編輯草稿；不會自動送出或產生 API 費用。")
     static let openAppWhenRun = true
 

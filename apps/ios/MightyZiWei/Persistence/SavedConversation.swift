@@ -61,7 +61,7 @@ final class SavedConversation {
 
     func exportText() -> String {
         var lines = [
-            "很牛的紫微斗數｜本機命盤 AI 對話",
+            "很牛的紫微斗數｜本機命盤助理對話",
             "標題：\(title)",
             "命盤：\(chartName)（\(chartDetail)）",
             "模型：\(modelIdentifier)",
@@ -77,6 +77,7 @@ final class SavedConversation {
                 "",
                 "第 \(index + 1) 輪｜回答",
                 turn.answer,
+                "狀態：\(turn.status == .answered ? "已回答" : "無法用命盤回答")",
                 "依據：\(turn.evidenceFactIDs.isEmpty ? "無" : turn.evidenceFactIDs.joined(separator: "、"))"
             ])
         }
@@ -89,7 +90,7 @@ final class SavedConversation {
     ) -> String {
         let trimmed = proposedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { return String(trimmed.prefix(80)) }
-        guard let first = turns.first else { return "命盤 AI 對話" }
+        guard let first = turns.first else { return "命盤助理對話" }
         return String(first.question.prefix(30))
     }
 

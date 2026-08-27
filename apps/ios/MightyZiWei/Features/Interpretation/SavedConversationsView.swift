@@ -21,7 +21,7 @@ struct SavedConversationsView: View {
                 ContentUnavailableView(
                     "尚未保存對話",
                     systemImage: "bubble.left.and.bubble.right",
-                    description: Text("在命盤 AI 完成問答後，從對話選單主動保存。")
+                    description: Text("在命盤助理完成問答後，從保存狀態卡主動保存。")
                 )
             } else if filtered.isEmpty {
                 ContentUnavailableView.search(text: searchText)
@@ -63,7 +63,7 @@ struct SavedConversationsView: View {
                 }
             }
         }
-        .navigationTitle("已保存 AI 對話")
+        .navigationTitle("已保存對話")
         .searchable(text: $searchText, prompt: "搜尋標題、命盤、模型或內容")
         .alert("重新命名對話", isPresented: renameIsPresented) {
             TextField("對話標題", text: $proposedTitle)
@@ -151,7 +151,11 @@ private struct SavedConversationDetailView: View {
                             .foregroundStyle(.secondary)
                         Text(turn.answer)
                             .textSelection(.enabled)
-                        if !turn.evidenceFactIDs.isEmpty {
+                        if turn.status == .unsupported {
+                            Label("當時無法用命盤回答", systemImage: "questionmark.bubble")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if !turn.evidenceFactIDs.isEmpty {
                             Label(
                                 "保留 \(turn.evidenceFactIDs.count) 項命盤依據",
                                 systemImage: "checkmark.seal"

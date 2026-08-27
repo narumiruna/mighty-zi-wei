@@ -124,7 +124,7 @@ struct ChartView: View {
                         chartID: effectiveSavedChartID
                     )
                 } label: {
-                    Label("查看命盤解讀", systemImage: "text.book.closed")
+                    Label("閱讀命盤解讀", systemImage: "text.book.closed")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
@@ -134,7 +134,7 @@ struct ChartView: View {
                 Button {
                     openAssistant()
                 } label: {
-                    Label("用 AI 詢問這張命盤", systemImage: "sparkles")
+                    Label("問命盤助理", systemImage: "sparkles")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
@@ -197,17 +197,20 @@ struct ChartView: View {
             Text("「\(duplicateChart?.name ?? "既有命盤")」使用相同出生日期、時間與時區。你可以取消以避免重複，或仍然保留不同名稱與標籤的版本。")
         }
         .confirmationDialog(
-            "切換命盤並清除本次 AI 對話？",
+            "切換命盤並開始新對話？",
             isPresented: $showsAssistantSwitchConfirmation,
             titleVisibility: .visible
         ) {
-            Button("切換並前往 AI", role: .destructive) {
+            Button("返回目前對話") {
+                navigation.selectedTab = .ai
+            }
+            Button(assistantDiscardActionTitle, role: .destructive) {
                 assistantStore.select(assistantChart)
                 navigation.selectedTab = .ai
             }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("目前 AI 對話使用另一張命盤。不同命盤的對話依據不能混用。")
+            Text(assistantSwitchMessage)
         }
     }
 
@@ -245,6 +248,23 @@ struct ChartView: View {
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+
+    private var assistantDiscardActionTitle: String {
+        let hasUnpreservedWork = !assistantStore.trimmedDraft.isEmpty
+            || assistantStore.hasUnsavedChanges
+            || assistantStore.isRequesting
+        return hasUnpreservedWork ? "不保存，切換並前往" : "切換並前往"
+    }
+
+    private var assistantSwitchMessage: String {
+        if !assistantStore.trimmedDraft.isEmpty, assistantStore.turns.isEmpty {
+            return "目前問題草稿屬於另一張命盤。直接切換會捨棄草稿，也不會自動送出。"
+        }
+        if assistantStore.hasUnsavedChanges || assistantStore.isRequesting {
+            return "目前對話使用另一張命盤，尚未保存的內容會無法復原。你可以先返回目前對話保存。"
+        }
+        return "不同命盤的對話依據不能混用。切換後會清除畫面上的目前對話。"
     }
 
     private func openAssistant() {

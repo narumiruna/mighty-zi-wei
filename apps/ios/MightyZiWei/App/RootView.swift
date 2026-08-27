@@ -4,6 +4,17 @@ import Observation
 import SwiftData
 import SwiftUI
 
+struct AppURLNavigationPolicy: Sendable {
+    func tab(for url: URL) -> AppNavigationState.Tab? {
+        guard url.scheme == "mightyziwei" else { return nil }
+        switch url.host {
+        case "saved": return .saved
+        case "ai": return .ai
+        default: return .home
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class AppNavigationState {
@@ -37,8 +48,8 @@ extension OpenAIResponsesInterpreter: ChartConversationAnswering {}
 @MainActor
 @Observable
 final class ChartAssistantStore {
-    static let maximumRounds = 10
-    static let maximumQuestionLength = 500
+    nonisolated static let maximumRounds = 10
+    nonisolated static let maximumQuestionLength = 500
 
     enum RequestState: Equatable {
         case idle
@@ -61,6 +72,8 @@ final class ChartAssistantStore {
     private(set) var turns: [ChartConversationTurn] = []
     private(set) var requestState: RequestState = .idle
     private(set) var lastDiagnosticCode: String?
+    private(set) var savedConversationID: UUID?
+    private(set) var savedTurnCount = 0
     var draft = ""
 
     init(
@@ -84,6 +97,18 @@ final class ChartAssistantStore {
         !turns.isEmpty || isRequesting
     }
 
+    var hasUnsavedWork: Bool {
+        !trimmedDraft.isEmpty || hasConversation
+    }
+
+    var unsavedTurnCount: Int {
+        max(0, turns.count - savedTurnCount)
+    }
+
+    var hasUnsavedChanges: Bool {
+        !turns.isEmpty && (savedConversationID == nil || unsavedTurnCount > 0)
+    }
+
     var hasReachedRoundLimit: Bool {
         turns.count >= Self.maximumRounds
     }
@@ -99,13 +124,13 @@ final class ChartAssistantStore {
         }
         if selectedChart.id == chart.id {
             self.selectedChart = chart
-        } else if !hasConversation {
+        } else if !hasUnsavedWork {
             applySelection(chart, clearsConversation: false)
         }
     }
 
     func requiresConfirmation(toSelect chart: ChartAssistantChart) -> Bool {
-        selectedChart?.id != chart.id && hasConversation
+        selectedChart?.id != chart.id && hasUnsavedWork
     }
 
     func select(_ chart: ChartAssistantChart) {
@@ -145,16 +170,18 @@ final class ChartAssistantStore {
         cancelRequest()
         unsavedSelectionFallback = nil
         selectedChart = nil
-        turns = []
-        draft = ""
-        requestState = .idle
+        resetConversation()
     }
 
     func clearConversation() {
         cancelRequest()
-        turns = []
-        draft = ""
-        requestState = .idle
+        resetConversation()
+    }
+
+    func markConversationSaved(id: UUID) {
+        guard !turns.isEmpty else { return }
+        savedConversationID = id
+        savedTurnCount = turns.count
     }
 
     func send(configuration: OpenAIResponsesConfiguration) {
@@ -185,7 +212,8 @@ final class ChartAssistantStore {
                 turns.append(ChartConversationTurn(
                     question: question,
                     answer: answer.content,
-                    evidenceFactIDs: answer.evidenceFactIDs
+                    evidenceFactIDs: answer.evidenceFactIDs,
+                    status: answer.status
                 ))
                 draft = ""
                 finishRequest(state: .idle)
@@ -216,9 +244,7 @@ final class ChartAssistantStore {
         if clearsConversation {
             cancelRequest()
             unsavedSelectionFallback = nil
-            turns = []
-            draft = ""
-            requestState = .idle
+            resetConversation()
         } else if selectedChart?.id != chart.id {
             unsavedSelectionFallback = nil
         }
@@ -226,6 +252,15 @@ final class ChartAssistantStore {
         if let savedChartID = chart.savedChartID {
             defaults.set(savedChartID.uuidString, forKey: DefaultsKey.lastSelectedChartID)
         }
+    }
+
+    private func resetConversation() {
+        turns = []
+        draft = ""
+        requestState = .idle
+        lastDiagnosticCode = nil
+        savedConversationID = nil
+        savedTurnCount = 0
     }
 
     private func finishRequest(state: RequestState) {
@@ -261,6 +296,8 @@ final class ChartAssistantStore {
 }
 
 private struct UITestChartConversationAnswerer: ChartConversationAnswering {
+    let arguments: [String]
+
     func answer(
         question: String,
         history: [ChartConversationTurn],
@@ -269,6 +306,16 @@ private struct UITestChartConversationAnswerer: ChartConversationAnswering {
         configuration: OpenAIResponsesConfiguration
     ) async throws -> ChartConversationAnswer {
         try await Task.sleep(for: .seconds(3))
+        if arguments.contains("-UITestMockAIFailure") {
+            throw OpenAIResponsesInterpreter.InterpreterError.timedOut
+        }
+        if arguments.contains("-UITestMockAIUnsupported") {
+            return ChartConversationAnswer(
+                status: .unsupported,
+                content: "目前命盤資料不足以直接回答。",
+                evidenceFactIDs: []
+            )
+        }
         return ChartConversationAnswer(
             status: .answered,
             content: "從目前命盤依據來看，你可能傾向先掌握整體方向，再逐步處理細節。",
@@ -292,9 +339,10 @@ struct RootView: View {
     @State private var assistantStore: ChartAssistantStore
 
     init() {
-        let isUITestingAI = ProcessInfo.processInfo.arguments.contains("-UITestMockAI")
+        let arguments = ProcessInfo.processInfo.arguments
+        let isUITestingAI = arguments.contains("-UITestMockAI")
         let answerer: any ChartConversationAnswering = isUITestingAI
-            ? UITestChartConversationAnswerer()
+            ? UITestChartConversationAnswerer(arguments: arguments)
             : OpenAIResponsesInterpreter()
         _assistantStore = State(initialValue: ChartAssistantStore(answerer: answerer))
     }
@@ -311,12 +359,17 @@ struct RootView: View {
                 SavedChartsView()
             }
 
-            Tab("AI", systemImage: "sparkles", value: .ai) {
+            Tab("問命盤", systemImage: "sparkles", value: .ai) {
                 ChartAssistantView()
             }
         }
         .environment(navigation)
         .environment(assistantStore)
+        .preferredColorScheme(
+            ProcessInfo.processInfo.arguments.contains("-UITestForceDarkMode")
+                ? .dark
+                : nil
+        )
         .task {
             updatePrivacyShieldWindow()
             handlePendingShortcut()
@@ -394,12 +447,8 @@ struct RootView: View {
     }
 
     private func handle(url: URL) {
-        guard url.scheme == "mightyziwei" else { return }
-        switch url.host {
-        case "saved": navigation.selectedTab = .saved
-        case "ai": navigation.selectedTab = .ai
-        default: navigation.selectedTab = .home
-        }
+        guard let tab = AppURLNavigationPolicy().tab(for: url) else { return }
+        navigation.selectedTab = tab
     }
 
     private func handlePendingShortcut() {

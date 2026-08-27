@@ -117,9 +117,9 @@ final class ChartLearningContentTests: XCTestCase {
             )]
         )
         XCTAssertEqual(supported.count, 3)
-        XCTAssertTrue(supported[0].contains("已驗證"))
-        XCTAssertTrue(supported[1].contains("只根據 App 已有解讀"))
-        XCTAssertTrue(supported[2].contains("區分盤面事實與解讀"))
+        XCTAssertTrue(supported[0].contains("自我觀察"))
+        XCTAssertTrue(supported[1].contains("值得留意"))
+        XCTAssertTrue(supported[2].contains("已驗證的命盤依據"))
 
         let mismatchedCategory = PalaceQuestionSuggestionBuilder().make(
             palaceKind: .life,
@@ -132,7 +132,7 @@ final class ChartLearningContentTests: XCTestCase {
                 evidenceFactIDs: [fact.id]
             )]
         )
-        XCTAssertTrue(mismatchedCategory[1].contains("只能確認位置"))
+        XCTAssertTrue(mismatchedCategory[0].contains("目前可以從命盤了解什麼"))
 
         let healthFact = makeStarFact(star: .ziWei, palace: .health)
         let unsupportedPalace = PalaceQuestionSuggestionBuilder().make(
@@ -146,7 +146,7 @@ final class ChartLearningContentTests: XCTestCase {
                 evidenceFactIDs: [healthFact.id]
             )]
         )
-        XCTAssertTrue(unsupportedPalace[1].contains("只能確認位置"))
+        XCTAssertTrue(unsupportedPalace[0].contains("目前可以從命盤了解什麼"))
         XCTAssertFalse(unsupportedPalace.joined().contains("預測"))
     }
 
