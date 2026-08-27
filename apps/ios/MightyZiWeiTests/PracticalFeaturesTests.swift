@@ -27,6 +27,52 @@ final class PracticalFeaturesTests: XCTestCase {
         }
     }
 
+    func test重建後重新載入失敗會回報錯誤() {
+        let result: Result<Int, any Error> = .failure(ModelContainerTestError.cannotLoad)
+
+        XCTAssertThrowsError(try PersistenceResetReloadValidator().validate(result)) { error in
+            XCTAssertEqual(error as? PersistenceResetError, .reloadFailed)
+        }
+    }
+
+    func test復原畫面不會顯示系統原始錯誤文字() {
+        let frameworkError = CocoaError(.fileReadCorruptFile)
+        let message = PersistenceRecoveryMessage.resetFailure(for: frameworkError)
+
+        XCTAssertEqual(PersistenceRecoveryMessage.unavailable, "系統目前無法讀取這台裝置的本機資料。")
+        XCTAssertEqual(message, "目前無法重建本機資料。請確認裝置有足夠儲存空間後再試。")
+        XCTAssertFalse(message.contains(frameworkError.localizedDescription))
+        XCTAssertEqual(
+            PersistenceRecoveryMessage.resetFailure(for: PersistenceResetError.reloadFailed),
+            "本機資料已清除，但仍無法建立新的資料庫。請確認裝置有足夠儲存空間後再試。"
+        )
+    }
+
+    func test本機資料重建只刪除SwiftData預設資料檔() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "AppModelStoreResetterTests.\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let storeFiles = ["default.store", "default.store-shm", "default.store-wal"]
+        for file in storeFiles {
+            try Data("test".utf8).write(to: directory.appending(path: file))
+        }
+        let preservedFiles = ["default.store-backup", "user-export.json"]
+        for file in preservedFiles {
+            try Data("keep".utf8).write(to: directory.appending(path: file))
+        }
+
+        try AppModelStoreResetter(storeDirectory: directory).resetDefaultStoreFiles()
+
+        for file in storeFiles {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appending(path: file).path))
+        }
+        for file in preservedFiles {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appending(path: file).path))
+        }
+    }
+
     func test隱私遮罩在背景或鎖定時都必須顯示() {
         let policy = AppPrivacyShieldPolicy()
 
@@ -47,6 +93,29 @@ final class PracticalFeaturesTests: XCTestCase {
         store.handleScenePhase(.background)
         XCTAssertTrue(store.showsPrivacyShield)
         XCTAssertTrue(store.isLocked)
+    }
+
+    func testApp鎖啟用時重建驗證不會解除鎖定() async throws {
+        let suite = "AppLockResetTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: "privacy.app-lock.enabled")
+        let store = AppLockStore(defaults: defaults)
+        var authenticationCount = 0
+
+        let denied = await store.authorizeDataReset(using: {
+            authenticationCount += 1
+            return false
+        })
+        let authorized = await store.authorizeDataReset(using: {
+            authenticationCount += 1
+            return true
+        })
+
+        XCTAssertFalse(denied)
+        XCTAssertTrue(authorized)
+        XCTAssertTrue(store.isLocked)
+        XCTAssertEqual(authenticationCount, 2)
     }
 
     func test命盤標籤釘選與姓名標籤建立日期搜尋() throws {
@@ -220,6 +289,20 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertNotEqual(first, second)
     }
 
+    func test重建會辨識待發送與已發送的App回顧提醒() {
+        let pendingIdentifiers = ReviewReminderScheduler.reviewReminderIdentifiers(in: [
+            "review.pending",
+            "other.pending"
+        ])
+        let deliveredIdentifiers = ReviewReminderScheduler.reviewReminderIdentifiers(in: [
+            "other.delivered",
+            "review.delivered"
+        ])
+
+        XCTAssertEqual(pendingIdentifiers, ["review.pending"])
+        XCTAssertEqual(deliveredIdentifiers, ["review.delivered"])
+    }
+
     func test套用遠端筆記時會保留舊提醒直到替代通知儲存成功() {
         let insightID = UUID()
         let chartID = UUID()
@@ -363,6 +446,24 @@ final class PracticalFeaturesTests: XCTestCase {
             [first.timeIntervalSince1970, second.timeIntervalSince1970]
         )
         XCTAssertNil(defaults.object(forKey: ReviewReminderScheduler.nextReminderKey))
+
+        ReviewReminderScheduler.storeWidgetReminderDates([], now: now, defaults: defaults)
+
+        XCTAssertEqual(
+            defaults.array(forKey: ReviewReminderScheduler.reminderDatesKey) as? [Double],
+            []
+        )
+    }
+
+    func test重建後會清除已刪除命盤的釘選捷徑() throws {
+        let suite = "PinnedChartResetTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(UUID().uuidString, forKey: PinnedChartShortcut.key)
+
+        PinnedChartShortcut.reconcile(charts: [], defaults: defaults)
+
+        XCTAssertNil(defaults.string(forKey: PinnedChartShortcut.key))
     }
 
     func test同步會依命盤與位置去除重複收藏並保留最新版本() {
