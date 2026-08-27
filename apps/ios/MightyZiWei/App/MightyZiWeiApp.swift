@@ -6,17 +6,8 @@ private struct UITestCredentialStore: APICredentialStoring {
     func saveAPIKey(_ apiKey: String?) throws {}
 }
 
-@main
-struct MightyZiWeiApp: App {
-    private let modelContainer: ModelContainer
-    @State private var aiConfigurationStore: AIConfigurationStore
-    @State private var aiUsageStore: AIUsageStore
-    @State private var appLockStore: AppLockStore
-    @State private var iCloudSyncCoordinator: ICloudSyncCoordinator
-    @State private var voiceCoordinator: VoiceCoordinator
-
-    init() {
-        let arguments = ProcessInfo.processInfo.arguments
+enum AppModelContainerLoader {
+    static func load(arguments: [String]) -> Result<ModelContainer, any Error> {
         let schema = Schema([
             SavedChart.self,
             SavedInsight.self,
@@ -27,7 +18,39 @@ struct MightyZiWeiApp: App {
             schema: schema,
             isStoredInMemoryOnly: arguments.contains("-UITestResetData")
         )
-        modelContainer = try! ModelContainer(for: schema, configurations: [configuration])
+        return load {
+            try ModelContainer(for: schema, configurations: [configuration])
+        }
+    }
+
+    static func load(
+        makeContainer: () throws -> ModelContainer
+    ) -> Result<ModelContainer, any Error> {
+        do {
+            return .success(try makeContainer())
+        } catch {
+            return .failure(error)
+        }
+    }
+}
+
+@main
+struct MightyZiWeiApp: App {
+    private let modelContainer: ModelContainer?
+    @State private var aiConfigurationStore: AIConfigurationStore
+    @State private var aiUsageStore: AIUsageStore
+    @State private var appLockStore: AppLockStore
+    @State private var iCloudSyncCoordinator: ICloudSyncCoordinator
+    @State private var voiceCoordinator: VoiceCoordinator
+
+    init() {
+        let arguments = ProcessInfo.processInfo.arguments
+        switch AppModelContainerLoader.load(arguments: arguments) {
+        case .success(let container):
+            modelContainer = container
+        case .failure:
+            modelContainer = nil
+        }
         _aiUsageStore = State(initialValue: AIUsageStore())
         _appLockStore = State(initialValue: AppLockStore())
         _iCloudSyncCoordinator = State(initialValue: ICloudSyncCoordinator())
@@ -62,13 +85,28 @@ struct MightyZiWeiApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(aiConfigurationStore)
-                .environment(aiUsageStore)
-                .environment(appLockStore)
-                .environment(iCloudSyncCoordinator)
-                .environment(voiceCoordinator)
+            if let modelContainer {
+                RootView()
+                    .environment(aiConfigurationStore)
+                    .environment(aiUsageStore)
+                    .environment(appLockStore)
+                    .environment(iCloudSyncCoordinator)
+                    .environment(voiceCoordinator)
+                    .modelContainer(modelContainer)
+            } else {
+                PersistenceUnavailableView()
+            }
         }
-        .modelContainer(modelContainer)
+    }
+}
+
+private struct PersistenceUnavailableView: View {
+    var body: some View {
+        ContentUnavailableView {
+            Label("無法載入本機資料", systemImage: "externaldrive.badge.exclamationmark")
+        } description: {
+            Text("請完全關閉 App 後再試一次。原有資料不會被清除。")
+        }
+        .accessibilityIdentifier("startup.persistenceUnavailable")
     }
 }
