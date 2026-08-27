@@ -37,14 +37,19 @@ final class PracticalFeaturesTests: XCTestCase {
         for file in storeFiles {
             try Data("test".utf8).write(to: directory.appending(path: file))
         }
-        try Data("keep".utf8).write(to: directory.appending(path: "user-export.json"))
+        let preservedFiles = ["default.store-backup", "user-export.json"]
+        for file in preservedFiles {
+            try Data("keep".utf8).write(to: directory.appending(path: file))
+        }
 
         try AppModelStoreResetter(storeDirectory: directory).resetDefaultStoreFiles()
 
         for file in storeFiles {
             XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appending(path: file).path))
         }
-        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appending(path: "user-export.json").path))
+        for file in preservedFiles {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appending(path: file).path))
+        }
     }
 
     func test隱私遮罩在背景或鎖定時都必須顯示() {
@@ -67,6 +72,24 @@ final class PracticalFeaturesTests: XCTestCase {
         store.handleScenePhase(.background)
         XCTAssertTrue(store.showsPrivacyShield)
         XCTAssertTrue(store.isLocked)
+    }
+
+    func testApp鎖啟用時重建必須通過身分驗證() async {
+        let policy = PersistenceResetAuthorizationPolicy()
+        var authenticationCount = 0
+
+        let denied = await policy.authorize(isAppLockEnabled: true) {
+            authenticationCount += 1
+            return false
+        }
+        let allowedWithoutLock = await policy.authorize(isAppLockEnabled: false) {
+            authenticationCount += 1
+            return false
+        }
+
+        XCTAssertFalse(denied)
+        XCTAssertTrue(allowedWithoutLock)
+        XCTAssertEqual(authenticationCount, 1)
     }
 
     func test命盤標籤釘選與姓名標籤建立日期搜尋() throws {
@@ -240,6 +263,16 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertNotEqual(first, second)
     }
 
+    func test重建只會取消App建立的回顧提醒() {
+        let identifiers = ReviewReminderScheduler.reviewReminderIdentifiers(in: [
+            "review.first",
+            "other.notification",
+            "review.second"
+        ])
+
+        XCTAssertEqual(identifiers, ["review.first", "review.second"])
+    }
+
     func test套用遠端筆記時會保留舊提醒直到替代通知儲存成功() {
         let insightID = UUID()
         let chartID = UUID()
@@ -383,6 +416,24 @@ final class PracticalFeaturesTests: XCTestCase {
             [first.timeIntervalSince1970, second.timeIntervalSince1970]
         )
         XCTAssertNil(defaults.object(forKey: ReviewReminderScheduler.nextReminderKey))
+
+        ReviewReminderScheduler.storeWidgetReminderDates([], now: now, defaults: defaults)
+
+        XCTAssertEqual(
+            defaults.array(forKey: ReviewReminderScheduler.reminderDatesKey) as? [Double],
+            []
+        )
+    }
+
+    func test重建後會清除已刪除命盤的釘選捷徑() throws {
+        let suite = "PinnedChartResetTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(UUID().uuidString, forKey: PinnedChartShortcut.key)
+
+        PinnedChartShortcut.reconcile(charts: [], defaults: defaults)
+
+        XCTAssertNil(defaults.string(forKey: PinnedChartShortcut.key))
     }
 
     func test同步會依命盤與位置去除重複收藏並保留最新版本() {

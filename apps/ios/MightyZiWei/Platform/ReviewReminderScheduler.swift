@@ -7,6 +7,7 @@ struct ReviewReminderScheduler: Sendable {
     static let nextReminderKey = "privacy-widget.next-review-date"
     static let reminderDatesKey = "privacy-widget.review-dates"
     static let privacyWidgetKind = "MightyZiWeiPrivacyWidget"
+    static let reminderIdentifierPrefix = "review."
 
     enum ReminderError: LocalizedError {
         case permissionDenied
@@ -71,7 +72,11 @@ struct ReviewReminderScheduler: Sendable {
     }
 
     static func makeIdentifier(insightID: UUID) -> String {
-        "review.\(insightID.uuidString).\(UUID().uuidString)"
+        "\(reminderIdentifierPrefix)\(insightID.uuidString).\(UUID().uuidString)"
+    }
+
+    static func reviewReminderIdentifiers(in identifiers: [String]) -> [String] {
+        identifiers.filter { $0.hasPrefix(reminderIdentifierPrefix) }
     }
 
     static func storeWidgetReminderDates(
@@ -91,6 +96,20 @@ struct ReviewReminderScheduler: Sendable {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
         Task { await refreshWidgetReminder(center: center) }
+    }
+
+    func cancelAllReviewReminders() async {
+        let center = UNUserNotificationCenter.current()
+        let requests = await center.pendingNotificationRequests()
+        let identifiers = Self.reviewReminderIdentifiers(
+            in: requests.map(\.identifier)
+        )
+        if !identifiers.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
+        let defaults = UserDefaults(suiteName: Self.sharedDefaultsSuite)
+        Self.storeWidgetReminderDates([], defaults: defaults)
+        WidgetCenter.shared.reloadTimelines(ofKind: Self.privacyWidgetKind)
     }
 
     private func addReminder(
@@ -123,7 +142,7 @@ struct ReviewReminderScheduler: Sendable {
     private func refreshWidgetReminder(center: UNUserNotificationCenter) async {
         let requests = await center.pendingNotificationRequests()
         let dates: [Date] = requests.compactMap { request -> Date? in
-            guard request.identifier.hasPrefix("review.") else { return nil }
+            guard request.identifier.hasPrefix(Self.reminderIdentifierPrefix) else { return nil }
             return (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate()
         }
         let defaults = UserDefaults(suiteName: Self.sharedDefaultsSuite)

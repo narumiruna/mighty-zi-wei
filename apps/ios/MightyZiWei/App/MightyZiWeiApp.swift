@@ -48,14 +48,38 @@ struct AppModelStoreResetter {
 
     func resetDefaultStoreFiles() throws {
         guard fileManager.fileExists(atPath: storeDirectory.path) else { return }
+        let defaultStoreFileNames: Set<String> = [
+            "default.store",
+            "default.store-shm",
+            "default.store-wal"
+        ]
         let storeFiles = try fileManager.contentsOfDirectory(
             at: storeDirectory,
             includingPropertiesForKeys: nil
-        ).filter { $0.lastPathComponent.hasPrefix("default.store") }
+        ).filter { defaultStoreFileNames.contains($0.lastPathComponent) }
 
         for file in storeFiles {
             try fileManager.removeItem(at: file)
         }
+    }
+}
+
+@MainActor
+struct PersistenceResetAuthorizationPolicy {
+    func authorize(
+        isAppLockEnabled: Bool,
+        authenticate: () async -> Bool
+    ) async -> Bool {
+        guard isAppLockEnabled else { return true }
+        return await authenticate()
+    }
+}
+
+private enum PersistenceResetError: LocalizedError {
+    case authenticationFailed
+
+    var errorDescription: String? {
+        "身分驗證未完成，本機資料未重建。"
     }
 }
 
@@ -132,10 +156,18 @@ struct MightyZiWeiApp: App {
         )
     }
 
-    private func resetPersistentStoreAndReload() throws {
+    private func resetPersistentStoreAndReload() async throws {
+        let isAuthorized = await PersistenceResetAuthorizationPolicy().authorize(
+            isAppLockEnabled: appLockStore.isEnabled,
+            authenticate: { await appLockStore.unlock() }
+        )
+        guard isAuthorized else { throw PersistenceResetError.authenticationFailed }
+
         try AppModelContainerLoader.resetPersistentStore(
             arguments: ProcessInfo.processInfo.arguments
         )
+        await ReviewReminderScheduler().cancelAllReviewReminders()
+        PinnedChartShortcut.reconcile(charts: [])
         reloadModelContainer()
     }
 }
@@ -143,42 +175,46 @@ struct MightyZiWeiApp: App {
 private struct PersistenceUnavailableView: View {
     let error: any Error
     let retry: () -> Void
-    let resetAndReload: () throws -> Void
+    let resetAndReload: () async throws -> Void
 
     @State private var isShowingResetConfirmation = false
     @State private var resetErrorMessage: String?
 
     var body: some View {
-        VStack(spacing: 20) {
-            ContentUnavailableView {
-                Label("無法載入本機資料", systemImage: "externaldrive.badge.exclamationmark")
-            } description: {
-                Text("你可以先重試。若仍無法開啟，可重建空白本機資料庫讓 App 立即恢復使用。")
-            } actions: {
-                VStack(spacing: 12) {
-                    Button("再試一次", action: retry)
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("startup.persistenceRetry")
+        ScrollView {
+            VStack(spacing: 20) {
+                ContentUnavailableView {
+                    Label("無法載入本機資料", systemImage: "externaldrive.badge.exclamationmark")
+                } description: {
+                    Text("你可以先重試。若仍無法開啟，可重建空白本機資料庫讓 App 立即恢復使用。")
+                } actions: {
+                    VStack(spacing: 12) {
+                        Button("再試一次", action: retry)
+                            .buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("startup.persistenceRetry")
 
-                    Button("重建空白本機資料") {
-                        isShowingResetConfirmation = true
+                        Button("重建空白本機資料") {
+                            isShowingResetConfirmation = true
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .accessibilityIdentifier("startup.persistenceReset")
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .accessibilityIdentifier("startup.persistenceReset")
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("重建會刪除這台裝置上的本機命盤、筆記與對話。")
-                Text("如果你之前已開啟 iCloud 同步，重建後可到設定重新同步。")
-                Text("錯誤資訊：\(error.localizedDescription)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("重建會刪除這台裝置上的本機命盤、筆記、收藏與對話。")
+                    Text("如果你之前已開啟 iCloud 同步，重建後可到設定重新同步。")
+                    Text("錯誤資訊：\(error.localizedDescription)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 24)
             }
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 24)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
         }
         .accessibilityIdentifier("startup.persistenceUnavailable")
         .confirmationDialog(
@@ -187,10 +223,12 @@ private struct PersistenceUnavailableView: View {
             titleVisibility: .visible
         ) {
             Button("重建空白本機資料", role: .destructive) {
-                do {
-                    try resetAndReload()
-                } catch {
-                    resetErrorMessage = error.localizedDescription
+                Task {
+                    do {
+                        try await resetAndReload()
+                    } catch {
+                        resetErrorMessage = error.localizedDescription
+                    }
                 }
             }
             Button("取消", role: .cancel) {}
