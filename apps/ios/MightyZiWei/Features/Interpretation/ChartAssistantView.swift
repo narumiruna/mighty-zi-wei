@@ -14,9 +14,6 @@ struct ChartAssistantView: View {
 
     @FocusState private var composerIsFocused: Bool
     @State private var showsAPIConfiguration = false
-    @State private var showsSendPreview = false
-    @State private var restoresComposerAfterPreview = false
-    @State private var composerFocusTask: Task<Void, Never>?
     @State private var pendingTransition: PendingTransition?
     @State private var errorMessage: String?
     @State private var saveMessage: String?
@@ -65,14 +62,10 @@ struct ChartAssistantView: View {
                     saveMessage = nil
                 }
                 .onDisappear {
-                    composerFocusTask?.cancel()
                     voiceCoordinator.stopAll()
                 }
                 .sheet(isPresented: $showsAPIConfiguration) {
                     APIConfigurationSheet()
-                }
-                .sheet(isPresented: $showsSendPreview, onDismiss: restoreComposerAfterPreview) {
-                    sendPreviewSheet
                 }
                 .alert(
                     transitionTitle,
@@ -132,23 +125,6 @@ struct ChartAssistantView: View {
         } else {
             ProgressView("正在準備最近的命盤…")
                 .accessibilityIdentifier("assistant.preparingChart")
-        }
-    }
-
-    @ViewBuilder
-    private var sendPreviewSheet: some View {
-        if let chart = assistantStore.selectedChart {
-            AITransmissionPreviewView(
-                chart: chart,
-                question: assistantStore.trimmedDraft,
-                historyCount: assistantStore.turns.count,
-                model: configurationStore.model,
-                remainingRequests: usageStore.remainingRequests
-            ) {
-                restoresComposerAfterPreview = false
-                showsSendPreview = false
-                confirmedSendQuestion(dismissesComposerImmediately: false)
-            }
         }
     }
 
@@ -322,7 +298,7 @@ struct ChartAssistantView: View {
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
             Text("健康診斷、投資或法律建議，以及確定事件預測。")
-            Text("問題、本次對話與必要命盤依據會傳送到你設定的第三方 API。每次送出前都會先讓你確認。")
+            Text("問題、本次對話與必要命盤依據會傳送到你設定的第三方 API。點選送出問題後會立即傳送，第三方服務可能收費。")
                 .font(.footnote)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -501,7 +477,7 @@ struct ChartAssistantView: View {
     }
 
     private var retryButton: some View {
-        Button("重新確認並送出") { prepareToSendQuestion() }
+        Button("重新送出") { sendQuestion() }
             .buttonStyle(.borderedProminent)
             .disabled(voiceCoordinator.isInputActive)
     }
@@ -565,7 +541,7 @@ struct ChartAssistantView: View {
                 .accessibilityIdentifier("voice.input.toggle")
 
                 Button {
-                    prepareToSendQuestion()
+                    sendQuestion()
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)
@@ -619,7 +595,7 @@ struct ChartAssistantView: View {
     }
 
     private var sendAccessibilityHint: String {
-        composerBlockReason?.message ?? "先查看傳送內容，再由你確認是否送出"
+        composerBlockReason?.message ?? "立即傳送到你設定的第三方 API"
     }
 
     private var inputStatusColor: Color {
@@ -663,49 +639,14 @@ struct ChartAssistantView: View {
         }
     }
 
-    private func prepareToSendQuestion() {
+    private func sendQuestion() {
         guard !voiceCoordinator.isInputActive, canSend else { return }
-        let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("-UITestMockAI"),
-           !arguments.contains("-UITestShowTransmissionPreview") {
-            confirmedSendQuestion()
-        } else {
-            restoresComposerAfterPreview = true
-            showsSendPreview = true
-        }
-    }
-
-    private func restoreComposerAfterPreview() {
-        let shouldRestoreFocus = restoresComposerAfterPreview
-            && !assistantStore.isRequesting
-            && !assistantStore.trimmedDraft.isEmpty
-        restoresComposerAfterPreview = false
-        composerFocusTask?.cancel()
-        composerFocusTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            composerIsFocused = shouldRestoreFocus
-            if !shouldRestoreFocus {
-                UIApplication.shared.sendAction(
-                    #selector(UIResponder.resignFirstResponder),
-                    to: nil,
-                    from: nil,
-                    for: nil
-                )
-            }
-        }
-    }
-
-    private func confirmedSendQuestion(dismissesComposerImmediately: Bool = true) {
-        guard !voiceCoordinator.isInputActive else { return }
         errorMessage = nil
         do {
             let configuration = try configurationStore.configuration()
             try usageStore.reserve(.conversation)
             assistantStore.send(configuration: configuration)
-            if dismissesComposerImmediately {
-                composerIsFocused = false
-            }
+            composerIsFocused = false
         } catch let error as LocalizedError {
             usageStore.record(error: error, kind: .conversation)
             errorMessage = error.errorDescription ?? "目前無法讀取 API 設定。"
