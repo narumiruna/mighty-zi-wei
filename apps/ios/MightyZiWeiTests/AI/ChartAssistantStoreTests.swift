@@ -93,13 +93,40 @@ final class ChartAssistantStoreTests: XCTestCase {
 
         let savedID = UUID()
         store.markConversationSaved(id: savedID)
-        store.reconcileSavedConversationIDs([])
+        store.reconcileDeletedSavedConversation(savedID)
 
         XCTAssertNil(store.savedConversationID)
         XCTAssertEqual(store.savedTurnCount, 0)
         XCTAssertEqual(store.unsavedTurnCount, 1)
         XCTAssertTrue(store.hasUnsavedChanges)
         XCTAssertEqual(store.turns.count, 1)
+    }
+
+    func test刪除其他保存對話不會清除目前對話的保存狀態() async throws {
+        let defaults = UserDefaults(suiteName: "ChartAssistantStoreTests.\(UUID().uuidString)")!
+        let store = ChartAssistantStore(
+            answerer: SequenceConversationAnswerer(results: [
+                .success(ChartConversationAnswer(
+                    status: .answered,
+                    content: "目前對話的回答。",
+                    evidenceFactIDs: [fact.id]
+                ))
+            ]),
+            defaults: defaults
+        )
+        store.select(makeAssistantChart())
+        store.draft = "第一題"
+        store.send(configuration: try makeConfiguration(apiKey: nil))
+        await waitForRequestToFinish(store)
+
+        let activeSavedID = UUID()
+        store.markConversationSaved(id: activeSavedID)
+        store.reconcileDeletedSavedConversation(UUID())
+
+        XCTAssertEqual(store.savedConversationID, activeSavedID)
+        XCTAssertEqual(store.savedTurnCount, 1)
+        XCTAssertEqual(store.unsavedTurnCount, 0)
+        XCTAssertFalse(store.hasUnsavedChanges)
     }
 
     func test對話狀態成功後原子加入回答並清除草稿() async throws {

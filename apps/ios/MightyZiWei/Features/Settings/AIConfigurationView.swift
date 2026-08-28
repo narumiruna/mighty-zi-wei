@@ -21,6 +21,19 @@ struct AIConfigurationView: View {
 
     var body: some View {
         Form {
+            if commitCoordinator.credentialsTemporarilyUnavailable {
+                Section {
+                    Label(
+                        "裝置解鎖後會自動重新讀取 API key。",
+                        systemImage: "lock.open"
+                    )
+                } header: {
+                    Text("API key 暫時無法使用")
+                } footer: {
+                    Text("目前設定與 Keychain 內容不會被清除。")
+                }
+            }
+
             if let recoveryMessage = commitCoordinator.recoveryMessage {
                 Section {
                     Label(recoveryMessage, systemImage: "exclamationmark.shield")
@@ -168,6 +181,11 @@ struct AIConfigurationView: View {
         .navigationTitle("AI API 設定")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { loadDraft(force: false) }
+        .onChange(of: commitCoordinator.credentialsTemporarilyUnavailable) { wasUnavailable, isUnavailable in
+            if wasUnavailable, !isUnavailable {
+                loadDraft(force: true)
+            }
+        }
         .onDisappear {
             testTask?.cancel()
         }
@@ -224,6 +242,7 @@ struct AIConfigurationView: View {
     private func loadDraft(force: Bool) {
         guard force || !hasLoaded else { return }
         hasLoaded = true
+        commitCoordinator.refreshCredentialAvailability()
         do {
             let loadedDraft = try commitCoordinator.makeDraft()
             endpoint = loadedDraft.endpoint

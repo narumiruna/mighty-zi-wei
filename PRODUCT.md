@@ -447,6 +447,8 @@ Endpoint 與模型名稱可保存在本機設定中，但不得包含 secret。
 
 Keychain 項目無法解碼時必須停用 AI，並提供需再次確認的憑證移除與重新設定流程。
 
+裝置鎖定造成 Keychain 暫時不可讀時不得清除或標記憑證損毀，App 必須在受保護資料可用或回到前景後自動重試。
+
 UserDefaults 與 Keychain 不具共同 transaction，因此產品不得宣稱能抵抗 App 在兩個持久化操作之間遭系統終止。
 
 MVP 使用 `URLSession` 直接呼叫使用者指定的第三方服務，不經過開發者後端。

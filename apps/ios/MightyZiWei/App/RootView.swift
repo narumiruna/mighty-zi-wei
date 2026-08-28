@@ -3,6 +3,7 @@ import Combine
 import Observation
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct AppURLNavigationPolicy: Sendable {
     func tab(for url: URL) -> AppNavigationState.Tab? {
@@ -187,8 +188,12 @@ final class ChartAssistantStore {
     func reconcileSavedConversationIDs(_ identifiers: Set<UUID>) {
         guard let savedConversationID,
               !identifiers.contains(savedConversationID) else { return }
-        self.savedConversationID = nil
-        savedTurnCount = 0
+        clearSavedConversationReference()
+    }
+
+    func reconcileDeletedSavedConversation(_ identifier: UUID) {
+        guard savedConversationID == identifier else { return }
+        clearSavedConversationReference()
     }
 
     func send(configuration: OpenAIResponsesConfiguration) {
@@ -266,6 +271,10 @@ final class ChartAssistantStore {
         draft = ""
         requestState = .idle
         lastDiagnosticCode = nil
+        clearSavedConversationReference()
+    }
+
+    private func clearSavedConversationReference() {
         savedConversationID = nil
         savedTurnCount = 0
     }
@@ -338,6 +347,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @Environment(AIConfigurationStore.self) private var aiConfigurationStore
+    @Environment(AIConfigurationCommitCoordinator.self) private var aiConfigurationCommitCoordinator
     @Environment(AppLockStore.self) private var appLockStore
     @Environment(ICloudSyncCoordinator.self) private var iCloudSyncCoordinator
     @Environment(ICloudSynchronizer.self) private var iCloudSynchronizer
@@ -383,6 +393,7 @@ struct RootView: View {
                 : nil
         )
         .task {
+            aiConfigurationCommitCoordinator.refreshCredentialAvailability()
             updatePrivacyShieldWindow()
             handlePendingShortcut()
             await synchronizeICloudIfNeeded()
@@ -394,6 +405,7 @@ struct RootView: View {
             appLockStore.handleScenePhase(phase)
             updatePrivacyShieldWindow()
             if phase == .active {
+                aiConfigurationCommitCoordinator.refreshCredentialAvailability()
                 handlePendingShortcut()
                 Task { await synchronizeICloudIfNeeded() }
             }
@@ -411,6 +423,13 @@ struct RootView: View {
         }
         .onChange(of: appLockStore.showsPrivacyShield) { _, _ in
             updatePrivacyShieldWindow()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: UIApplication.protectedDataDidBecomeAvailableNotification
+            )
+        ) { _ in
+            aiConfigurationCommitCoordinator.refreshCredentialAvailability()
         }
         .onReceive(
             NotificationCenter.default.publisher(

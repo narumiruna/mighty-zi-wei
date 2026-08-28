@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import XCTest
 @testable import MightyZiWei
 
@@ -598,6 +599,61 @@ final class AIConfigurationStoreTests: XCTestCase {
         XCTAssertEqual(try coordinator.makeDraft().apiKey, "")
     }
 
+    func test裝置鎖定造成Keychain暫時不可用會在解鎖後自動恢復() throws {
+        try seedStoredValues(
+            endpoint: "https://saved.example/v1",
+            model: "saved-model",
+            apiKey: "saved-key",
+            maximumAnswerCharacters: 700,
+            monthlyLimit: 10
+        )
+        credentials.isTemporarilyUnavailableToLoad = true
+        let configurationStore = AIConfigurationStore(
+            defaults: defaults,
+            credentialStore: credentials
+        )
+        let coordinator = AIConfigurationCommitCoordinator(
+            configurationStore: configurationStore,
+            usageStore: AIUsageStore(defaults: defaults)
+        )
+
+        XCTAssertTrue(configurationStore.credentialsTemporarilyUnavailable)
+        XCTAssertFalse(configurationStore.requiresRecovery)
+        XCTAssertFalse(configurationStore.isConfigured)
+        XCTAssertNil(coordinator.recoveryMessage)
+
+        coordinator.refreshCredentialAvailability()
+        XCTAssertTrue(configurationStore.credentialsTemporarilyUnavailable)
+        XCTAssertFalse(configurationStore.requiresRecovery)
+
+        credentials.isTemporarilyUnavailableToLoad = false
+        coordinator.refreshCredentialAvailability()
+
+        XCTAssertFalse(configurationStore.credentialsTemporarilyUnavailable)
+        XCTAssertFalse(configurationStore.requiresRecovery)
+        XCTAssertTrue(configurationStore.isConfigured)
+        XCTAssertNil(coordinator.recoveryMessage)
+        XCTAssertEqual(try coordinator.makeDraft().apiKey, "saved-key")
+        XCTAssertTrue(credentials.saveInvocations.isEmpty)
+    }
+
+    func testKeychain只將受保護資料暫時不可用狀態視為可重試() {
+        let store = KeychainAPICredentialStore()
+
+        XCTAssertTrue(store.isTemporarilyUnavailable(
+            KeychainAPICredentialStore.CredentialError.keychain(errSecInteractionNotAllowed)
+        ))
+        XCTAssertTrue(store.isTemporarilyUnavailable(
+            KeychainAPICredentialStore.CredentialError.keychain(errSecNotAvailable)
+        ))
+        XCTAssertFalse(store.isTemporarilyUnavailable(
+            KeychainAPICredentialStore.CredentialError.invalidData
+        ))
+        XCTAssertFalse(store.isTemporarilyUnavailable(
+            KeychainAPICredentialStore.CredentialError.keychain(errSecDecode)
+        ))
+    }
+
     func test跨月開啟設定會先重設本機用量() throws {
         defaults.set("1999-01", forKey: "ai.usage.month")
         defaults.set(23, forKey: "ai.usage.count")
@@ -701,6 +757,7 @@ final class AIConfigurationStoreTests: XCTestCase {
 
 private enum InjectedError: Error, Equatable {
     case credentialLoad
+    case credentialTemporarilyUnavailable
     case credentialWrite
     case defaultsWrite
 }
@@ -709,9 +766,13 @@ private final class InMemoryCredentialStore: APICredentialStoring {
     private var apiKey: String?
     private(set) var saveInvocations: [String?] = []
     var failsToLoad = false
+    var isTemporarilyUnavailableToLoad = false
     var failingAPIKeys: Set<String> = []
 
     func loadAPIKey() throws -> String? {
+        if isTemporarilyUnavailableToLoad {
+            throw InjectedError.credentialTemporarilyUnavailable
+        }
         if failsToLoad {
             throw InjectedError.credentialLoad
         }
@@ -724,6 +785,10 @@ private final class InMemoryCredentialStore: APICredentialStoring {
             throw InjectedError.credentialWrite
         }
         self.apiKey = apiKey
+    }
+
+    func isTemporarilyUnavailable(_ error: any Error) -> Bool {
+        error as? InjectedError == .credentialTemporarilyUnavailable
     }
 
     func resetSaveInvocations() {

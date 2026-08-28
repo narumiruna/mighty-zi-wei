@@ -91,6 +91,11 @@ struct AIConfigurationDraft: Equatable, Sendable {
 protocol APICredentialStoring {
     func loadAPIKey() throws -> String?
     func saveAPIKey(_ apiKey: String?) throws
+    func isTemporarilyUnavailable(_ error: any Error) -> Bool
+}
+
+extension APICredentialStoring {
+    func isTemporarilyUnavailable(_ error: any Error) -> Bool { false }
 }
 
 struct KeychainAPICredentialStore: APICredentialStoring {
@@ -149,6 +154,12 @@ struct KeychainAPICredentialStore: APICredentialStoring {
         }
     }
 
+    func isTemporarilyUnavailable(_ error: any Error) -> Bool {
+        guard let credentialError = error as? CredentialError,
+              case .keychain(let status) = credentialError else { return false }
+        return status == errSecInteractionNotAllowed || status == errSecNotAvailable
+    }
+
     private var baseQuery: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
@@ -202,6 +213,7 @@ final class AIConfigurationStore {
     private(set) var hasAPIKey: Bool
     private(set) var maximumAnswerCharacters: Int
     private(set) var requiresRecovery = false
+    private(set) var credentialsTemporarilyUnavailable = false
 
     init(
         defaults: UserDefaults = .standard,
@@ -223,12 +235,13 @@ final class AIConfigurationStore {
             hasAPIKey = try credentialStore.loadAPIKey() != nil
         } catch {
             hasAPIKey = false
-            requiresRecovery = true
+            recordCredentialReadFailure(error)
         }
     }
 
     var isConfigured: Bool {
         !requiresRecovery
+            && !credentialsTemporarilyUnavailable
             && (try? OpenAIResponsesConfiguration(
                 endpoint: endpoint,
                 model: model,
@@ -243,10 +256,11 @@ final class AIConfigurationStore {
             || hasAPIKey
             || maximumAnswerCharacters != Self.defaultMaximumAnswerCharacters
             || requiresRecovery
+            || credentialsTemporarilyUnavailable
     }
 
     func loadAPIKey() throws -> String {
-        try credentialStore.loadAPIKey() ?? ""
+        try readAPIKey() ?? ""
     }
 
     func configuration() throws -> OpenAIResponsesConfiguration {
@@ -256,9 +270,20 @@ final class AIConfigurationStore {
         return try OpenAIResponsesConfiguration(
             endpoint: endpoint,
             model: model,
-            apiKey: credentialStore.loadAPIKey(),
+            apiKey: readAPIKey(),
             maximumAnswerCharacters: maximumAnswerCharacters
         )
+    }
+
+    func refreshCredentialAvailability() {
+        guard credentialsTemporarilyUnavailable else { return }
+        do {
+            hasAPIKey = try credentialStore.loadAPIKey() != nil
+            credentialsTemporarilyUnavailable = false
+        } catch {
+            hasAPIKey = false
+            recordCredentialReadFailure(error)
+        }
     }
 
     func save(endpoint: String, model: String, apiKey: String) throws {
@@ -313,7 +338,7 @@ final class AIConfigurationStore {
             storedMaximumAnswerCharacters: defaults.object(
                 forKey: DefaultsKey.maximumAnswerCharacters
             ) == nil ? nil : defaults.integer(forKey: DefaultsKey.maximumAnswerCharacters),
-            apiKey: try credentialStore.loadAPIKey()
+            apiKey: try readAPIKey()
         )
     }
 
@@ -373,6 +398,7 @@ final class AIConfigurationStore {
             ? Self.defaultMaximumAnswerCharacters
             : min(max(storedMaximum, 300), 2_000)
         hasAPIKey = ((try? credentialStore.loadAPIKey()) ?? nil) != nil
+        credentialsTemporarilyUnavailable = false
         requiresRecovery = true
     }
 
@@ -389,6 +415,29 @@ final class AIConfigurationStore {
 
     func finishRecovery() {
         requiresRecovery = false
+        credentialsTemporarilyUnavailable = false
+    }
+
+    private func readAPIKey() throws -> String? {
+        do {
+            let apiKey = try credentialStore.loadAPIKey()
+            hasAPIKey = apiKey != nil
+            credentialsTemporarilyUnavailable = false
+            return apiKey
+        } catch {
+            hasAPIKey = false
+            recordCredentialReadFailure(error)
+            throw error
+        }
+    }
+
+    private func recordCredentialReadFailure(_ error: any Error) {
+        if credentialStore.isTemporarilyUnavailable(error) {
+            credentialsTemporarilyUnavailable = true
+        } else {
+            credentialsTemporarilyUnavailable = false
+            requiresRecovery = true
+        }
     }
 
     private func rollbackOrEnterRecovery(
@@ -503,6 +552,9 @@ final class AIConfigurationCommitCoordinator {
     }
 
     var hasStoredValues: Bool { configurationStore.hasStoredValues }
+    var credentialsTemporarilyUnavailable: Bool {
+        configurationStore.credentialsTemporarilyUnavailable
+    }
     var currentMonthCount: Int { usageStore.refreshedCurrentMonthCount() }
     var lastDiagnostic: String? { usageStore.lastDiagnostic }
 
@@ -511,13 +563,19 @@ final class AIConfigurationCommitCoordinator {
     }
 
     func makeDraft() throws -> AIConfigurationDraft {
-        AIConfigurationDraft(
+        defer { updateRecoveryMessage() }
+        return AIConfigurationDraft(
             endpoint: configurationStore.endpoint,
             model: configurationStore.model,
             apiKey: try configurationStore.loadAPIKey(),
             maximumAnswerCharacters: configurationStore.maximumAnswerCharacters,
             monthlyLimit: usageStore.monthlyLimit
         )
+    }
+
+    func refreshCredentialAvailability() {
+        configurationStore.refreshCredentialAvailability()
+        updateRecoveryMessage()
     }
 
     func testConnection(draft: AIConfigurationDraft) async throws {
@@ -566,6 +624,12 @@ final class AIConfigurationCommitCoordinator {
     func discardRecoveryConfiguration() throws {
         try configurationStore.discardRecoveryConfiguration()
         recoveryMessage = nil
+    }
+
+    private func updateRecoveryMessage() {
+        recoveryMessage = configurationStore.requiresRecovery
+            ? AIConfigurationCommitError.recoveryRequired.errorDescription
+            : nil
     }
 
     private struct Snapshot {

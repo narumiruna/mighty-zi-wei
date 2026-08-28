@@ -140,9 +140,7 @@ struct SavedConversationsView: View {
         let deletedID = conversation.id
         modelContext.delete(conversation)
         if save(errorText: "無法刪除本機對話。") {
-            assistantStore.reconcileSavedConversationIDs(
-                Set(conversations.lazy.map(\.id)).subtracting([deletedID])
-            )
+            assistantStore.reconcileDeletedSavedConversation(deletedID)
         }
     }
 
@@ -288,10 +286,11 @@ private struct SavedConversationDetailView: View {
     }
 
     private func deleteConversation() {
+        let deletedID = conversation.id
         modelContext.delete(conversation)
         do {
             try modelContext.save()
-            assistantStore.reconcileSavedConversationIDs([])
+            assistantStore.reconcileDeletedSavedConversation(deletedID)
             dismiss()
         } catch {
             modelContext.rollback()
