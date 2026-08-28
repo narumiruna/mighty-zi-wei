@@ -42,11 +42,19 @@ App 不會錄製成音訊檔案，也不會保存、匯出或分享麥克風音�
 
 使用 AI 解讀前，你必須自行設定 HTTPS OpenAI 相容 API base URL 或完整 Responses API endpoint 與模型名稱；未以 `/responses` 結尾時 App 會自動補齊路徑，不要求 Bearer token 的相容服務可將 API key 留空。
 
+Endpoint、model、API key、回答長度與每月請求上限會先保留為設定畫面中的本機草稿。
+
+「測試目前欄位」只使用這份草稿進行連線測試，不會把草稿儲存成 API 設定。
+
+取消或返回會捨棄未儲存草稿，只有你明確點選「儲存 API 設定」後才會套用全部欄位。
+
 API key 儲存在不可同步、僅限本裝置且解鎖時可讀的 iOS Keychain item，不會寫入 SwiftData、診斷記錄或 repository。
 
 非空的 API key 只會作為 `Authorization` header 傳送到你設定的 endpoint。
 
-你主動使用「測試 API 連線」時，App 會傳送不含命盤資料的小型 structured output request，且第三方服務商仍可能計費。
+你主動使用「測試目前欄位」時，App 會將草稿中的 endpoint、model 與非空 API key 用於不含命盤資料的小型 structured output request，且第三方服務商仍可能計費。
+
+有效的測試請求送出前會記錄一次本機請求，並更新畫面上的測試狀態，但不代表草稿已儲存。
 
 每次使用 AI 整理文字前，App 都會先顯示傳送預覽。
 
@@ -96,6 +104,14 @@ App 不會主動把命盤名稱、原始出生日期、出生時間或 `BirthPro
 
 若 API 未設定、無法連線、回應無效或內容驗證失敗，App 的本機 deterministic 基本解讀仍可正常使用，既有成功對話也不會被失敗請求覆蓋。
 
+儲存或清除 API 設定失敗時，App 會在目前執行程序內嘗試復原先前的 endpoint、model、API key、回答長度與每月上限。
+
+若連復原也無法完整完成，App 會清除可啟用請求的 endpoint 與 model 狀態、重新載入實際可讀的持久化值並停用 AI，直到你重新檢查所有欄位並成功儲存。
+
+若 Keychain 項目本身無法讀取，你可以明確確認移除該憑證與非秘密 API 設定，再重新設定；App 不會在未確認時自行忽略損毀憑證並傳送請求。
+
+UserDefaults 與 Keychain 不具共同 transaction，因此 App 無法保證系統在兩個儲存操作之間終止程序時仍可完成同一套程序內復原。
+
 停用 AI 解讀不影響排盤、命盤閱讀、基本解讀或本機儲存。
 
 命盤文字分享預設不包含名稱、出生日期、出生時間或時區。
@@ -104,9 +120,19 @@ App 不會主動把命盤名稱、原始出生日期、出生時間或 `BirthPro
 
 iCloud 同步預設關閉。
 
-只有你在設定中主動開啟後，App 才會把命盤、標籤、釘選狀態、筆記、回顧日期與收藏同步到你 Apple ID 的私人 CloudKit 資料庫。
+首次開啟時，App 會先揭露會同步的命盤、標籤、釘選狀態、筆記、回顧日期、收藏與刪除紀錄，以及不會同步的資料。
+
+取消揭露不會啟用同步或傳送資料。
+
+你確認「啟用並同步」後，App 會先保存已啟用狀態並顯示等待同步，再把資料同步到你 Apple ID 的私人 CloudKit 資料庫。
 
 同一筆內容發生衝突時，App 會保留 `updatedAt` 較新的版本，並以 tombstone 同步刪除。
+
+同步會逐筆處理資料，因此失敗時 iCloud 可能已收到部分變更。
+
+同步未完成時，App 會保持啟用、保留本機有效資料並提供重試，不會假設或宣稱遠端完全沒有變更。
+
+關閉同步只停止後續同步，不會自動刪除私人 CloudKit 資料庫中的既有資料。
 
 API key、endpoint、模型設定、AI 對話與裝置通知識別碼不會進入 CloudKit。
 
@@ -132,4 +158,4 @@ App 不包含第三方分析、廣告或當機回報 SDK。
 
 你可以刪除單張命盤或所有已儲存命盤；刪除命盤時會一併刪除其本機筆記與收藏。
 
-你也可以在「設定」中另外清除 endpoint、model 與 Keychain 中的 API key。
+你也可以在「設定」中另外清除 endpoint、model、回答長度與 Keychain 中的 API key；每月上限與既有用量紀錄會保留。
