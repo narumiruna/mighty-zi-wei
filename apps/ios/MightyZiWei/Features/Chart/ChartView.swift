@@ -1,7 +1,24 @@
+import Accessibility
 import SwiftData
 import SwiftUI
 
 struct SavedChartReferenceResolver: Sendable {
+    static func effectiveID(
+        savedChartID: UUID?,
+        newlySavedChartID: UUID?,
+        newlySavedIsConfirmed: Bool,
+        availableIDs: Set<UUID>
+    ) -> UUID? {
+        if newlySavedIsConfirmed, let newlySavedChartID {
+            return newlySavedChartID
+        }
+        return existingID(
+            savedChartID: savedChartID,
+            newlySavedChartID: newlySavedChartID,
+            availableIDs: availableIDs
+        )
+    }
+
     static func existingID(
         savedChartID: UUID?,
         newlySavedChartID: UUID?,
@@ -51,16 +68,32 @@ struct ChartView: View {
                         .font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
 
-                    Text("先從命宮開始，或點選你想了解的生活面向。")
+                    Text(displayName)
+                        .font(.headline)
+
+                    Label(
+                        isChartSaved ? "已儲存於這台裝置" : "尚未儲存",
+                        systemImage: isChartSaved ? "checkmark.circle.fill" : "circle.dashed"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    Text("先看生活化摘要，再選擇完整解讀或命盤助理。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
                 if let notice {
-                    Label(notice, systemImage: "arrow.triangle.2.circlepath")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .cardStyle()
+                    InlineStatusView(style: .information, message: notice)
+                }
+
+                if let saveMessage {
+                    InlineStatusView(
+                        style: isChartSaved ? .success : .warning,
+                        message: saveMessage
+                    )
+                    .transition(.opacity)
+                    .accessibilityLabel(saveMessage)
                 }
 
                 PrimaryPalaceGuide(
@@ -69,10 +102,36 @@ struct ChartView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 12) {
+                    NavigationLink {
+                        InterpretationView(
+                            facts: facts,
+                            seeds: seeds,
+                            chartID: effectiveSavedChartID
+                        )
+                    } label: {
+                        Label("閱讀命盤解讀", systemImage: "text.book.closed")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("chart.interpretation")
+
+                    Button {
+                        openAssistant()
+                    } label: {
+                        Label("問命盤助理", systemImage: "sparkles")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("chart.askAI")
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
                     Text("自由探索十二宮")
                         .font(.title2.bold())
                         .accessibilityAddTraits(.isHeader)
-                    Text("也可以直接選擇你現在最想了解的生活面向。")
+                    Text("宮格顯示主星分布；點選宮位可查看完整內容。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -83,63 +142,54 @@ struct ChartView: View {
                     )
                 }
 
-                ChartDataDisclosure(chart: chart)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("命盤工具")
+                        .font(.title2.bold())
+                        .accessibilityAddTraits(.isHeader)
 
-                NavigationLink {
-                    AdjacentHourComparisonView(profile: chart.birthProfile)
-                } label: {
-                    Label("比較相鄰時辰", systemImage: "arrow.left.arrow.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("chart.compareHours")
+                    if let chartID = effectiveSavedChartID {
+                        NavigationLink {
+                            ChartJournalView(chartID: chartID, chartName: displayName)
+                        } label: {
+                            Label("筆記與收藏", systemImage: "note.text")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("chart.journal")
+                    } else {
+                        Button {} label: {
+                            Label("筆記與收藏", systemImage: "note.text")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(true)
+                        .accessibilityIdentifier("chart.journal")
 
-                if let saveMessage {
-                    Label(
-                        saveMessage,
-                        systemImage: isSaved ? "checkmark.circle.fill" : "info.circle"
-                    )
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .transition(.opacity)
-                        .accessibilityLabel(saveMessage)
-                }
+                        DisabledReasonView("先儲存命盤才能收藏。")
+                    }
 
-                if let chartID = effectiveSavedChartID {
                     NavigationLink {
-                        ChartJournalView(chartID: chartID, chartName: displayName)
+                        AdjacentHourComparisonView(profile: chart.birthProfile)
                     } label: {
-                        Label("筆記與收藏", systemImage: "note.text")
+                        Label("比較相鄰時辰", systemImage: "arrow.left.arrow.right")
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 4)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityIdentifier("chart.journal")
-                }
+                    .accessibilityIdentifier("chart.compareHours")
 
-                NavigationLink {
-                    InterpretationView(
-                        facts: facts,
-                        seeds: seeds,
-                        chartID: effectiveSavedChartID
-                    )
-                } label: {
-                    Label("閱讀命盤解讀", systemImage: "text.book.closed")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("chart.interpretation")
+                    Button {
+                        showsSharing = true
+                    } label: {
+                        Label("分享命盤摘要", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("chart.share")
 
-                Button {
-                    openAssistant()
-                } label: {
-                    Label("問命盤助理", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
+                    ChartDataDisclosure(chart: chart)
                 }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("chart.askAI")
 
                 DisclaimerView(compact: true)
             }
@@ -167,14 +217,6 @@ struct ChartView: View {
                     .disabled(isSaved)
                     .accessibilityIdentifier("chart.save")
                 }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showsSharing = true
-                } label: {
-                    Label("分享", systemImage: "square.and.arrow.up")
-                }
-                .accessibilityIdentifier("chart.share")
             }
         }
         .sheet(isPresented: $showsSharing) {
@@ -214,10 +256,15 @@ struct ChartView: View {
         }
     }
 
+    private var isChartSaved: Bool {
+        isSaved || effectiveSavedChartID != nil
+    }
+
     private var effectiveSavedChartID: UUID? {
-        SavedChartReferenceResolver.existingID(
+        SavedChartReferenceResolver.effectiveID(
             savedChartID: savedChartID,
             newlySavedChartID: newlySavedChartID,
+            newlySavedIsConfirmed: isSaved,
             availableIDs: Set(savedCharts.map(\.id))
         )
     }
@@ -308,6 +355,7 @@ struct ChartView: View {
                 isSaved = true
                 saveMessage = "命盤已儲存在這台裝置。"
             }
+            AccessibilityNotification.Announcement("命盤已儲存在這台裝置。").post()
         } catch {
             modelContext.rollback()
             errorMessage = "本機資料寫入失敗，目前命盤仍保留。你可以再試一次。"
@@ -388,7 +436,7 @@ private struct PrimaryPalaceGuide: View {
                 Label("認識我的核心性格", systemImage: "arrow.right")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .accessibilityIdentifier("chart.startExploring")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -432,7 +480,7 @@ private struct ChartOverview: View {
 
     @ViewBuilder
     var body: some View {
-        if dynamicTypeSize.isAccessibilitySize || voiceOverEnabled || linearChartEnabled {
+        if dynamicTypeSize >= .xxLarge || voiceOverEnabled || linearChartEnabled {
             accessibleLayout
         } else {
             chartLayout
@@ -591,26 +639,27 @@ private struct PalaceOverviewCell: View {
     var stars: [StarPlacement] = []
     var size: CGFloat?
 
+    private var mainStarNames: [String] {
+        stars.filter { $0.star.category == .main }.map(\.star.displayName)
+    }
+
+    private var otherStarNames: [String] {
+        stars.filter { $0.star.category != .main }.map(\.star.displayName)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(palace.kind.displayName)
-                .font(.subheadline.weight(.semibold))
-
-            if palace.isBodyPalace {
-                Text("身宮")
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.tint.opacity(0.12), in: Capsule())
+        Group {
+            if size == nil {
+                fullContent
+            } else {
+                compactContent
             }
-
-            Spacer(minLength: 0)
         }
-        .padding(10)
+        .padding(size == nil ? 12 : 7)
         .frame(width: size, height: size, alignment: .topLeading)
         .frame(
             maxWidth: size == nil ? .infinity : nil,
-            minHeight: size == nil ? 72 : nil,
+            minHeight: size == nil ? 96 : nil,
             alignment: .topLeading
         )
         .background(
@@ -620,7 +669,7 @@ private struct PalaceOverviewCell: View {
         .overlay {
             if palace.kind == .life {
                 RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius)
-                    .stroke(.tint, lineWidth: 1)
+                    .stroke(.tint, lineWidth: 2)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius))
@@ -629,16 +678,60 @@ private struct PalaceOverviewCell: View {
         .accessibilityHint("點兩下查看宮位內容")
     }
 
+    private var compactContent: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 3) {
+                Text(palace.kind.displayName)
+                    .font(.caption.weight(.semibold))
+
+                if palace.isBodyPalace {
+                    Text("身宮")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
+            }
+
+            ForEach(Array(mainStarNames.prefix(2).enumerated()), id: \.offset) { _, name in
+                Text(name)
+                    .font(.caption2.weight(.medium))
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var fullContent: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(palace.kind.displayName)
+                    .font(.headline)
+                if palace.isBodyPalace {
+                    Text("身宮")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
+            }
+            Text("宮位干支：\(palace.stemBranch.displayName)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(mainStarNames.isEmpty ? "本宮無主星" : "主星：\(mainStarNames.joined(separator: "、"))")
+                .font(.subheadline)
+            if !otherStarNames.isEmpty {
+                Text("其他星曜：\(otherStarNames.joined(separator: "、"))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var accessibilityText: String {
-        let mainStars = stars.filter { $0.star.category == .main }.map(\.star.displayName)
-        let otherStars = stars.filter { $0.star.category != .main }.map(\.star.displayName)
         var parts = [
             palace.kind.displayName,
             "宮位干支\(palace.stemBranch.displayName)",
-            mainStars.isEmpty ? "本宮無主星" : "主星\(mainStars.joined(separator: "、"))"
+            mainStarNames.isEmpty ? "本宮無主星" : "主星\(mainStarNames.joined(separator: "、"))"
         ]
         if palace.isBodyPalace { parts.append("身宮位於此") }
-        if !otherStars.isEmpty { parts.append("其他星曜\(otherStars.joined(separator: "、"))") }
+        if !otherStarNames.isEmpty { parts.append("其他星曜\(otherStarNames.joined(separator: "、"))") }
         return parts.joined(separator: "，")
     }
 }

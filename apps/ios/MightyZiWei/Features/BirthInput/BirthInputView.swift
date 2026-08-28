@@ -45,44 +45,19 @@ struct BirthInputView: View {
             }
 
             Section {
-                BirthDataCheckCard(profile: inputProfile)
+                BirthLocalTimeCheck(profile: inputProfile)
             } header: {
-                Text("出生資料檢查")
+                Text("當地時間核對")
             } footer: {
-                Text("請在排盤前核對。時區與夏令時間依 iOS 時區資料庫判定。")
-            }
-
-            Section {
-                NavigationLink {
-                    AdjacentHourComparisonView(profile: inputProfile)
-                } label: {
-                    Label("比較相鄰時辰", systemImage: "arrow.left.arrow.right")
-                }
-                .accessibilityIdentifier("birthInput.compareHours")
-            } header: {
-                Text("出生時間不確定？")
-            } footer: {
-                Text("只比較盤面位置差異，不會替你選擇或猜測出生時辰。")
+                Text("命盤會依出生地當時的民用時間計算。")
             }
 
             if let validationMessage {
                 Section {
-                    Label(validationMessage, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
+                    InlineStatusView(style: .error, message: validationMessage)
                         .accessibilityLabel("輸入錯誤：\(validationMessage)")
-                }
-            }
-
-            Section {
-                DisclosureGroup("排盤方式") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("採用台灣傳統三合派 v1，並以中州派資料補充流派差異。")
-                        Text("排盤使用出生地當地民用時間，不使用真太陽時。")
-                        Text("不同流派的結果可能略有差異。")
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 6)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
             }
 
@@ -97,6 +72,38 @@ struct BirthInputView: View {
                 .accessibilityIdentifier("birthInput.generate")
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
+            }
+
+            Section {
+                BirthDataCheckCard(profile: inputProfile)
+
+                DisclosureGroup("排盤方式") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("採用台灣傳統三合派 v1，並以中州派資料補充流派差異。")
+                        Text("排盤使用出生地當地民用時間，不使用真太陽時。")
+                        Text("不同流派的結果可能略有差異。")
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 6)
+                }
+            } header: {
+                Text("進階核對")
+            } footer: {
+                Text("時區與夏令時間依 iOS 時區資料庫判定。")
+            }
+
+            Section {
+                NavigationLink {
+                    AdjacentHourComparisonView(profile: inputProfile)
+                } label: {
+                    Label("比較相鄰時辰", systemImage: "arrow.left.arrow.right")
+                }
+                .accessibilityIdentifier("birthInput.compareHours")
+            } header: {
+                Text("出生時間不確定？")
+            } footer: {
+                Text("只比較盤面位置差異，不會替你選擇或猜測出生時辰。")
             }
         }
         .navigationTitle("排一張命盤")
@@ -233,6 +240,53 @@ struct BirthInputView: View {
         case nil:
             "目前無法產生命盤，請稍後再試。"
         }
+    }
+}
+
+private struct BirthLocalTimeCheck: View {
+    let profile: BirthProfile
+
+    private var localInputText: String {
+        String(
+            format: "%04d/%02d/%02d　%02d:%02d",
+            profile.localDate.year,
+            profile.localDate.month,
+            profile.localDate.day,
+            profile.localTime.hour,
+            profile.localTime.minute
+        )
+    }
+
+    private var offsetText: String? {
+        guard let normalized = try? CalendarNormalizer.normalize(profile),
+              let timeZone = TimeZone(identifier: profile.timeZoneIdentifier) else {
+            return nil
+        }
+        let seconds = timeZone.secondsFromGMT(for: normalized.instant)
+        let sign = seconds >= 0 ? "+" : "−"
+        let absolute = abs(seconds)
+        return String(format: "UTC%@%02d:%02d", sign, absolute / 3_600, absolute % 3_600 / 60)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("將採用出生地當地時間", systemImage: "clock")
+                .font(.subheadline.weight(.semibold))
+            Text(localInputText)
+                .font(.headline.monospacedDigit())
+            Text(timeZoneSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("birthInput.localTimeCheck")
+    }
+
+    private var timeZoneSummary: String {
+        if let offsetText {
+            return "\(profile.timeZoneIdentifier)（\(offsetText)）"
+        }
+        return "\(profile.timeZoneIdentifier)（請確認此時間是否存在）"
     }
 }
 

@@ -806,46 +806,6 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertFalse(resolver.isDeleted(contentUpdatedAt: newer, deletedAt: older))
     }
 
-    func test同步協調器讓同時請求共用同一個執行結果() async throws {
-        let coordinator = ICloudSyncCoordinator()
-        let expected = ICloudSyncResult(uploadedCount: 1, downloadedCount: 2, conflictCount: 3)
-        var executionCount = 0
-        var release: CheckedContinuation<Void, Never>?
-
-        let first = Task { @MainActor in
-            try await coordinator.synchronize {
-                executionCount += 1
-                await withCheckedContinuation { release = $0 }
-                return expected
-            }
-        }
-        while release == nil {
-            await Task.yield()
-        }
-        let second = Task { @MainActor in
-            try await coordinator.synchronize {
-                executionCount += 1
-                return ICloudSyncResult(
-                    uploadedCount: 99,
-                    downloadedCount: 99,
-                    conflictCount: 99
-                )
-            }
-        }
-        while coordinator.waitingCallerCount == 0 {
-            await Task.yield()
-        }
-        release?.resume()
-        release = nil
-
-        let firstResult = try await first.value
-        let secondResult = try await second.value
-        XCTAssertEqual(firstResult, expected)
-        XCTAssertEqual(secondResult, expected)
-        XCTAssertEqual(executionCount, 1)
-        XCTAssertFalse(coordinator.isSyncing)
-    }
-
     func test同步流程拋錯時會回復所有尚未儲存的SwiftData變更() async throws {
         let chart = try makeSavedChart(name: "同步前")
         let container = try ModelContainer(

@@ -337,8 +337,10 @@ private struct UITestChartConversationAnswerer: ChartConversationAnswering {
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
+    @Environment(AIConfigurationStore.self) private var aiConfigurationStore
     @Environment(AppLockStore.self) private var appLockStore
     @Environment(ICloudSyncCoordinator.self) private var iCloudSyncCoordinator
+    @Environment(ICloudSynchronizer.self) private var iCloudSynchronizer
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
 
     @Query private var savedCharts: [SavedChart]
@@ -402,6 +404,11 @@ struct RootView: View {
         .onChange(of: appLockStore.isLocked) { _, _ in
             updatePrivacyShieldWindow()
         }
+        .onChange(of: aiConfigurationStore.isConfigured) { wasConfigured, isConfigured in
+            if wasConfigured, !isConfigured {
+                assistantStore.cancelRequest()
+            }
+        }
         .onChange(of: appLockStore.showsPrivacyShield) { _, _ in
             updatePrivacyShieldWindow()
         }
@@ -442,17 +449,18 @@ struct RootView: View {
         guard iCloudSyncEnabled else { return }
         do {
             _ = try await iCloudSyncCoordinator.synchronize {
-                try await ICloudSyncService().sync(
+                let result = try await iCloudSynchronizer.sync(
                     charts: savedCharts,
                     insights: savedInsights,
                     deletions: cloudDeletions,
                     modelContext: modelContext
                 )
+                let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
+                PinnedChartShortcut.reconcile(charts: currentCharts)
+                return result
             }
-            let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
-            PinnedChartShortcut.reconcile(charts: currentCharts)
         } catch {
-            // 保持啟用狀態，等下次進入前景或由使用者手動重試。
+            // 保持啟用與安全的可重試狀態，等下次進入前景或由使用者手動重試。
         }
     }
 

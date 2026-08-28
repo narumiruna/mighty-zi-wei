@@ -2,6 +2,30 @@ import Accessibility
 import SwiftData
 import SwiftUI
 
+struct InterpretationDisplayState: Equatable, Sendable {
+    let basic: ChartInterpretation
+    private(set) var ai: ChartInterpretation?
+    private(set) var selectedSource: ChartInterpretation.Source = .deterministic
+
+    var selected: ChartInterpretation {
+        guard selectedSource == .remoteAI, let ai else { return basic }
+        return ai
+    }
+
+    mutating func select(_ source: ChartInterpretation.Source) {
+        guard source == .deterministic || ai != nil else { return }
+        selectedSource = source
+    }
+
+    mutating func acceptAI(_ interpretation: ChartInterpretation) {
+        let isFirstResult = ai == nil
+        ai = interpretation
+        if isFirstResult {
+            selectedSource = .remoteAI
+        }
+    }
+}
+
 struct InterpretationView: View {
     let facts: [ChartFact]
     let seeds: [InterpretationSeed]
@@ -10,7 +34,7 @@ struct InterpretationView: View {
     @Environment(AIConfigurationStore.self) private var aiConfigurationStore
     @Environment(AIUsageStore.self) private var usageStore
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
-    @State private var interpretation: ChartInterpretation
+    @State private var displayState: InterpretationDisplayState
     @State private var isGenerating = false
     @State private var statusMessage: String?
     @State private var generationTask: Task<Void, Never>?
@@ -28,23 +52,25 @@ struct InterpretationView: View {
         self.facts = facts
         self.seeds = seeds
         self.chartID = chartID
-        _interpretation = State(
-            initialValue: RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
-        )
+        _displayState = State(initialValue: InterpretationDisplayState(
+            basic: RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
+        ))
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
-                if let overview = interpretation.sections.first(where: { $0.category == .overview }) {
+                sourceHeader
+
+                if let overview = selectedInterpretation.sections.first(
+                    where: { $0.category == .overview }
+                ) {
                     InterpretationOverviewView(
                         section: overview,
                         factsByID: factsByID,
                         chartID: chartID
                     )
                 }
-
-                sourceHeader
 
                 DisclaimerView()
 
@@ -54,7 +80,7 @@ struct InterpretationView: View {
                         .accessibilityAddTraits(.isHeader)
 
                     ForEach(
-                        interpretation.sections.filter { $0.category != .overview }
+                        selectedInterpretation.sections.filter { $0.category != .overview }
                     ) { section in
                         InterpretationCategoryDisclosure(
                             section: section,
@@ -100,22 +126,52 @@ struct InterpretationView: View {
         Dictionary(uniqueKeysWithValues: facts.map { ($0.id, $0) })
     }
 
+    private var selectedInterpretation: ChartInterpretation {
+        displayState.selected
+    }
+
     private var sourceHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("解讀版本")
                 .font(.headline)
                 .accessibilityIdentifier("interpretation.source")
 
-            HStack {
-                Label(
-                    interpretation.source.title,
-                    systemImage: interpretation.source == .remoteAI ? "cloud" : "text.book.closed"
+            HStack(spacing: 10) {
+                Image(
+                    systemName: displayState.selectedSource == .remoteAI
+                        ? "cloud"
+                        : "text.book.closed"
                 )
-                .font(.headline)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(selectedInterpretation.source.title)
+                        .font(.headline)
+                    Text(displayState.selectedSource == .remoteAI ? "第三方整理版本" : "本機基本版本")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 if isGenerating {
                     ProgressView()
                         .accessibilityLabel("正在產生命盤解讀")
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                displayState.selectedSource == .remoteAI
+                    ? "目前版本：雲端 AI 整理，第三方整理版本"
+                    : "目前版本：基本解讀，本機基本版本"
+            )
+            .accessibilityIdentifier("interpretation.source.current")
+
+            if displayState.ai != nil {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        sourceChoices
+                    }
+                    VStack(spacing: 10) {
+                        sourceChoices
+                    }
                 }
             }
 
@@ -126,7 +182,7 @@ struct InterpretationView: View {
                     .accessibilityIdentifier("interpretation.status")
             }
 
-            Text("基本解讀已包含完整內容。App 會要求 AI 只整理既有文字，並檢查回傳格式、內容安全與引用的命盤依據，但無法保證 AI 不會改變語意；你可以隨時對照基本解讀。")
+            Text("基本解讀會一直保留。App 會要求 AI 只整理既有內容，並驗證格式、安全與命盤依據，但無法保證 AI 不會改變語意。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -135,7 +191,7 @@ struct InterpretationView: View {
                     showsTransmissionPreview = true
                 } label: {
                     Label(
-                        interpretation.source == .remoteAI ? "重新整理文字" : "用 AI 整理文字",
+                        displayState.ai == nil ? "用 AI 整理文字" : "重新整理文字",
                         systemImage: "sparkles"
                     )
                     .frame(maxWidth: .infinity)
@@ -161,6 +217,61 @@ struct InterpretationView: View {
         .cardStyle()
     }
 
+    @ViewBuilder
+    private var sourceChoices: some View {
+        sourceChoice(
+            source: .deterministic,
+            title: "基本解讀",
+            detail: "本機",
+            systemImage: "text.book.closed"
+        )
+        sourceChoice(
+            source: .remoteAI,
+            title: "AI 整理",
+            detail: "第三方",
+            systemImage: "sparkles"
+        )
+    }
+
+    private func sourceChoice(
+        source: ChartInterpretation.Source,
+        title: String,
+        detail: String,
+        systemImage: String
+    ) -> some View {
+        Button {
+            selectSource(source)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: displayState.selectedSource == source ? "checkmark.circle.fill" : systemImage)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(detail)
+                        .font(.caption)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }
+        .buttonStyle(.bordered)
+        .tint(displayState.selectedSource == source ? .accentColor : .secondary)
+        .accessibilityValue(displayState.selectedSource == source ? "目前版本" : "可切換")
+        .accessibilityIdentifier(
+            source == .remoteAI
+                ? "interpretation.source.ai"
+                : "interpretation.source.basic"
+        )
+    }
+
+    private func selectSource(_ source: ChartInterpretation.Source) {
+        guard displayState.selectedSource != source else { return }
+        let previousSource = displayState.selectedSource
+        displayState.select(source)
+        guard displayState.selectedSource != previousSource else { return }
+        voiceCoordinator.stopOutput()
+    }
+
     private func presentAPIConfiguration() {
         voiceCoordinator.stopAll {
             showsAPIConfiguration = true
@@ -178,19 +289,29 @@ struct InterpretationView: View {
                 let configuration = try aiConfigurationStore.configuration()
                 try usageStore.reserve(.interpretation)
                 let result = try await generateInterpretation(configuration: configuration)
+                let validatedSections = try InterpretationValidator().validate(
+                    sections: result.sections,
+                    facts: facts
+                )
                 try Task.checkCancellation()
                 guard generationID == identifier else { return }
                 voiceCoordinator.stopOutput()
-                interpretation = result
+                displayState.acceptAI(ChartInterpretation(
+                    sections: validatedSections,
+                    source: .remoteAI
+                ))
                 statusMessage = "已確認回傳格式、內容安全與引用的命盤依據。"
+                AccessibilityNotification.Announcement(
+                    displayState.selectedSource == .remoteAI
+                        ? "AI 整理完成，目前顯示 AI 整理版本。"
+                        : "AI 整理完成，目前繼續顯示基本解讀。"
+                ).post()
             } catch is CancellationError {
                 guard generationID == identifier else { return }
                 statusMessage = "已停止整理，保留目前內容。"
             } catch {
                 guard generationID == identifier else { return }
                 usageStore.record(error: error, kind: .interpretation)
-                voiceCoordinator.stopOutput()
-                interpretation = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
                 statusMessage = generationFailureMessage(for: error)
             }
             guard generationID == identifier else { return }
@@ -217,7 +338,16 @@ struct InterpretationView: View {
             throw OpenAIResponsesInterpreter.InterpreterError.timedOut
         }
         let fallback = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
-        return ChartInterpretation(sections: fallback.sections, source: .remoteAI)
+        let sections = fallback.sections.map { section in
+            InterpretationSection(
+                id: "ai.\(section.category.rawValue)",
+                category: section.category,
+                title: section.title,
+                content: section.content,
+                evidenceFactIDs: section.evidenceFactIDs
+            )
+        }
+        return ChartInterpretation(sections: sections, source: .remoteAI)
     }
 
     private func cancelGeneration() {
@@ -232,22 +362,22 @@ struct InterpretationView: View {
         if let interpreterError = error as? OpenAIResponsesInterpreter.InterpreterError {
             switch interpreterError {
             case .unauthorized:
-                return "API 授權失敗，請檢查 API key；目前繼續顯示完整的基本解讀。"
+                return "API 授權失敗，請檢查 API key；目前版本與既有內容保持不變。"
             case .rateLimited:
-                return "API 已達速率或額度限制；目前繼續顯示完整的基本解讀。"
+                return "API 已達速率或額度限制；目前版本與既有內容保持不變。"
             case .timedOut:
-                return "API 回應逾時；目前繼續顯示完整的基本解讀。"
+                return "API 回應逾時；目前版本與既有內容保持不變。"
             default:
                 break
             }
         }
         if error is OpenAIResponsesConfiguration.ValidationError {
-            return "API 設定不完整；目前繼續顯示完整的基本解讀。"
+            return "API 設定不完整；目前版本與既有內容保持不變。"
         }
         if error is KeychainAPICredentialStore.CredentialError {
-            return "目前無法讀取 API key；請回到 API 設定確認，基本解讀仍可正常使用。"
+            return "目前無法讀取 API key；請回到 API 設定確認，既有內容仍可正常使用。"
         }
-        return "雲端整理未完成，繼續顯示完整的基本解讀。"
+        return "雲端整理未完成，目前版本與既有內容保持不變。"
     }
 }
 

@@ -9,6 +9,7 @@ struct SavedConversationsView: View {
 
     @State private var searchText = ""
     @State private var conversationToRename: SavedConversation?
+    @State private var conversationToDelete: SavedConversation?
     @State private var proposedTitle = ""
     @State private var errorMessage: String?
 
@@ -28,22 +29,39 @@ struct SavedConversationsView: View {
                 ContentUnavailableView.search(text: searchText)
             } else {
                 ForEach(filtered) { conversation in
-                    NavigationLink {
-                        SavedConversationDetailView(conversation: conversation)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(conversation.title)
-                                .font(.headline)
-                            Text(conversation.chartName)
-                            Text("\(conversation.modelIdentifier)・\(conversation.turns.count) 輪")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(conversation.updatedAt, format: .dateTime.year().month().day().hour().minute())
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                    HStack(spacing: 8) {
+                        NavigationLink {
+                            SavedConversationDetailView(conversation: conversation)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(conversation.title)
+                                    .font(.headline)
+                                Text(conversation.chartName)
+                                Text("\(conversation.modelIdentifier)・\(conversation.turns.count) 輪")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(conversation.updatedAt, format: .dateTime.year().month().day().hour().minute())
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 4)
+                            .accessibilityElement(children: .combine)
                         }
-                        .padding(.vertical, 4)
-                        .accessibilityElement(children: .combine)
+
+                        Menu {
+                            Button("重新命名", systemImage: "pencil") {
+                                conversationToRename = conversation
+                                proposedTitle = conversation.title
+                            }
+                            Button("刪除", systemImage: "trash", role: .destructive) {
+                                conversationToDelete = conversation
+                            }
+                        } label: {
+                            Label("對話操作", systemImage: "ellipsis.circle")
+                                .labelStyle(.iconOnly)
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityIdentifier("conversation.rowMenu.\(conversation.id.uuidString)")
                     }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         Button {
@@ -54,16 +72,8 @@ struct SavedConversationsView: View {
                         }
                     }
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            let deletedID = conversation.id
-                            modelContext.delete(conversation)
-                            if save(errorText: "無法刪除本機對話。") {
-                                assistantStore.reconcileSavedConversationIDs(
-                                    Set(conversations.lazy.map(\.id)).subtracting([deletedID])
-                                )
-                            }
-                        } label: {
-                            Label("刪除", systemImage: "trash")
+                        Button("刪除", systemImage: "trash", role: .destructive) {
+                            conversationToDelete = conversation
                         }
                     }
                 }
@@ -82,6 +92,22 @@ struct SavedConversationsView: View {
         } message: {
             Text("對話只保存在本機，不會納入 iCloud 同步或加密備份。")
         }
+        .confirmationDialog(
+            "刪除這份已保存對話？",
+            isPresented: deleteIsPresented,
+            titleVisibility: .visible
+        ) {
+            Button("刪除對話", role: .destructive) {
+                guard let conversationToDelete else { return }
+                delete(conversationToDelete)
+                self.conversationToDelete = nil
+            }
+            Button("取消", role: .cancel) {
+                conversationToDelete = nil
+            }
+        } message: {
+            Text("這只會刪除本機保存副本，目前仍在畫面上的對話不會被清除。")
+        }
         .alert("操作未完成", isPresented: errorIsPresented) {
             Button("好", role: .cancel) {}
         } message: {
@@ -96,11 +122,28 @@ struct SavedConversationsView: View {
         )
     }
 
+    private var deleteIsPresented: Binding<Bool> {
+        Binding(
+            get: { conversationToDelete != nil },
+            set: { if !$0 { conversationToDelete = nil } }
+        )
+    }
+
     private var errorIsPresented: Binding<Bool> {
         Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+
+    private func delete(_ conversation: SavedConversation) {
+        let deletedID = conversation.id
+        modelContext.delete(conversation)
+        if save(errorText: "無法刪除本機對話。") {
+            assistantStore.reconcileSavedConversationIDs(
+                Set(conversations.lazy.map(\.id)).subtracting([deletedID])
+            )
+        }
     }
 
     @discardableResult
@@ -127,8 +170,13 @@ struct SavedConversationExportPrivacyGuard: Equatable, Sendable {
 private struct SavedConversationDetailView: View {
     let conversation: SavedConversation
 
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Environment(ChartAssistantStore.self) private var assistantStore
     @State private var exportConfirmed = false
     @State private var showsExportConfirmation = false
+    @State private var showsDeleteConfirmation = false
+    @State private var errorMessage: String?
 
     var body: some View {
         ScrollView {
@@ -181,18 +229,28 @@ private struct SavedConversationDetailView: View {
         .navigationTitle("對話內容")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if exportConfirmed {
-                ShareLink(item: conversation.exportText()) {
-                    Label("匯出純文字", systemImage: "square.and.arrow.up")
+            ToolbarItem(placement: .topBarTrailing) {
+                if exportConfirmed {
+                    ShareLink(item: conversation.exportText()) {
+                        Label("匯出純文字", systemImage: "square.and.arrow.up")
+                    }
+                    .accessibilityIdentifier("conversation.export")
+                } else {
+                    Button {
+                        showsExportConfirmation = true
+                    } label: {
+                        Label("確認個人資料後匯出", systemImage: "exclamationmark.shield")
+                    }
+                    .accessibilityIdentifier("conversation.confirmExport")
                 }
-                .accessibilityIdentifier("conversation.export")
-            } else {
-                Button {
-                    showsExportConfirmation = true
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    showsDeleteConfirmation = true
                 } label: {
-                    Label("確認個人資料後匯出", systemImage: "exclamationmark.shield")
+                    Label("刪除對話", systemImage: "trash")
                 }
-                .accessibilityIdentifier("conversation.confirmExport")
+                .accessibilityIdentifier("conversation.delete")
             }
         }
         .confirmationDialog(
@@ -204,6 +262,40 @@ private struct SavedConversationDetailView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("純文字將包含\(SavedConversationExportPrivacyGuard().fieldSummary)：命盤名稱「\(conversation.chartName)」、命盤資料「\(conversation.chartDetail)」。下一步仍需點選匯出按鈕才會開啟系統分享選單。")
+        }
+        .confirmationDialog(
+            "刪除這份已保存對話？",
+            isPresented: $showsDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("刪除對話", role: .destructive) { deleteConversation() }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("這只會刪除本機保存副本，目前命盤助理畫面上的對話不會被清除。")
+        }
+        .alert("操作未完成", isPresented: errorIsPresented) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "無法刪除本機對話。")
+        }
+    }
+
+    private var errorIsPresented: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )
+    }
+
+    private func deleteConversation() {
+        modelContext.delete(conversation)
+        do {
+            try modelContext.save()
+            assistantStore.reconcileSavedConversationIDs([])
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            errorMessage = "無法刪除本機對話，目前內容仍保留。"
         }
     }
 }

@@ -14,6 +14,7 @@
 		15E38F9F73DB17F7C87E8B6F /* InterpretationValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */; };
 		17CBAAB579EBEED439C31356 /* ClipboardWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41F987B7515934AB8E6AD02B /* ClipboardWriter.swift */; };
 		192730C868D21C2ABEF8610A /* AppModelStoreMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C195E0D88678E2DE4D8B188B /* AppModelStoreMigrationTests.swift */; };
+		1E26628CDE995E823FE4C1E8 /* UIUXWorkflowPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FDED900107A8A6F23B9334 /* UIUXWorkflowPolicyTests.swift */; };
 		1F2F3B8A8BF7AB56672F02B7 /* ChartFactBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */; };
 		24AC73DF96E1DCF2A3E5827F /* PalaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90937BEA13CCA793C63D751E /* PalaceDetailView.swift */; };
 		27E79E39D9D5C1A35BD66B4D /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32476896280CD9A6DF081001 /* AboutView.swift */; };
@@ -87,6 +88,7 @@
 		CDC81E182D78CF5D3A964A5F /* chart_014_hour_xu.json in Resources */ = {isa = PBXBuildFile; fileRef = 8F5C44BDBCC4F068F53F6930 /* chart_014_hour_xu.json */; };
 		CE0D3975202B78474E838061 /* chart_003_lunar_new_year.json in Resources */ = {isa = PBXBuildFile; fileRef = 512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */; };
 		D3B32803C19447C6D9F7C700 /* SavedConversationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B4AA025E631D823E7413A15 /* SavedConversationsView.swift */; };
+		D455340EBF1B74F16841C733 /* MightyZiWeiRedesignUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E97A06952708AC27BDE339E /* MightyZiWeiRedesignUITests.swift */; };
 		D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */; };
 		D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */; };
 		D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */; };
@@ -172,6 +174,7 @@
 		39A959B7DEE0A8A36091BEA5 /* ChartEncyclopediaCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartEncyclopediaCatalogTests.swift; sourceTree = "<group>"; };
 		3AD3B6947F9662D390173554 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidatorTests.swift; sourceTree = "<group>"; };
+		3E97A06952708AC27BDE339E /* MightyZiWeiRedesignUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiRedesignUITests.swift; sourceTree = "<group>"; };
 		4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjacentHourComparisonBuilderTests.swift; sourceTree = "<group>"; };
 		41F987B7515934AB8E6AD02B /* ClipboardWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardWriter.swift; sourceTree = "<group>"; };
 		4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContent.swift; sourceTree = "<group>"; };
@@ -228,6 +231,7 @@
 		C6226D4F6886FD317C6D2C12 /* InterpretationValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidator.swift; sourceTree = "<group>"; };
 		C6F47EEC71969B65AE9A6439 /* ChartFactBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartFactBuilderTests.swift; sourceTree = "<group>"; };
 		C7BB733B679E4CC1FAC918ED /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		C9FDED900107A8A6F23B9334 /* UIUXWorkflowPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIUXWorkflowPolicyTests.swift; sourceTree = "<group>"; };
 		CE506A8D25088FF150C0D88A /* MightyZiWei.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MightyZiWei.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D2C62A38C5D80DA4046E9E59 /* TimeZonePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeZonePickerView.swift; sourceTree = "<group>"; };
 		D43B88E143C001404E0389BC /* Star.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Star.swift; sourceTree = "<group>"; };
@@ -447,6 +451,7 @@
 		9868BBF11766CC3E6ACF6095 /* MightyZiWeiUITests */ = {
 			isa = PBXGroup;
 			children = (
+				3E97A06952708AC27BDE339E /* MightyZiWeiRedesignUITests.swift */,
 				97DB1AE2F8775CC76192AEF9 /* MightyZiWeiUITests.swift */,
 			);
 			path = MightyZiWeiUITests;
@@ -532,6 +537,7 @@
 			isa = PBXGroup;
 			children = (
 				E92B340638BB9192399A6528 /* PracticalFeaturesTests.swift */,
+				C9FDED900107A8A6F23B9334 /* UIUXWorkflowPolicyTests.swift */,
 				0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */,
 				673A3BA999DB7B3E683C2F06 /* AI */,
 				9DC2716039176B98C4C27187 /* Chart */,
@@ -775,6 +781,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D455340EBF1B74F16841C733 /* MightyZiWeiRedesignUITests.swift in Sources */,
 				2B3C06FAFA75B3A4135E0E47 /* MightyZiWeiUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -874,6 +881,7 @@
 				CC011DAADB004332F55EABBA /* PracticalFeaturesTests.swift in Sources */,
 				4512C9F3380861D5A9160279 /* SavedChartTests.swift in Sources */,
 				A780A7BB053C036AD90F2065 /* SavedInsightTests.swift in Sources */,
+				1E26628CDE995E823FE4C1E8 /* UIUXWorkflowPolicyTests.swift in Sources */,
 				CB305A656B8CD50DB66FDC2A /* VoiceCoordinatorTests.swift in Sources */,
 				117F7E9D16F29C60C2F31508 /* ZiWeiCoreTests.swift in Sources */,
 			);
