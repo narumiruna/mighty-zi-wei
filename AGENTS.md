@@ -39,6 +39,9 @@
 - Follow KISS (Keep It Simple) and YAGNI (You Aren't Gonna Need It).
 - Prefer simple, minimal solutions over unnecessary complexity.
 - Split source files over 1,000 lines along clear responsibility boundaries, or document why they must remain intact.
+- 新增或修改 Swift 程式碼後，完成工作前必須對所有變更的 Swift 檔案執行 `swift-format format --in-place <files>`。
+- 格式化後，必須對相同檔案執行 `swift-format lint --strict <files>` 與 `swiftlint lint --strict <files>`。
+- 格式化或 Lint 失敗時必須先修正；若因環境問題無法執行，必須在回覆中明確說明，不得宣稱驗證通過。
 
 ## Execution
 

@@ -173,6 +173,41 @@ struct InterpretationValidator: Sendable {
   }
 }
 
+enum ConversationAnswerContentPolicy {
+  static let internalLabels = [
+    "使用到的解讀",
+    "使用到的 seed",
+    "evidenceSeedIDs",
+    "evidenceFactIDs",
+  ]
+
+  static let markdownMarkers = ["**", "__", "`"]
+
+  static func containsInternalDetails(_ content: String, identifiers: [String]) -> Bool {
+    (internalLabels + identifiers).contains(where: content.contains)
+  }
+
+  static func containsMarkdown(_ content: String) -> Bool {
+    markdownMarkers.contains(where: content.contains)
+  }
+
+  static func displayText(_ content: String, hiding identifiers: [String]) -> String {
+    let cutoff =
+      (internalLabels + identifiers)
+      .compactMap { content.range(of: $0)?.lowerBound }
+      .min() ?? content.endIndex
+    let visibleContent = String(content[..<cutoff])
+    let plainText = markdownMarkers.reduce(visibleContent) { result, marker in
+      result.replacingOccurrences(of: marker, with: "")
+    }
+    .replacingOccurrences(of: " ：", with: "：")
+    .replacingOccurrences(of: " :", with: "：")
+    .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    return plainText.isEmpty ? "這則回答無法完整顯示，請重新提問。" : plainText
+  }
+}
+
 struct ConversationAnswerValidator: Sendable {
   private static let unsupportedContent = "目前命盤資料不足以直接回答。你可以改問個性、工作方式、財務傾向、感情或人際互動。"
 
@@ -187,6 +222,8 @@ struct ConversationAnswerValidator: Sendable {
     case unknownEvidence(String)
     case duplicateEvidence(String)
     case evidenceMismatch
+    case internalDetails
+    case markdownContent
     case unsafeContent
 
     var errorDescription: String? {
@@ -211,6 +248,10 @@ struct ConversationAnswerValidator: Sendable {
         "回答重複引用依據：\(identifier)"
       case .evidenceMismatch:
         "回答線索與命盤依據不一致。"
+      case .internalDetails:
+        "回答包含不應顯示的內部依據識別碼。"
+      case .markdownContent:
+        "回答包含不支援的 Markdown 標記。"
       case .unsafeContent:
         "回答包含不允許的確定式或專業建議。"
       }
@@ -304,6 +345,19 @@ struct ConversationAnswerValidator: Sendable {
         evidenceSeedIDs: [],
         evidenceFactIDs: []
       )
+    }
+
+    let internalIdentifiers = facts.map(\.id) + seeds.map(\.id)
+    guard
+      !ConversationAnswerContentPolicy.containsInternalDetails(
+        content,
+        identifiers: internalIdentifiers
+      )
+    else {
+      throw ValidationError.internalDetails
+    }
+    guard !ConversationAnswerContentPolicy.containsMarkdown(content) else {
+      throw ValidationError.markdownContent
     }
 
     let contentForSafetyCheck = allowedDisclaimerPhrases.reduce(content) {
