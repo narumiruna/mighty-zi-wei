@@ -34,10 +34,7 @@ final class SavedInsightTests: XCTestCase {
 
   func test收藏保留Seed與FactEvidenceIDs() throws {
     let seedEvidence = ["seed.overview.ziWei.life"]
-    let factEvidence = [
-      "natal.palace.life.branch",
-      "natal.star.ziWei.palace",
-    ]
+    let factEvidence = ["natal.palace.life.branch", "natal.star.ziWei.palace"]
     let bookmark = SavedInsight.bookmark(
       chartID: UUID(),
       locationID: "interpretation.overview",
@@ -55,6 +52,7 @@ final class SavedInsightTests: XCTestCase {
 
   func test刪除命盤前摘要明確列出筆記與收藏數量() {
     let chartID = UUID()
+    // swiftlint:disable trailing_comma
     let summary = SavedInsightDeletionSummary(insights: [
       SavedInsight(
         chartID: chartID,
@@ -71,6 +69,7 @@ final class SavedInsightTests: XCTestCase {
         evidenceFactIDs: []
       ),
     ])
+    // swiftlint:enable trailing_comma
 
     XCTAssertEqual(summary.noteCount, 1)
     XCTAssertEqual(summary.bookmarkCount, 1)
@@ -97,6 +96,31 @@ final class SavedInsightTests: XCTestCase {
 
     XCTAssertTrue(note.evidenceSeedIDs.isEmpty)
     XCTAssertEqual(note.evidenceFactIDs, ["fact.updated"])
+  }
+
+  func test筆記依據集合未變時保留舊SeedProvenance與Fact順序() {
+    let note = SavedInsight(
+      chartID: UUID(),
+      kind: .note,
+      locationID: "interpretation.personality",
+      title: "原始筆記",
+      content: "原始內容",
+      evidenceSeedIDs: ["seed.original"],
+      evidenceFactIDs: ["fact.second", "fact.first"]
+    )
+
+    note.updateNote(
+      title: "更新筆記",
+      content: "更新內容",
+      marker: .observe,
+      evidenceFactIDs: ["fact.first", "fact.second"]
+    )
+
+    XCTAssertEqual(note.title, "更新筆記")
+    XCTAssertEqual(note.content, "更新內容")
+    XCTAssertEqual(note.marker, .observe)
+    XCTAssertEqual(note.evidenceSeedIDs, ["seed.original"])
+    XCTAssertEqual(note.evidenceFactIDs, ["fact.second", "fact.first"])
   }
 
   func test重新產生內容後可辨識並更新同一收藏() {

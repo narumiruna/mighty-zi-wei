@@ -99,8 +99,10 @@ final class SavedInsight {
       self.locationID = locationID
     }
     if let evidenceFactIDs {
-      evidenceSeedIDsData = Self.encodeEvidenceIDs([])
-      evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
+      if Set(evidenceFactIDs) != Set(self.evidenceFactIDs) {
+        evidenceSeedIDsData = Self.encodeEvidenceIDs([])
+        evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
+      }
     }
     self.reviewDate = reviewDate
     self.reminderIdentifier = reminderIdentifier
@@ -108,11 +110,12 @@ final class SavedInsight {
   }
 
   var linkedContentTitle: String {
-    if locationID.hasPrefix("palace."),
-      let value = locationID.split(separator: ".").last,
-      let kind = PalaceKind(rawValue: String(value))
-    {
-      return kind.displayName
+    if locationID.hasPrefix("palace.") {
+      if let value = locationID.split(separator: ".").last {
+        if let kind = PalaceKind(rawValue: String(value)) {
+          return kind.displayName
+        }
+      }
     }
     if locationID.hasPrefix("interpretation.") {
       return "命盤解讀"
