@@ -112,6 +112,26 @@ final class SavedChartTests: XCTestCase {
         ))
     }
 
+    func test剛儲存完成時不會因Query尚未刷新而遺失命盤識別() {
+        let newlySavedID = UUID()
+
+        XCTAssertEqual(
+            SavedChartReferenceResolver.effectiveID(
+                savedChartID: nil,
+                newlySavedChartID: newlySavedID,
+                newlySavedIsConfirmed: true,
+                availableIDs: []
+            ),
+            newlySavedID
+        )
+        XCTAssertNil(SavedChartReferenceResolver.effectiveID(
+            savedChartID: nil,
+            newlySavedChartID: newlySavedID,
+            newlySavedIsConfirmed: false,
+            availableIDs: []
+        ))
+    }
+
     func testSwiftData可新增重新命名與刪除() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: SavedChart.self, configurations: configuration)

@@ -1,9 +1,52 @@
 import SwiftData
 import SwiftUI
 
-private struct UITestCredentialStore: APICredentialStoring {
-    func loadAPIKey() throws -> String? { nil }
-    func saveAPIKey(_ apiKey: String?) throws {}
+private final class UITestCredentialStore: APICredentialStoring {
+    private var apiKey: String?
+
+    func loadAPIKey() throws -> String? { apiKey }
+    func saveAPIKey(_ apiKey: String?) throws { self.apiKey = apiKey }
+}
+
+private struct UITestAIConnectionTester: AIConnectionTesting {
+    let arguments: [String]
+
+    func testConnection(configuration: OpenAIResponsesConfiguration) async throws {
+        try await Task.sleep(for: .milliseconds(100))
+        if arguments.contains("-UITestMockAIConnectionFailure") {
+            throw OpenAIResponsesInterpreter.InterpreterError.timedOut
+        }
+    }
+}
+
+private enum UITestICloudSyncError: Error {
+    case partialRemote
+}
+
+private struct UITestICloudSyncService: ICloudSynchronizing {
+    let arguments: [String]
+
+    func sync(
+        charts: [SavedChart],
+        insights: [SavedInsight],
+        deletions: [CloudDeletion],
+        modelContext: ModelContext
+    ) async throws -> ICloudSyncResult {
+        if arguments.contains("-UITestMockICloudUnavailable")
+            || arguments.contains("-UITestMockICloudAccountUnavailable") {
+            throw ICloudSyncService.SyncError.iCloudUnavailable
+        }
+        if arguments.contains("-UITestMockICloudFailure")
+            || arguments.contains("-UITestMockICloudPartialFailure")
+            || arguments.contains("-UITestMockICloudPartialRemoteFailure") {
+            throw UITestICloudSyncError.partialRemote
+        }
+        return ICloudSyncResult(
+            uploadedCount: charts.count + insights.count + deletions.count,
+            downloadedCount: 0,
+            conflictCount: 0
+        )
+    }
 }
 
 enum AppModelContainerLoader {
@@ -231,24 +274,79 @@ struct MightyZiWeiApp: App {
     @State private var modelContainerResult: Result<ModelContainer, any Error>
     @State private var aiConfigurationStore: AIConfigurationStore
     @State private var aiUsageStore: AIUsageStore
+    @State private var aiConfigurationCommitCoordinator: AIConfigurationCommitCoordinator
     @State private var appLockStore: AppLockStore
     @State private var iCloudSyncCoordinator: ICloudSyncCoordinator
+    @State private var iCloudSynchronizer: ICloudSynchronizer
     @State private var voiceCoordinator: VoiceCoordinator
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
+        let isUITesting = arguments.contains { $0.hasPrefix("-UITest") }
+        if isUITesting {
+            let startsWithICloudEnabled = arguments.contains("-UITestICloudEnabled")
+                || arguments.contains("-UITestICloudSyncEnabled")
+                || arguments.contains("-UITestLegacyICloudEnabled")
+            UserDefaults.standard.set(
+                startsWithICloudEnabled,
+                forKey: ICloudSyncService.enabledKey
+            )
+        }
         _modelContainerResult = State(
             initialValue: AppModelContainerLoader.load(arguments: arguments)
         )
-        if arguments.contains("-UITestMockAI") {
-            let defaults = UserDefaults(suiteName: "MightyZiWei.UITesting.AIUsage")!
-            defaults.removePersistentDomain(forName: "MightyZiWei.UITesting.AIUsage")
-            _aiUsageStore = State(initialValue: AIUsageStore(defaults: defaults))
+
+        let usageStore: AIUsageStore
+        if isUITesting {
+            let suite = "MightyZiWei.UITesting.AIUsage"
+            let defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            usageStore = AIUsageStore(defaults: defaults)
         } else {
-            _aiUsageStore = State(initialValue: AIUsageStore())
+            usageStore = AIUsageStore()
         }
+        _aiUsageStore = State(initialValue: usageStore)
+
+        let configurationStore: AIConfigurationStore
+        if isUITesting {
+            let suite = "MightyZiWei.UITesting.AI"
+            let defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            let store = AIConfigurationStore(
+                defaults: defaults,
+                credentialStore: UITestCredentialStore()
+            )
+            if arguments.contains("-UITestMockAI") {
+                try? store.save(
+                    endpoint: "https://example.com/v1",
+                    model: "ui-test-model",
+                    apiKey: ""
+                )
+            }
+            configurationStore = store
+        } else {
+            configurationStore = AIConfigurationStore()
+        }
+        _aiConfigurationStore = State(initialValue: configurationStore)
+
+        let connectionTester: any AIConnectionTesting = isUITesting
+            ? UITestAIConnectionTester(arguments: arguments)
+            : OpenAIConnectionTester()
+        _aiConfigurationCommitCoordinator = State(initialValue: AIConfigurationCommitCoordinator(
+            configurationStore: configurationStore,
+            usageStore: usageStore,
+            connectionTester: connectionTester
+        ))
+
         _appLockStore = State(initialValue: AppLockStore())
         _iCloudSyncCoordinator = State(initialValue: ICloudSyncCoordinator())
+        let iCloudService: any ICloudSynchronizing = isUITesting
+            ? UITestICloudSyncService(arguments: arguments)
+            : ICloudSyncService()
+        _iCloudSynchronizer = State(
+            initialValue: ICloudSynchronizer(service: iCloudService)
+        )
+
         if arguments.contains("-UITestMockSpeech") {
             _voiceCoordinator = State(
                 initialValue: VoiceCoordinator(
@@ -259,23 +357,6 @@ struct MightyZiWeiApp: App {
         } else {
             _voiceCoordinator = State(initialValue: VoiceCoordinator())
         }
-
-        if arguments.contains("-UITestMockAI") {
-            let defaults = UserDefaults(suiteName: "MightyZiWei.UITesting.AI")!
-            defaults.removePersistentDomain(forName: "MightyZiWei.UITesting.AI")
-            let store = AIConfigurationStore(
-                defaults: defaults,
-                credentialStore: UITestCredentialStore()
-            )
-            try? store.save(
-                endpoint: "https://example.com/v1",
-                model: "ui-test-model",
-                apiKey: ""
-            )
-            _aiConfigurationStore = State(initialValue: store)
-        } else {
-            _aiConfigurationStore = State(initialValue: AIConfigurationStore())
-        }
     }
 
     var body: some Scene {
@@ -285,8 +366,10 @@ struct MightyZiWeiApp: App {
                 RootView()
                     .environment(aiConfigurationStore)
                     .environment(aiUsageStore)
+                    .environment(aiConfigurationCommitCoordinator)
                     .environment(appLockStore)
                     .environment(iCloudSyncCoordinator)
+                    .environment(iCloudSynchronizer)
                     .environment(voiceCoordinator)
                     .modelContainer(modelContainer)
             case .failure:

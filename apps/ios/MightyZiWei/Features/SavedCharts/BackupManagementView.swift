@@ -69,6 +69,10 @@ struct BackupManagementView: View {
                 .disabled(charts.isEmpty || isExporting)
                 .accessibilityIdentifier("backup.export")
 
+                if charts.isEmpty {
+                    DisabledReasonView("至少需要一張已儲存命盤。")
+                }
+
                 if !exportRecoveryKey.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("復原金鑰只顯示於本次畫面")

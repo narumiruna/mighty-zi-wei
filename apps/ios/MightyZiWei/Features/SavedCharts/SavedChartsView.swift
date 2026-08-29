@@ -30,6 +30,32 @@ struct SavedChartTagSelectionPolicy: Sendable {
     }
 }
 
+enum SavedChartsResultState: Equatable, Sendable {
+    case results
+    case searchEmpty
+    case filterEmpty
+    case searchAndFilterEmpty
+}
+
+struct SavedChartsResultStatePolicy: Sendable {
+    func state(
+        hasResults: Bool,
+        searchText: String,
+        hasActiveFilters: Bool
+    ) -> SavedChartsResultState {
+        guard !hasResults else { return .results }
+        let hasSearch = !searchText.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ).isEmpty
+        switch (hasSearch, hasActiveFilters) {
+        case (true, true): return .searchAndFilterEmpty
+        case (true, false): return .searchEmpty
+        case (false, true): return .filterEmpty
+        case (false, false): return .results
+        }
+    }
+}
+
 enum SavedChartCreatedDateFilter: String, CaseIterable, Identifiable {
     case all
     case sevenDays
@@ -110,6 +136,21 @@ struct SavedChartsView: View {
         }
     }
 
+    private var hasActiveFilters: Bool {
+        selectedTag != nil || createdDateFilter != .all
+    }
+
+    private var filterSummary: String {
+        var conditions: [String] = []
+        if createdDateFilter != .all {
+            conditions.append(createdDateFilter.title)
+        }
+        if let selectedTag {
+            conditions.append("#\(selectedTag)")
+        }
+        return conditions.joined(separator: "、")
+    }
+
     var body: some View {
         NavigationStack {
             screenContent
@@ -128,7 +169,10 @@ struct SavedChartsView: View {
                     availableTags: tags
                 )
             }
-            .toolbar { moreActionsToolbar }
+            .toolbar {
+                filterToolbar
+                moreActionsToolbar
+            }
             .alert("編輯自訂標籤", isPresented: tagsArePresented) {
                 TextField("例如：家人、朋友、個案", text: $proposedTags)
                 Button("取消", role: .cancel) {}
@@ -180,14 +224,99 @@ struct SavedChartsView: View {
     @ViewBuilder
     private var screenContent: some View {
         if charts.isEmpty {
-            EmptyStateView(
-                symbol: "rectangle.stack",
-                title: "還沒有已儲存命盤",
-                message: "完成排盤後，點選右上角的儲存按鈕即可保留命盤。"
-            )
+            VStack(spacing: 16) {
+                EmptyStateView(
+                    symbol: "rectangle.stack",
+                    title: "還沒有已儲存命盤",
+                    message: "先排一張命盤，完成後即可儲存在這台裝置。"
+                )
+                NavigationLink {
+                    BirthInputView()
+                } label: {
+                    Label("排一張命盤", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("savedCharts.createChart")
+            }
+            .padding()
         } else {
             List {
-                Section {
+                if hasActiveFilters {
+                    Section {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Label("篩選：\(filterSummary)", systemImage: "line.3.horizontal.decrease.circle.fill")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Button("清除") {
+                                clearFilters()
+                            }
+                            .accessibilityLabel("清除篩選")
+                        }
+                    }
+                    .accessibilityIdentifier("savedCharts.filterSummary")
+                }
+
+                if filteredCharts.isEmpty {
+                    resultEmptyState
+                } else {
+                    ForEach(filteredCharts) { chart in
+                        chartRow(chart)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var resultEmptyState: some View {
+        switch SavedChartsResultStatePolicy().state(
+            hasResults: !filteredCharts.isEmpty,
+            searchText: searchText,
+            hasActiveFilters: hasActiveFilters
+        ) {
+        case .searchAndFilterEmpty:
+            ContentUnavailableView {
+                Label("找不到符合搜尋與篩選的命盤", systemImage: "magnifyingglass")
+            } description: {
+                Text("搜尋文字與篩選條件目前同時生效。")
+            } actions: {
+                Button("清除全部條件") {
+                    searchText = ""
+                    clearFilters()
+                }
+            }
+            .accessibilityIdentifier("savedCharts.empty.searchAndFilter")
+        case .searchEmpty:
+            ContentUnavailableView {
+                Label("找不到搜尋結果", systemImage: "magnifyingglass")
+            } description: {
+                Text("沒有命盤符合「\(searchText)」。")
+            } actions: {
+                Button("清除搜尋") {
+                    searchText = ""
+                }
+            }
+            .accessibilityIdentifier("savedCharts.empty.search")
+        case .filterEmpty:
+            ContentUnavailableView {
+                Label("沒有符合篩選的命盤", systemImage: "line.3.horizontal.decrease.circle")
+            } description: {
+                Text("目前條件：\(filterSummary)")
+            } actions: {
+                Button("清除篩選") {
+                    clearFilters()
+                }
+            }
+            .accessibilityIdentifier("savedCharts.empty.filter")
+        case .results:
+            EmptyView()
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var filterToolbar: some ToolbarContent {
+        if !charts.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
                     Picker("建立日期", selection: $createdDateFilter) {
                         ForEach(SavedChartCreatedDateFilter.allCases) { filter in
                             Text(filter.title).tag(filter)
@@ -201,17 +330,22 @@ struct SavedChartsView: View {
                             }
                         }
                     }
-                } header: {
-                    Text("搜尋篩選")
+                    if hasActiveFilters {
+                        Divider()
+                        Button("清除篩選", systemImage: "xmark.circle") {
+                            clearFilters()
+                        }
+                    }
+                } label: {
+                    Label(
+                        "篩選",
+                        systemImage: hasActiveFilters
+                            ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle"
+                    )
                 }
-
-                if filteredCharts.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                }
-
-                ForEach(filteredCharts) { chart in
-                    chartRow(chart)
-                }
+                .accessibilityValue(hasActiveFilters ? "已套用：\(filterSummary)" : "未套用")
+                .accessibilityIdentifier("savedCharts.filter")
             }
         }
     }
@@ -278,8 +412,10 @@ struct SavedChartsView: View {
             } label: {
                 Label("命盤分類操作", systemImage: "ellipsis.circle")
                     .labelStyle(.iconOnly)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .buttonStyle(.borderless)
+            .accessibilityIdentifier("savedCharts.rowMenu.\(chart.id.uuidString)")
         }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button {
@@ -291,20 +427,6 @@ struct SavedChartsView: View {
                 )
             }
             .tint(.orange)
-            Button {
-                chartToRename = chart
-                proposedName = chart.name
-            } label: {
-                Label("重新命名", systemImage: "pencil")
-            }
-            .tint(.accentColor)
-            Button {
-                chartToEditTags = chart
-                proposedTags = chart.tags.joined(separator: "、")
-            } label: {
-                Label("編輯標籤", systemImage: "tag")
-            }
-            .tint(.indigo)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
@@ -383,6 +505,11 @@ struct SavedChartsView: View {
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+
+    private func clearFilters() {
+        selectedTag = nil
+        createdDateFilter = .all
     }
 
     private func rename() {
@@ -551,6 +678,7 @@ struct SavedChartContentRevision: Hashable, Sendable {
 
 struct SavedChartLoaderView: View {
     let savedChart: SavedChart
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @State private var chart: ZiWeiChart?
     @State private var notice: String?
@@ -570,7 +698,10 @@ struct SavedChartLoaderView: View {
                 EmptyStateView(
                     symbol: "exclamationmark.triangle",
                     title: "無法開啟命盤",
-                    message: errorMessage
+                    message: errorMessage,
+                    actionTitle: "返回已儲存管理",
+                    actionSymbol: "chevron.backward",
+                    action: { dismiss() }
                 )
             } else {
                 ProgressView("正在準備命盤…")

@@ -526,16 +526,31 @@ struct InsightBookmarkButton: View {
     }
 
     var body: some View {
-        Button {
-            toggle()
-        } label: {
-            Label(
-                buttonTitle,
-                systemImage: matchesCurrentContent ? "bookmark.fill" : "bookmark"
+        VStack(alignment: .trailing, spacing: 4) {
+            Button {
+                toggle()
+            } label: {
+                Label(
+                    buttonTitle,
+                    systemImage: matchesCurrentContent ? "bookmark.fill" : "bookmark"
+                )
+            }
+            .disabled(validChartID == nil)
+            .accessibilityHint(
+                validChartID == nil
+                    ? "先儲存命盤才能收藏"
+                    : "收藏會保留內容與命盤依據"
             )
+
+            if validChartID == nil {
+                Text("先儲存命盤才能收藏")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Color.primary)
+                    .multilineTextAlignment(.trailing)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("bookmark.disabledReason")
+            }
         }
-        .disabled(validChartID == nil)
-        .accessibilityHint(validChartID == nil ? "請先儲存命盤" : "收藏會保留內容與命盤依據")
         .alert("操作未完成", isPresented: errorIsPresented) {
             Button("好", role: .cancel) {}
         } message: {

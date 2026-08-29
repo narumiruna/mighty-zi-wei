@@ -35,12 +35,6 @@ struct ChartAssistantView: View {
     var body: some View {
         NavigationStack {
             screenContent
-                .overlay(alignment: .top) {
-                    if let errorMessage {
-                        operationErrorBanner(message: errorMessage)
-                            .padding()
-                    }
-                }
                 .navigationTitle("命盤助理")
                 .toolbar { toolbarContent }
                 .safeAreaInset(edge: .bottom) {
@@ -107,20 +101,25 @@ struct ChartAssistantView: View {
         if let chart = assistantStore.selectedChart {
             conversationContent(chart: chart)
         } else if savedCharts.isEmpty {
-            EmptyStateView(
-                symbol: "sparkles",
-                title: "還沒有可以詢問的命盤",
-                message: "先建立一張命盤，命盤助理才能根據 App 已驗證的資料回答問題。"
-            )
-            .overlay(alignment: .bottom) {
+            VStack(spacing: 16) {
+                EmptyStateView(
+                    symbol: "sparkles",
+                    title: "還沒有可以詢問的命盤",
+                    message: "先建立一張命盤，命盤助理才能根據 App 已驗證的資料回答問題。"
+                )
                 NavigationLink {
                     BirthInputView()
                 } label: {
                     Label("排一張命盤", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
-                .padding(.bottom, 80)
                 .accessibilityIdentifier("assistant.createChart")
+            }
+            .padding()
+        } else if let errorMessage {
+            ScrollView {
+                operationErrorStatus(message: errorMessage)
+                    .padding()
             }
         } else {
             ProgressView("正在準備最近的命盤…")
@@ -133,6 +132,11 @@ struct ChartAssistantView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
                     chartSelector(chart: chart)
+
+                    if let errorMessage {
+                        operationErrorStatus(message: errorMessage)
+                            .id("assistant.operationError")
+                    }
 
                     if !configurationStore.isConfigured {
                         apiSetupCard
@@ -200,9 +204,13 @@ struct ChartAssistantView: View {
                 announceRequestState(state)
             }
             .onChange(of: errorMessage) { _, message in
-                guard message != nil else { return }
-                AccessibilityNotification.Announcement("操作未完成，目前內容仍保留。")
-                    .post()
+                guard let message else { return }
+                withAnimation {
+                    proxy.scrollTo("assistant.operationError", anchor: .center)
+                }
+                AccessibilityNotification.Announcement(
+                    "操作未完成。\(message)目前內容仍保留。"
+                ).post()
             }
         }
     }
@@ -252,7 +260,7 @@ struct ChartAssistantView: View {
         .accessibilityHint(savedCharts.isEmpty ? "目前沒有其他已儲存命盤" : "點兩下切換命盤")
     }
 
-    private func operationErrorBanner(message: String) -> some View {
+    private func operationErrorStatus(message: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("操作未完成", systemImage: "exclamationmark.triangle")
                 .font(.headline)
@@ -265,7 +273,6 @@ struct ChartAssistantView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
-        .shadow(radius: 8)
         .accessibilityIdentifier("assistant.operationError")
     }
 
@@ -289,21 +296,28 @@ struct ChartAssistantView: View {
     }
 
     private var capabilityNotice: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("可以根據命盤回答", systemImage: "checkmark.bubble")
+        VStack(alignment: .leading, spacing: 10) {
+            Label("根據命盤理解生活傾向", systemImage: "checkmark.bubble")
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
-            Text("個性、工作方式、財務傾向、感情與人際互動。")
-            Label("不回答", systemImage: "hand.raised")
-                .font(.headline)
-                .accessibilityAddTraits(.isHeader)
-            Text("健康診斷、投資或法律建議，以及確定事件預測。")
-            Text("問題、本次對話與必要命盤依據會傳送到你設定的第三方 API。點選送出問題後會立即傳送，第三方服務可能收費。")
+                .accessibilityIdentifier("assistant.capabilities")
+            Text("可詢問個性、工作、財務、感情與人際。")
+            Text("送出問題會立即傳送到你設定的第三方 API，第三方服務可能收費。")
                 .font(.footnote)
+
+            DisclosureGroup("查看回答限制與傳送內容") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("不提供健康診斷、投資或法律建議，也不預測確定事件。", systemImage: "hand.raised")
+                    Text("傳送內容包括你的問題、本次對話與回答所需的命盤依據。")
+                }
+                .font(.footnote)
+                .padding(.top, 8)
+            }
+            .font(.subheadline.weight(.medium))
+            .accessibilityIdentifier("assistant.capabilities.details")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
-        .accessibilityIdentifier("assistant.capabilities")
     }
 
     private var suggestions: some View {
@@ -342,7 +356,8 @@ struct ChartAssistantView: View {
                 .accessibilityLabel("保存狀態：\(saveStatusTitle)")
                 .accessibilityIdentifier("assistant.saveStatus")
             Text(saveStatusDetail)
-                .font(.footnote)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(Color.primary)
             Button {
                 _ = saveConversation()
             } label: {
@@ -350,8 +365,15 @@ struct ChartAssistantView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .disabled(assistantStore.isRequesting)
+            .disabled(
+                assistantStore.isRequesting
+                    || assistantStore.selectedChart?.savedChartID == nil
+            )
             .accessibilityIdentifier("assistant.saveConversation")
+
+            if assistantStore.selectedChart?.savedChartID == nil {
+                DisabledReasonView("先儲存命盤才能保存對話。")
+            }
 
             if let saveMessage {
                 Label(saveMessage, systemImage: "checkmark.circle")
@@ -528,6 +550,7 @@ struct ChartAssistantView: View {
                 } label: {
                     Image(systemName: voiceCoordinator.inputControl.systemImage)
                         .font(.title)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .disabled(
                     !voiceCoordinator.inputControl.isEnabled
@@ -545,6 +568,7 @@ struct ChartAssistantView: View {
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .disabled(!canSend)
                 .accessibilityLabel("送出問題")

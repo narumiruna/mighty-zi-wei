@@ -25,13 +25,95 @@ struct EmptyStateView: View {
     let symbol: String
     let title: String
     let message: String
+    var actionTitle: String?
+    var actionSymbol: String?
+    var action: (() -> Void)?
 
     var body: some View {
         ContentUnavailableView {
             Label(title, systemImage: symbol)
         } description: {
             Text(message)
+        } actions: {
+            if let actionTitle, let action {
+                Button(action: action) {
+                    if let actionSymbol {
+                        Label(actionTitle, systemImage: actionSymbol)
+                    } else {
+                        Text(actionTitle)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
+    }
+}
+
+enum InlineStatusStyle {
+    case information
+    case success
+    case warning
+    case error
+
+    var symbol: String {
+        switch self {
+        case .information: "info.circle.fill"
+        case .success: "checkmark.circle.fill"
+        case .warning: "exclamationmark.triangle.fill"
+        case .error: "xmark.octagon.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .information: .secondary
+        case .success: .green
+        case .warning: .orange
+        case .error: .red
+        }
+    }
+}
+
+struct InlineStatusView: View {
+    let style: InlineStatusStyle
+    let message: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label {
+                Text(message)
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: style.symbol)
+                    .foregroundStyle(style.color)
+            }
+
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.bordered)
+            }
+        }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+        .accessibilityElement(children: .contain)
+    }
+}
+
+struct DisabledReasonView: View {
+    let message: String
+
+    init(_ message: String) {
+        self.message = message
+    }
+
+    var body: some View {
+        Label(message, systemImage: "info.circle")
+            .font(.callout.weight(.medium))
+            .foregroundStyle(Color.primary)
+            .accessibilityElement(children: .combine)
     }
 }
 

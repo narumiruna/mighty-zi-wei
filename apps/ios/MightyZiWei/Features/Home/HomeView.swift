@@ -5,17 +5,17 @@ struct HomeView: View {
     @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
     @State private var showsSettings = false
 
-    private var recentCharts: ArraySlice<SavedChart> {
-        charts.sorted {
+    private var recentCharts: [SavedChart] {
+        Array(charts.sorted {
             if $0.isPinned != $1.isPinned { return $0.isPinned }
             return $0.updatedAt > $1.updatedAt
-        }.prefix(3)
+        }.prefix(3))
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 32) {
+                VStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("很牛的\n紫微斗數")
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
@@ -39,12 +39,19 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         Text("最近命盤")
                             .font(.headline)
+                            .accessibilityAddTraits(.isHeader)
 
                         if recentCharts.isEmpty {
-                            Text("尚未儲存命盤")
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .cardStyle()
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("尚未儲存命盤", systemImage: "clock")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("完成排盤並儲存後，可從這裡快速繼續查看。")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .cardStyle()
+                            .accessibilityElement(children: .combine)
                         } else {
                             ForEach(recentCharts) { chart in
                                 NavigationLink {
