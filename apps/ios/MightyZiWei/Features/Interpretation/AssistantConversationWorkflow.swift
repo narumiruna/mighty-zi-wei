@@ -162,8 +162,8 @@ struct AssistantFollowUpSuggestionBuilder: Sendable {
         switch status {
         case .answered:
             [
-                "有哪些值得留意的地方？",
-                "可以再說明回答依據嗎？"
+                "這些傾向可能分別在什麼情境出現？",
+                "請用一個具體生活情境說明，並列出依據。"
             ]
         case .unsupported:
             [

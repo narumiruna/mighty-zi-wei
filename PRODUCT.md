@@ -459,7 +459,7 @@ API key 非空時，請求必須使用 `Authorization: Bearer <API key>`；API k
 
 請求 body 使用 Responses API 的 `model`、`instructions`、`input`、`stream: false` 與 `store: false`。
 
-`text.format` 必須使用 strict JSON Schema，要求回傳五個固定分類及 `category`、`title`、`content`、`evidenceFactIDs`。
+`text.format` 必須使用 strict JSON Schema，要求回傳五個固定分類及 `category`、`title`、`content`、`evidenceSeedIDs`、`evidenceFactIDs`。
 
 MVP 不支援串流、tool calling 或供應商端 stateful conversation。
 
@@ -516,6 +516,7 @@ struct ChartInterpretation: Decodable {
 struct InterpretationSection: Decodable {
     let title: String
     let content: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
 }
 ```
@@ -536,8 +537,8 @@ struct InterpretationSection: Decodable {
 這樣使用者可以知道 AI 為什麼這樣解讀。
 
 結構化 JSON 只方便解析，不保證內容真實。
-App 必須在顯示前驗證每一個 `evidenceFactID` 都存在於本次提供的 `ChartFacts`。
-Evidence 的原始文字必須由 App 根據 ID 顯示，不得採用模型自行重述的事實。
+App 必須在顯示前驗證每一個 `evidenceSeedID` 都存在、分類相符，且每一個 `evidenceFactID` 都完整對應所引用 seed 的全部命盤依據。
+Evidence 的核准含義與原始命盤文字必須由 App 根據 ID 顯示，不得採用模型自行重述的內容。
 沒有有效 evidence 的 section 必須捨棄或改用 deterministic fallback。
 模型產生的內容不得寫回或修改 `ChartFacts`。
 
@@ -613,7 +614,7 @@ flowchart LR
 
 使用者問題與先前對話不能覆寫 system instructions，也不得成為新的命盤 fact 或命理含義來源。
 
-有效回答必須引用至少一個存在於本次 `ChartFacts` 的 evidence ID，並由 App 本機顯示原始 fact 文字。
+有效回答必須引用至少一個存在於本次資料的 seed ID 及其完整 fact IDs，並由 App 本機顯示核准含義與原始 fact 文字。
 
 沒有相關 seed，或問題超出可用 facts、健康、投資、法律或精確事件預測範圍時，API 必須回傳 `unsupported`，且 evidence 必須為空。
 
@@ -1140,7 +1141,7 @@ Coding agent 必須遵守：
 - Feed only verified ChartFacts, InterpretationSeeds, the current question, and validated in-memory conversation into the Responses API.
 - Never treat user questions or prior conversation as chart facts.
 - Never let the model invent astrological meanings beyond InterpretationSeeds.
-- Use semantic stable fact IDs and reject duplicate or unknown evidence IDs.
+- Use semantic stable seed and fact IDs, and reject duplicate, unknown, category-mismatched, incomplete, or reordered evidence IDs.
 - Display evidence text from App data, never from model restatement.
 - Never let generated interpretation mutate ZiWeiChart or ChartFacts.
 - Require a strict JSON Schema response and validate decoded content.

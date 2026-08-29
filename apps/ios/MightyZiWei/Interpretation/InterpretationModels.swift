@@ -58,7 +58,24 @@ struct InterpretationSection: Identifiable, Codable, Hashable, Sendable {
     let category: InterpretationCategory
     let title: String
     let content: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
+
+    init(
+        id: String,
+        category: InterpretationCategory,
+        title: String,
+        content: String,
+        evidenceSeedIDs: [String] = [],
+        evidenceFactIDs: [String]
+    ) {
+        self.id = id
+        self.category = category
+        self.title = title
+        self.content = content
+        self.evidenceSeedIDs = evidenceSeedIDs
+        self.evidenceFactIDs = evidenceFactIDs
+    }
 }
 
 struct ChartInterpretation: Codable, Hashable, Sendable {
@@ -82,6 +99,7 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     let question: String
     let answer: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
     let status: ChartConversationAnswer.Status
 
@@ -89,12 +107,14 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
         id: UUID = UUID(),
         question: String,
         answer: String,
+        evidenceSeedIDs: [String] = [],
         evidenceFactIDs: [String],
         status: ChartConversationAnswer.Status = .answered
     ) {
         self.id = id
         self.question = question
         self.answer = answer
+        self.evidenceSeedIDs = evidenceSeedIDs
         self.evidenceFactIDs = evidenceFactIDs
         self.status = status
     }
@@ -103,6 +123,7 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
         case id
         case question
         case answer
+        case evidenceSeedIDs
         case evidenceFactIDs
         case status
     }
@@ -112,6 +133,10 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
         id = try container.decode(UUID.self, forKey: .id)
         question = try container.decode(String.self, forKey: .question)
         answer = try container.decode(String.self, forKey: .answer)
+        evidenceSeedIDs = try container.decodeIfPresent(
+            [String].self,
+            forKey: .evidenceSeedIDs
+        ) ?? []
         evidenceFactIDs = try container.decode([String].self, forKey: .evidenceFactIDs)
         status = try container.decodeIfPresent(
             ChartConversationAnswer.Status.self,
@@ -124,6 +149,7 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encode(question, forKey: .question)
         try container.encode(answer, forKey: .answer)
+        try container.encode(evidenceSeedIDs, forKey: .evidenceSeedIDs)
         try container.encode(evidenceFactIDs, forKey: .evidenceFactIDs)
         try container.encode(status, forKey: .status)
     }
@@ -137,7 +163,20 @@ struct ChartConversationAnswer: Equatable, Sendable {
 
     let status: Status
     let content: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
+
+    init(
+        status: Status,
+        content: String,
+        evidenceSeedIDs: [String] = [],
+        evidenceFactIDs: [String]
+    ) {
+        self.status = status
+        self.content = content
+        self.evidenceSeedIDs = evidenceSeedIDs
+        self.evidenceFactIDs = evidenceFactIDs
+    }
 }
 
 struct ChartAssistantChart: Identifiable, Sendable {

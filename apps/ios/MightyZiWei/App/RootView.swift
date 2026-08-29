@@ -224,6 +224,7 @@ final class ChartAssistantStore {
                 turns.append(ChartConversationTurn(
                     question: question,
                     answer: answer.content,
+                    evidenceSeedIDs: answer.evidenceSeedIDs,
                     evidenceFactIDs: answer.evidenceFactIDs,
                     status: answer.status
                 ))

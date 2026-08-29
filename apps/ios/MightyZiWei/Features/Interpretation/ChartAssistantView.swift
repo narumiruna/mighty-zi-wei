@@ -19,9 +19,9 @@ struct ChartAssistantView: View {
     @State private var saveMessage: String?
 
     private let suggestedQuestions = [
-        "我的個性有哪些值得留意的地方？",
-        "我的工作方式可能有什麼特色？",
-        "面對人際關係時，我可以觀察什麼？"
+        "我做重要決定時，哪兩個傾向最明顯？可以怎麼核對？",
+        "什麼工作情境較符合盤面傾向？哪些線索支持？",
+        "關係出現差異時，我可能怎麼反應？請給我核對問題。"
     ]
 
     private var savedChartSnapshots: [SavedChartAssistantSnapshot] {
@@ -150,10 +150,14 @@ struct ChartAssistantView: View {
                         let factsByID = Dictionary(
                             uniqueKeysWithValues: chart.facts.map { ($0.id, $0) }
                         )
+                        let seedsByID = Dictionary(
+                            uniqueKeysWithValues: chart.seeds.map { ($0.id, $0) }
+                        )
                         ForEach(assistantStore.turns) { turn in
                             ConversationTurnView(
                                 turn: turn,
                                 factsByID: factsByID,
+                                seedsByID: seedsByID,
                                 chartID: chart.savedChartID
                             )
                             .id(turn.id)

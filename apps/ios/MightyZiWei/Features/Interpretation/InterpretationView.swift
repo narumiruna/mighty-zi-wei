@@ -68,6 +68,7 @@ struct InterpretationView: View {
                     InterpretationOverviewView(
                         section: overview,
                         factsByID: factsByID,
+                        seedsByID: seedsByID,
                         chartID: chartID
                     )
                 }
@@ -85,6 +86,7 @@ struct InterpretationView: View {
                         InterpretationCategoryDisclosure(
                             section: section,
                             factsByID: factsByID,
+                            seedsByID: seedsByID,
                             chartID: chartID
                         )
                     }
@@ -124,6 +126,10 @@ struct InterpretationView: View {
 
     private var factsByID: [String: ChartFact] {
         Dictionary(uniqueKeysWithValues: facts.map { ($0.id, $0) })
+    }
+
+    private var seedsByID: [String: InterpretationSeed] {
+        Dictionary(uniqueKeysWithValues: seeds.map { ($0.id, $0) })
     }
 
     private var selectedInterpretation: ChartInterpretation {
@@ -291,7 +297,8 @@ struct InterpretationView: View {
                 let result = try await generateInterpretation(configuration: configuration)
                 let validatedSections = try InterpretationValidator().validate(
                     sections: result.sections,
-                    facts: facts
+                    facts: facts,
+                    seeds: seeds
                 )
                 try Task.checkCancellation()
                 guard generationID == identifier else { return }
@@ -344,6 +351,7 @@ struct InterpretationView: View {
                 category: section.category,
                 title: section.title,
                 content: section.content,
+                evidenceSeedIDs: section.evidenceSeedIDs,
                 evidenceFactIDs: section.evidenceFactIDs
             )
         }
@@ -468,6 +476,7 @@ struct APIConfigurationSheet: View {
 private struct InterpretationOverviewView: View {
     let section: InterpretationSection
     let factsByID: [String: ChartFact]
+    let seedsByID: [String: InterpretationSeed]
     let chartID: UUID?
 
     private var leadingSummary: String {
@@ -515,7 +524,9 @@ private struct InterpretationOverviewView: View {
             }
 
             InterpretationEvidenceDisclosure(
+                evidenceSeedIDs: section.evidenceSeedIDs,
                 evidenceFactIDs: section.evidenceFactIDs,
+                seedsByID: seedsByID,
                 factsByID: factsByID
             )
         }
@@ -528,6 +539,7 @@ private struct InterpretationOverviewView: View {
 private struct InterpretationCategoryDisclosure: View {
     let section: InterpretationSection
     let factsByID: [String: ChartFact]
+    let seedsByID: [String: InterpretationSeed]
     let chartID: UUID?
 
     @Environment(VoiceCoordinator.self) private var voiceCoordinator
@@ -561,7 +573,9 @@ private struct InterpretationCategoryDisclosure: View {
                     }
 
                     InterpretationEvidenceDisclosure(
+                        evidenceSeedIDs: section.evidenceSeedIDs,
                         evidenceFactIDs: section.evidenceFactIDs,
+                        seedsByID: seedsByID,
                         factsByID: factsByID
                     )
                 }
@@ -570,9 +584,10 @@ private struct InterpretationCategoryDisclosure: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(section.title)
                         .font(.headline)
-                    Text(section.category.learningPrompt)
+                    Text(section.leadingSummary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
             }
             .accessibilityIdentifier("interpretation.category.\(section.category.rawValue)")
@@ -589,35 +604,61 @@ private struct InterpretationCategoryDisclosure: View {
 }
 
 private struct InterpretationEvidenceDisclosure: View {
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
+    let seedsByID: [String: InterpretationSeed]
     let factsByID: [String: ChartFact]
 
+    private var evidenceFacts: [ChartFact] {
+        evidenceFactIDs.compactMap { factsByID[$0] }
+    }
+
     var body: some View {
-        DisclosureGroup("解讀依據") {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(evidenceFactIDs, id: \.self) { identifier in
-                    if let fact = factsByID[identifier] {
+        VStack(alignment: .leading, spacing: 8) {
+            if let firstFact = evidenceFacts.first {
+                Label("盤面線索：\(firstFact.displayText)", systemImage: "scope")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            DisclosureGroup("查看完整判讀依據") {
+                VStack(alignment: .leading, spacing: 12) {
+                    if !evidenceSeedIDs.isEmpty {
+                        Text("使用的核准含義")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        ForEach(evidenceSeedIDs, id: \.self) { identifier in
+                            if let seed = seedsByID[identifier] {
+                                Text(seed.meaning)
+                                    .font(.footnote)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    Text("已驗證盤面事實")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ForEach(evidenceFacts) { fact in
                         Label(fact.displayText, systemImage: "checkmark.seal")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("已驗證依據：\(fact.displayText)")
                     }
                 }
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
+            .font(.subheadline.weight(.medium))
         }
-        .font(.subheadline.weight(.medium))
     }
 }
 
-private extension InterpretationCategory {
-    var learningPrompt: String {
-        switch self {
-        case .overview: "先認識這張命盤的整體方向"
-        case .personality: "了解你習慣如何感受與做決定"
-        case .career: "看看你可能偏好的工作方式"
-        case .wealth: "認識你安排資源時的傾向"
-        case .relationships: "看看你重視怎樣的互動"
-        }
+private extension InterpretationSection {
+    var leadingSummary: String {
+        content
+            .components(separatedBy: "\n\n")
+            .first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? content
     }
 }

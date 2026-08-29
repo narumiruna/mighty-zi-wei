@@ -36,6 +36,12 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             XCTAssertTrue((json["instructions"] as? String)?.contains("Only use chart facts") == true)
             XCTAssertTrue((json["input"] as? String)?.contains(fact.id) == true)
             XCTAssertTrue((json["input"] as? String)?.contains("合計不得超過 1200 個字元") == true)
+            XCTAssertTrue((json["input"] as? String)?.contains("不要只重複適用任何人的空泛提醒") == true)
+            XCTAssertTrue((json["input"] as? String)?.contains("只有 baseline seed 時") == true)
+            XCTAssertTrue((json["input"] as? String)?.contains("不得補入主星") == true)
+            XCTAssertTrue((json["input"] as? String)?.contains("不得自行宣稱它們互相支持") == true)
+            XCTAssertFalse((json["input"] as? String)?.contains("說明它們可能在不同情境如何輪流出現") == true)
+            XCTAssertTrue((json["input"] as? String)?.contains("id=seed.overview") == true)
             XCTAssertFalse((json["input"] as? String)?.contains("BirthProfile") == true)
 
             let text = try XCTUnwrap(json["text"] as? [String: Any])
@@ -50,6 +56,10 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             let sectionProperties = try XCTUnwrap(section["properties"] as? [String: Any])
             let content = try XCTUnwrap(sectionProperties["content"] as? [String: Any])
             let maximumSectionCharacters = try XCTUnwrap(content["maxLength"] as? Int)
+            let seedEvidence = try XCTUnwrap(sectionProperties["evidenceSeedIDs"] as? [String: Any])
+            let factEvidence = try XCTUnwrap(sectionProperties["evidenceFactIDs"] as? [String: Any])
+            XCTAssertNil(seedEvidence["uniqueItems"])
+            XCTAssertNil(factEvidence["uniqueItems"])
             XCTAssertEqual(maximumSectionCharacters, 240)
             XCTAssertLessThanOrEqual(
                 maximumSectionCharacters * InterpretationCategory.allCases.count,
@@ -73,6 +83,10 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         XCTAssertEqual(result.source, .remoteAI)
         XCTAssertEqual(result.sections.count, InterpretationCategory.allCases.count)
         XCTAssertTrue(result.sections.allSatisfy { $0.evidenceFactIDs == [fact.id] })
+        XCTAssertEqual(
+            result.sections.map(\.evidenceSeedIDs),
+            InterpretationCategory.allCases.map { ["seed.\($0.rawValue)"] }
+        )
     }
 
     func test空白APIKey不傳AuthorizationHeader() async throws {
@@ -157,9 +171,17 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
             let answer = try XCTUnwrap(properties["answer"] as? [String: Any])
             XCTAssertEqual(answer["maxLength"] as? Int, 1_200)
-            let evidence = try XCTUnwrap(properties["evidenceFactIDs"] as? [String: Any])
-            let evidenceItems = try XCTUnwrap(evidence["items"] as? [String: Any])
-            XCTAssertEqual(evidenceItems["enum"] as? [String], [fact.id])
+            let seedEvidence = try XCTUnwrap(properties["evidenceSeedIDs"] as? [String: Any])
+            XCTAssertNil(seedEvidence["uniqueItems"])
+            let seedItems = try XCTUnwrap(seedEvidence["items"] as? [String: Any])
+            XCTAssertEqual(
+                seedItems["enum"] as? [String],
+                InterpretationCategory.allCases.map { "seed.\($0.rawValue)" }
+            )
+            let factEvidence = try XCTUnwrap(properties["evidenceFactIDs"] as? [String: Any])
+            XCTAssertNil(factEvidence["uniqueItems"])
+            let factItems = try XCTUnwrap(factEvidence["items"] as? [String: Any])
+            XCTAssertEqual(factItems["enum"] as? [String], [fact.id])
 
             return Self.response(
                 request: request,
@@ -167,7 +189,8 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
                 object: Self.outputEnvelope([
                     "status": "answered",
                     "answer": "你可能會先確認整體方向，再處理細節。",
-                    "evidenceFactIDs": [fact.id, fact.id]
+                    "evidenceSeedIDs": ["seed.career"],
+                    "evidenceFactIDs": [fact.id]
                 ])
             )
         }
@@ -181,18 +204,71 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         )
 
         XCTAssertEqual(result.status, .answered)
+        XCTAssertEqual(result.evidenceSeedIDs, ["seed.career"])
+        XCTAssertEqual(result.evidenceFactIDs, [fact.id])
+    }
+
+    func test對話保留與個人化線索同分類的Baseline線索() async throws {
+        let baseline = InterpretationSeed(
+            id: "seed.career.baseline",
+            category: .career,
+            meaning: "目前只適合觀察工作投入方式。",
+            evidenceFactIDs: [fact.id]
+        )
+        let seeds = makeSeeds() + [baseline]
+
+        MockURLProtocol.handler = { [fact] request in
+            let body = try XCTUnwrap(Self.requestBody(from: request))
+            let json = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: body) as? [String: Any]
+            )
+            let input = try XCTUnwrap(json["input"] as? String)
+            XCTAssertTrue(input.contains("id=seed.career"))
+            XCTAssertTrue(input.contains("id=seed.career.baseline"))
+            XCTAssertTrue(input.contains("只引用 baseline seed 時不得補入主星"))
+
+            let text = try XCTUnwrap(json["text"] as? [String: Any])
+            let format = try XCTUnwrap(text["format"] as? [String: Any])
+            let schema = try XCTUnwrap(format["schema"] as? [String: Any])
+            let properties = try XCTUnwrap(schema["properties"] as? [String: Any])
+            let seedEvidence = try XCTUnwrap(properties["evidenceSeedIDs"] as? [String: Any])
+            let seedItems = try XCTUnwrap(seedEvidence["items"] as? [String: Any])
+            XCTAssertEqual(seedItems["enum"] as? [String], seeds.map(\.id))
+
+            return Self.response(
+                request: request,
+                statusCode: 200,
+                object: Self.outputEnvelope([
+                    "status": "answered",
+                    "answer": "目前只適合觀察工作投入方式。",
+                    "evidenceSeedIDs": [baseline.id],
+                    "evidenceFactIDs": [fact.id]
+                ])
+            )
+        }
+
+        let result = try await makeInterpreter().answer(
+            question: "目前可以怎麼觀察工作狀態？",
+            history: [],
+            facts: [fact],
+            seeds: seeds,
+            configuration: try makeConfiguration(apiKey: nil)
+        )
+
+        XCTAssertEqual(result.evidenceSeedIDs, [baseline.id])
         XCTAssertEqual(result.evidenceFactIDs, [fact.id])
     }
 
     func test不支援問題可安全回應且不引用依據() async throws {
-        MockURLProtocol.handler = { [fact] request in
+        MockURLProtocol.handler = { request in
             Self.response(
                 request: request,
                 statusCode: 200,
                 object: Self.outputEnvelope([
                     "status": "unsupported",
-                    "answer": "目前命盤資料無法提供健康診斷。",
-                    "evidenceFactIDs": [fact.id]
+                    "answer": "目前命盤資料無法提供健康診斷，可以改問壓力下的反應傾向。",
+                    "evidenceSeedIDs": [],
+                    "evidenceFactIDs": []
                 ])
             )
         }
@@ -206,18 +282,21 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         )
 
         XCTAssertEqual(result.status, .unsupported)
+        XCTAssertTrue(result.content.contains("壓力下的反應傾向"))
+        XCTAssertTrue(result.evidenceSeedIDs.isEmpty)
         XCTAssertTrue(result.evidenceFactIDs.isEmpty)
     }
 
-    func test對話回答會忽略未知依據並把Seed轉成已驗證依據() async throws {
-        MockURLProtocol.handler = { request in
+    func test對話回答接受線索及其完整命盤依據() async throws {
+        MockURLProtocol.handler = { [fact] request in
             Self.response(
                 request: request,
                 statusCode: 200,
                 object: Self.outputEnvelope([
                     "status": "answered",
                     "answer": "你可能傾向先掌握方向。",
-                    "evidenceFactIDs": ["unknown", "seed.career"]
+                    "evidenceSeedIDs": ["seed.career"],
+                    "evidenceFactIDs": [fact.id]
                 ])
             )
         }
@@ -230,18 +309,20 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
             configuration: try makeConfiguration(apiKey: nil)
         )
 
+        XCTAssertEqual(result.evidenceSeedIDs, ["seed.career"])
         XCTAssertEqual(result.evidenceFactIDs, [fact.id])
     }
 
     func test對話回答未知依據會被拒絕() async throws {
-        MockURLProtocol.handler = { request in
+        MockURLProtocol.handler = { [fact] request in
             Self.response(
                 request: request,
                 statusCode: 200,
                 object: Self.outputEnvelope([
                     "status": "answered",
                     "answer": "你可能傾向先掌握方向。",
-                    "evidenceFactIDs": ["unknown"]
+                    "evidenceSeedIDs": ["unknown"],
+                    "evidenceFactIDs": [fact.id]
                 ])
             )
         }
@@ -347,6 +428,16 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         let valid = Self.validSections(evidence: fact.id)
         let invalidSections: [[[String: Any]]] = [
             Array(valid.dropLast()),
+            valid.enumerated().map { index, section in
+                var changed = section
+                if index == 0 { changed["evidenceSeedIDs"] = ["seed.overview", "seed.overview"] }
+                return changed
+            },
+            valid.enumerated().map { index, section in
+                var changed = section
+                if index == 0 { changed["evidenceSeedIDs"] = ["seed.career"] }
+                return changed
+            },
             valid.enumerated().map { index, section in
                 var changed = section
                 if index == 0 { changed["evidenceFactIDs"] = [fact.id, fact.id] }
@@ -570,6 +661,7 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
                 "category": category.rawValue,
                 "title": category.title,
                 "content": "你可能傾向先掌握整體方向。",
+                "evidenceSeedIDs": ["seed.\(category.rawValue)"],
                 "evidenceFactIDs": [evidence]
             ]
         }
