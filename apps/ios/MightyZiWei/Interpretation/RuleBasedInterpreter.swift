@@ -52,9 +52,10 @@ struct RuleBasedInterpreter: Sendable {
         var paragraphs = [leadingMeaning]
         let supportingMeanings = Array(meanings.dropFirst())
         if !supportingMeanings.isEmpty {
-            paragraphs.append(
-                "一起看：\(supportingMeanings.joined(separator: " "))這些傾向可能在不同情境輪流出現，不需要把它們硬套成單一性格。"
-            )
+            let supportingList = supportingMeanings
+                .map { "• \($0)" }
+                .joined(separator: "\n")
+            paragraphs.append("其他已驗證線索：\n\(supportingList)")
         }
         paragraphs.append("拿生活來核對：\(category.reflectionQuestion)")
         return paragraphs.joined(separator: "\n\n")

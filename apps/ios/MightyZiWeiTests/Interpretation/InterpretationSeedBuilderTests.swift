@@ -46,7 +46,10 @@ final class InterpretationSeedBuilderTests: XCTestCase {
         )
 
         XCTAssertTrue(section.content.hasPrefix("紫微位於命宮。你可能傾向先形成自己的判斷"))
-        XCTAssertTrue(section.content.contains("一起看："))
+        XCTAssertTrue(section.content.contains("其他已驗證線索："))
+        XCTAssertTrue(section.content.contains("天機位於福德宮。"))
+        XCTAssertFalse(section.content.contains("輪流出現"))
+        XCTAssertFalse(section.content.contains("互相支持"))
         XCTAssertTrue(section.content.contains("拿生活來核對："))
         XCTAssertEqual(
             section.evidenceSeedIDs,

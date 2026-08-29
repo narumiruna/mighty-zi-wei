@@ -121,7 +121,7 @@ struct OpenAIResponsesInterpreter: Sendable {
         seeds: [InterpretationSeed],
         configuration: OpenAIResponsesConfiguration
     ) throws -> URLRequest {
-        let selectedSeeds = meaningfulSeeds(from: seeds)
+        let selectedSeeds = interpretationSeeds(from: seeds)
         let lengthBudget = InterpretationLengthBudget(
             totalCharacters: configuration.maximumAnswerCharacters,
             sectionCount: InterpretationCategory.allCases.count
@@ -160,7 +160,6 @@ struct OpenAIResponsesInterpreter: Sendable {
         seeds: [InterpretationSeed],
         configuration: OpenAIResponsesConfiguration
     ) throws -> URLRequest {
-        let selectedSeeds = meaningfulSeeds(from: seeds)
         let body: [String: Any] = [
             "model": configuration.model,
             "instructions": Self.conversationInstructions,
@@ -168,7 +167,7 @@ struct OpenAIResponsesInterpreter: Sendable {
                 question: question,
                 history: history,
                 facts: facts,
-                seeds: selectedSeeds,
+                seeds: seeds,
                 maximumAnswerCharacters: configuration.maximumAnswerCharacters
             ),
             "stream": false,
@@ -180,7 +179,7 @@ struct OpenAIResponsesInterpreter: Sendable {
                     "strict": true,
                     "schema": conversationSchema(
                         factIDs: facts.map(\.id),
-                        seedIDs: selectedSeeds.map(\.id),
+                        seedIDs: seeds.map(\.id),
                         maximumAnswerCharacters: configuration.maximumAnswerCharacters
                     )
                 ]
@@ -189,7 +188,7 @@ struct OpenAIResponsesInterpreter: Sendable {
         return try makeRequest(body: body, configuration: configuration)
     }
 
-    private func meaningfulSeeds(from seeds: [InterpretationSeed]) -> [InterpretationSeed] {
+    private func interpretationSeeds(from seeds: [InterpretationSeed]) -> [InterpretationSeed] {
         InterpretationCategory.allCases.flatMap { category in
             let matchingSeeds = seeds.filter { $0.category == category }
             let personalizedSeeds = matchingSeeds.filter { !$0.id.hasSuffix(".baseline") }
@@ -317,8 +316,9 @@ struct OpenAIResponsesInterpreter: Sendable {
         內容只供娛樂與自我反思，請使用「可能」、「傾向」等保留語氣。
         category 欄位只能使用：\(categories)。
         不得加入 seeds 未提供的命理含義，也不要只重複適用任何人的空泛提醒。
-        每一類先點出相關主星及實際落宮，再用一至兩句直接說出最有辨識度的傾向，不要以免責聲明或宮位定義開頭。
-        有兩個以上非 baseline 線索時，說明它們可能在不同情境如何輪流出現；不得自行宣稱因果、吉凶或未提供的衝突關係。
+        若該分類提供非 baseline 的主星 seed，先點出相關主星及實際落宮；只有 baseline seed 時，只說明 seed 提供的觀察範圍，不得補入主星。
+        接著用一至兩句直接說出最有辨識度的傾向，不要以免責聲明或宮位定義開頭。
+        有兩個以上非 baseline 線索時，分別重述各線索；不得自行宣稱它們互相支持、衝突、輪流出現、形成因果或代表吉凶。
         最後提供一個能用真實經驗回答的具體核對問題。
         每個 section 只引用實際用到且 category 相同的 seed ID。
         evidenceFactIDs 必須依 evidenceSeedIDs 的順序，完整複製各 seed 的全部 evidence，去除重複後不得增加、刪除或改序。
@@ -359,8 +359,9 @@ struct OpenAIResponsesInterpreter: Sendable {
         使用者提供的年齡、背景與偏好可以幫助理解問題，但不得當成命盤事實或回答依據。
         只有整個問題都無法根據現有資料回答，或要求健康、投資、法律建議或確定事件預測時，status 才回傳 unsupported；此時兩種 evidence ID 都必須為空陣列，並具體指出可以改問的部分。
         若問題有可回答的部分，status 必須回傳 answered，回答可驗證的部分並簡短說明資料限制；不要只因使用者提到年齡或一般背景就拒絕整個問題。
-        回答第一段直接回應問題，並點出用到的主星及實際落宮，不要先講免責聲明或籠統介紹命盤。
-        接著比較相關線索可能各自在什麼情境出現；只能重述 seeds 的 meaning，不得創造因果或新命理含義。
+        回答第一段直接回應問題，不要先講免責聲明或籠統介紹命盤。
+        引用主星 seed 時可點出主星及實際落宮；只引用 baseline seed 時不得補入主星。
+        接著分別說明實際用到的 seeds；只能重述 seeds 的 meaning，不得自行宣稱線索互相支持、衝突、輪流出現、形成因果或創造新命理含義。
         最後給一至兩個可從近期真實經驗核對的觀察問題，不提供重大決策指示。
         回傳 answered 時，只引用實際用到且不重複的 seed ID。
         evidenceFactIDs 必須依 evidenceSeedIDs 的順序，完整複製各 seed 的全部 evidence，去除重複後不得增加、刪除或改序。
@@ -425,7 +426,6 @@ struct OpenAIResponsesInterpreter: Sendable {
                 ],
                 "evidenceSeedIDs": [
                     "type": "array",
-                    "uniqueItems": true,
                     "items": [
                         "type": "string",
                         "enum": seedIDs
@@ -433,7 +433,6 @@ struct OpenAIResponsesInterpreter: Sendable {
                 ],
                 "evidenceFactIDs": [
                     "type": "array",
-                    "uniqueItems": true,
                     "items": [
                         "type": "string",
                         "enum": factIDs
@@ -473,7 +472,6 @@ struct OpenAIResponsesInterpreter: Sendable {
                             "evidenceSeedIDs": [
                                 "type": "array",
                                 "minItems": 1,
-                                "uniqueItems": true,
                                 "items": [
                                     "type": "string",
                                     "enum": seedIDs
@@ -482,7 +480,6 @@ struct OpenAIResponsesInterpreter: Sendable {
                             "evidenceFactIDs": [
                                 "type": "array",
                                 "minItems": 1,
-                                "uniqueItems": true,
                                 "items": [
                                     "type": "string",
                                     "enum": factIDs

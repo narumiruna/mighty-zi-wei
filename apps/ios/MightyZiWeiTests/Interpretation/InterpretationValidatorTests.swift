@@ -62,7 +62,13 @@ final class InterpretationValidatorTests: XCTestCase {
     }
 
     func test拒絕空白與確定式或專業建議() {
-        for content in ["   ", "你一定會成功。", "以下是適合你的投資建議。"] {
+        for content in [
+            "   ",
+            "你一定會成功。",
+            "以下是適合你的投資建議。",
+            "我可以替你診斷。",
+            "以下是治療方案。"
+        ] {
             let sections = makeSections(content: { category in
                 category == .wealth ? content : "你可能傾向先掌握整體方向。"
             })
@@ -77,6 +83,8 @@ final class InterpretationValidatorTests: XCTestCase {
                 "接近四十歲不一定會限制你的工作選擇。"
             case .wealth:
                 "這是資源安排傾向，不構成任何投資建議。"
+            case .relationships:
+                "我無法替你診斷，也無法提供治療方案。"
             default:
                 "你可能傾向先掌握整體方向。"
             }
@@ -156,6 +164,23 @@ final class InterpretationValidatorTests: XCTestCase {
         XCTAssertTrue(validated.evidenceSeedIDs.isEmpty)
         XCTAssertTrue(validated.evidenceFactIDs.isEmpty)
 
+        for safeRefusal in [
+            "無法提供治療方案，可以改問壓力下的反應傾向。",
+            "無法替你診斷，可以改問生活節奏。"
+        ] {
+            XCTAssertNoThrow(
+                try ConversationAnswerValidator().validate(
+                    ChartConversationAnswer(
+                        status: .unsupported,
+                        content: safeRefusal,
+                        evidenceFactIDs: []
+                    ),
+                    facts: [fact],
+                    seeds: makeSeeds()
+                )
+            )
+        }
+
         XCTAssertThrowsError(
             try ConversationAnswerValidator().validate(
                 ChartConversationAnswer(
@@ -176,6 +201,8 @@ final class InterpretationValidatorTests: XCTestCase {
             "   ",
             "你一定會成功。",
             "以下是適合你的投資建議。",
+            "我可以替你診斷。",
+            "以下是治療方案。",
             String(repeating: "字", count: 2_001)
         ] {
             XCTAssertThrowsError(
