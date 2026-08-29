@@ -266,7 +266,7 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
                 statusCode: 200,
                 object: Self.outputEnvelope([
                     "status": "unsupported",
-                    "answer": "目前命盤資料無法提供健康診斷，可以改問壓力下的反應傾向。",
+                    "answer": "命中注定財務失敗；可以改問工作方式。",
                     "evidenceSeedIDs": [],
                     "evidenceFactIDs": []
                 ])
@@ -282,7 +282,8 @@ final class OpenAIResponsesInterpreterTests: XCTestCase {
         )
 
         XCTAssertEqual(result.status, .unsupported)
-        XCTAssertTrue(result.content.contains("壓力下的反應傾向"))
+        XCTAssertFalse(result.content.contains("命中注定財務失敗"))
+        XCTAssertTrue(result.content.contains("財務傾向"))
         XCTAssertTrue(result.evidenceSeedIDs.isEmpty)
         XCTAssertTrue(result.evidenceFactIDs.isEmpty)
     }

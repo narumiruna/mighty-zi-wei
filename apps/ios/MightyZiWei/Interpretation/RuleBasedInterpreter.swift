@@ -24,7 +24,6 @@ struct RuleBasedInterpreter: Sendable {
                 category: category,
                 title: category.title,
                 content: content(
-                    for: category,
                     seeds: selectedSeeds,
                     factsByID: factsByID
                 ),
@@ -36,7 +35,6 @@ struct RuleBasedInterpreter: Sendable {
     }
 
     private func content(
-        for category: InterpretationCategory,
         seeds: [InterpretationSeed],
         factsByID: [String: ChartFact]
     ) -> String {
@@ -57,25 +55,10 @@ struct RuleBasedInterpreter: Sendable {
                 .joined(separator: "\n")
             paragraphs.append("其他已驗證線索：\n\(supportingList)")
         }
-        paragraphs.append("拿生活來核對：\(category.reflectionQuestion)")
+        paragraphs.append(
+            "拿生活來核對：上面的觀察和你近期哪一次真實經驗最接近？哪一次不符合？"
+        )
         return paragraphs.joined(separator: "\n\n")
-    }
-}
-
-private extension InterpretationCategory {
-    var reflectionQuestion: String {
-        switch self {
-        case .overview:
-            "回想最近一次重要選擇，哪個傾向最明顯？哪個只在壓力下出現？"
-        case .personality:
-            "遇到沒有標準答案的事情時，你通常先形成判斷、蒐集資訊，還是觀察他人反應？"
-        case .career:
-            "什麼樣的責任、合作方式與成果形式，最容易讓你持續投入？"
-        case .wealth:
-            "分配金錢、時間或注意力時，你最常優先保留安全、彈性，還是可見成果？"
-        case .relationships:
-            "關係出現差異時，你通常先說清楚、先照顧氣氛，還是先拉開距離整理？"
-        }
     }
 }
 

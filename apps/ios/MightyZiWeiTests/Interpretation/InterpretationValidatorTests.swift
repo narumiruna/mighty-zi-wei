@@ -147,11 +147,11 @@ final class InterpretationValidatorTests: XCTestCase {
         }
     }
 
-    func test不支援回答保留具體替代方向且不得附加依據() throws {
-        let content = "目前不能診斷健康；可以改問壓力下的反應傾向。"
+    func test不支援回答只顯示本機安全文案且不得附加依據() throws {
+        let ungroundedContent = "命中注定財務失敗；可以改問工作方式。"
         let unsupported = ChartConversationAnswer(
             status: .unsupported,
-            content: content,
+            content: ungroundedContent,
             evidenceFactIDs: []
         )
 
@@ -160,32 +160,35 @@ final class InterpretationValidatorTests: XCTestCase {
             facts: [fact],
             seeds: makeSeeds()
         )
-        XCTAssertEqual(validated.content, content)
+        XCTAssertFalse(validated.content.contains("命中注定財務失敗"))
+        XCTAssertEqual(
+            validated.content,
+            "目前命盤資料不足以直接回答。你可以改問個性、工作方式、財務傾向、感情或人際互動。"
+        )
         XCTAssertTrue(validated.evidenceSeedIDs.isEmpty)
         XCTAssertTrue(validated.evidenceFactIDs.isEmpty)
 
-        for safeRefusal in [
+        for refusal in [
             "無法提供治療方案，可以改問壓力下的反應傾向。",
             "無法替你診斷，可以改問生活節奏。"
         ] {
-            XCTAssertNoThrow(
-                try ConversationAnswerValidator().validate(
-                    ChartConversationAnswer(
-                        status: .unsupported,
-                        content: safeRefusal,
-                        evidenceFactIDs: []
-                    ),
-                    facts: [fact],
-                    seeds: makeSeeds()
-                )
+            let result = try ConversationAnswerValidator().validate(
+                ChartConversationAnswer(
+                    status: .unsupported,
+                    content: refusal,
+                    evidenceFactIDs: []
+                ),
+                facts: [fact],
+                seeds: makeSeeds()
             )
+            XCTAssertEqual(result.content, validated.content)
         }
 
         XCTAssertThrowsError(
             try ConversationAnswerValidator().validate(
                 ChartConversationAnswer(
                     status: .unsupported,
-                    content: content,
+                    content: ungroundedContent,
                     evidenceSeedIDs: ["seed.overview"],
                     evidenceFactIDs: [fact.id]
                 ),

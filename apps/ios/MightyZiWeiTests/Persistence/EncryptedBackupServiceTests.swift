@@ -39,6 +39,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertEqual(restoredInsight.id, insight.id)
         XCTAssertEqual(restoredInsight.locationID, insight.locationID)
         XCTAssertEqual(restoredInsight.marker, .resonates)
+        XCTAssertEqual(restoredInsight.evidenceSeedIDs, insight.evidenceSeedIDs)
         XCTAssertEqual(restoredInsight.evidenceFactIDs, insight.evidenceFactIDs)
     }
 
@@ -75,6 +76,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
             "chartID",
             "createdAt",
             "evidenceFactIDs",
+            "evidenceSeedIDs",
             "id",
             "kind",
             "locationID",
@@ -303,6 +305,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
             locationID: "interpretation.overview",
             title: "備份收藏",
             content: "保留內容",
+            evidenceSeedIDs: ["seed.personality.baseline"],
             evidenceFactIDs: ["natal.palace.life.branch"]
         )
         let payload = try BackupPayload(
@@ -334,6 +337,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         XCTAssertEqual(charts.first?.name, "備份名稱")
         XCTAssertNil(charts.first?.chartCacheData)
         XCTAssertEqual(restoredInsights.map(\.title), ["備份收藏"])
+        XCTAssertEqual(restoredInsights.first?.evidenceSeedIDs, ["seed.personality.baseline"])
         XCTAssertEqual(restoredInsights.first?.evidenceFactIDs, ["natal.palace.life.branch"])
     }
 
@@ -441,6 +445,63 @@ final class EncryptedBackupServiceTests: XCTestCase {
         }
     }
 
+    func test舊版備份缺少EvidenceSeedIDs時遷移為空陣列() throws {
+        let fixture = try makeValidPayloadFixture()
+        var object = fixture.object
+        var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
+        insights[0].removeValue(forKey: "evidenceSeedIDs")
+        object["insights"] = insights
+        let backupData = try seal(
+            JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+            recoveryKey: fixture.recoveryKey
+        )
+
+        let payload = try EncryptedBackupService.restore(
+            from: backupData,
+            recoveryKey: fixture.recoveryKey
+        )
+
+        XCTAssertTrue(try XCTUnwrap(payload.insights.first).evidenceSeedIDs.isEmpty)
+    }
+
+    func test拒絕無效EvidenceSeedID() throws {
+        let fixture = try makeValidPayloadFixture()
+        var object = fixture.object
+        var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
+        insights[0]["evidenceSeedIDs"] = ["seed.invalid"]
+        object["insights"] = insights
+        let backupData = try seal(
+            JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+            recoveryKey: fixture.recoveryKey
+        )
+
+        XCTAssertThrowsError(try EncryptedBackupService.restore(
+            from: backupData,
+            recoveryKey: fixture.recoveryKey
+        )) { error in
+            XCTAssertEqual(error as? BackupError, .invalidEvidenceSeedID)
+        }
+    }
+
+    func test拒絕Seed與Fact皆有效但配對不一致() throws {
+        let fixture = try makeValidPayloadFixture()
+        var object = fixture.object
+        var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
+        insights[0]["evidenceFactIDs"] = ["natal.star.ziWei.palace"]
+        object["insights"] = insights
+        let backupData = try seal(
+            JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+            recoveryKey: fixture.recoveryKey
+        )
+
+        XCTAssertThrowsError(try EncryptedBackupService.restore(
+            from: backupData,
+            recoveryKey: fixture.recoveryKey
+        )) { error in
+            XCTAssertEqual(error as? BackupError, .invalidEvidenceFactID)
+        }
+    }
+
     func test拒絕無效EvidenceFactID() throws {
         let fixture = try makeValidPayloadFixture()
         var object = fixture.object
@@ -509,7 +570,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
             title: "私人筆記",
             body: "這段內容有共鳴。",
             marker: "resonates",
-            evidenceFactIDs: ["natal.palace.life.branch", "natal.star.ziWei.palace"],
+            evidenceSeedIDs: ["seed.personality.baseline"],
+            evidenceFactIDs: ["natal.palace.life.branch"],
             createdAt: Date(timeIntervalSinceReferenceDate: 123_456_800.25),
             updatedAt: Date(timeIntervalSinceReferenceDate: 123_456_900.5)
         )

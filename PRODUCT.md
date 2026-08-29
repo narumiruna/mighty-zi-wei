@@ -832,7 +832,9 @@ SwiftData store 使用 App 本機容器；若舊版本的自動設定曾解析�
 
 `SavedInsight` 保存使用者主動建立的私人筆記、自我觀察標記與單則收藏。
 
-收藏必須保留顯示內容、來源位置與 `evidenceFactIDs`。
+收藏必須保留顯示內容、來源位置、`evidenceSeedIDs` 與 `evidenceFactIDs`。
+收藏具有 seed evidence 時，備份還原與同步必須依 seed 順序展開、去除重複後，驗證 fact evidence 完全一致。
+舊版收藏、備份或同步資料缺少 `evidenceSeedIDs` 時必須遷移為空陣列，不得回溯宣稱具有 seed provenance。
 
 MVP 不自動永久保存完整 AI interpretation 或命盤助理對話。
 

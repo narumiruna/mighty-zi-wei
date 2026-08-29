@@ -29,6 +29,7 @@ final class SavedInsight {
     var title: String
     var content: String
     var markerRawValue: String
+    var evidenceSeedIDsData: Data = Data("[]".utf8)
     var evidenceFactIDsData: Data
     var reviewDate: Date?
     var reminderIdentifier: String?
@@ -44,8 +45,12 @@ final class SavedInsight {
         set { markerRawValue = newValue.rawValue }
     }
 
+    var evidenceSeedIDs: [String] {
+        Self.decodeEvidenceIDs(evidenceSeedIDsData)
+    }
+
     var evidenceFactIDs: [String] {
-        (try? JSONDecoder().decode([String].self, from: evidenceFactIDsData)) ?? []
+        Self.decodeEvidenceIDs(evidenceFactIDsData)
     }
 
     init(
@@ -56,6 +61,7 @@ final class SavedInsight {
         title: String,
         content: String,
         marker: Marker = .none,
+        evidenceSeedIDs: [String] = [],
         evidenceFactIDs: [String] = [],
         reviewDate: Date? = nil,
         reminderIdentifier: String? = nil,
@@ -69,7 +75,8 @@ final class SavedInsight {
         self.title = title
         self.content = content
         self.markerRawValue = marker.rawValue
-        self.evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
+        self.evidenceSeedIDsData = Self.encodeEvidenceIDs(evidenceSeedIDs)
+        self.evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
         self.reviewDate = reviewDate
         self.reminderIdentifier = reminderIdentifier
         self.createdAt = createdAt
@@ -92,7 +99,7 @@ final class SavedInsight {
             self.locationID = locationID
         }
         if let evidenceFactIDs {
-            evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
+            evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
         }
         self.reviewDate = reviewDate
         self.reminderIdentifier = reminderIdentifier
@@ -117,22 +124,26 @@ final class SavedInsight {
     func matchesBookmark(
         title: String,
         content: String,
+        evidenceSeedIDs: [String],
         evidenceFactIDs: [String]
     ) -> Bool {
         kind == .bookmark
             && self.title == Self.normalized(title, fallback: "收藏內容")
             && self.content == content.trimmingCharacters(in: .whitespacesAndNewlines)
+            && self.evidenceSeedIDs == evidenceSeedIDs
             && self.evidenceFactIDs == evidenceFactIDs
     }
 
     func updateBookmark(
         title: String,
         content: String,
+        evidenceSeedIDs: [String],
         evidenceFactIDs: [String]
     ) {
         self.title = Self.normalized(title, fallback: "收藏內容")
         self.content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        evidenceFactIDsData = Self.encodeEvidenceFactIDs(evidenceFactIDs)
+        evidenceSeedIDsData = Self.encodeEvidenceIDs(evidenceSeedIDs)
+        evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
         updatedAt = .now
     }
 
@@ -141,6 +152,7 @@ final class SavedInsight {
         locationID: String,
         title: String,
         content: String,
+        evidenceSeedIDs: [String] = [],
         evidenceFactIDs: [String]
     ) -> SavedInsight {
         SavedInsight(
@@ -149,6 +161,7 @@ final class SavedInsight {
             locationID: locationID,
             title: normalized(title, fallback: "收藏內容"),
             content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+            evidenceSeedIDs: evidenceSeedIDs,
             evidenceFactIDs: evidenceFactIDs
         )
     }
@@ -158,7 +171,11 @@ final class SavedInsight {
         return trimmed.isEmpty ? fallback : trimmed
     }
 
-    private static func encodeEvidenceFactIDs(_ identifiers: [String]) -> Data {
+    private static func decodeEvidenceIDs(_ data: Data) -> [String] {
+        (try? JSONDecoder().decode([String].self, from: data)) ?? []
+    }
+
+    private static func encodeEvidenceIDs(_ identifiers: [String]) -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return (try? encoder.encode(identifiers)) ?? Data("[]".utf8)

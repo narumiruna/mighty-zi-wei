@@ -519,6 +519,7 @@ private struct InterpretationOverviewView: View {
                     locationID: "interpretation.\(section.id)",
                     title: section.title,
                     content: section.content,
+                    evidenceSeedIDs: section.evidenceSeedIDs,
                     evidenceFactIDs: section.evidenceFactIDs
                 )
             }
@@ -568,6 +569,7 @@ private struct InterpretationCategoryDisclosure: View {
                             locationID: "interpretation.\(section.id)",
                             title: section.title,
                             content: section.content,
+                            evidenceSeedIDs: section.evidenceSeedIDs,
                             evidenceFactIDs: section.evidenceFactIDs
                         )
                     }

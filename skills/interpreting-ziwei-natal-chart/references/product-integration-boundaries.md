@@ -20,7 +20,13 @@
 
 `ConversationAnswerValidator` 對可回答內容執行相同的 seed 與 fact 完整對應檢查。
 
-無法回答時，seed 與 fact IDs 都必須為空，且安全檢查通過後會保留模型提供的具體替代提問方向。
+無法回答時，seed 與 fact IDs 都必須為空，且 App 只顯示本機固定的安全拒答與替代提問方向。
+
+單則解讀或助理回答收藏會保存兩種 evidence IDs，並透過本機資料、加密備份與 iCloud 同步保留 provenance。
+
+備份還原與 iCloud 同步收到非空 seed IDs 時，會依 seed 順序完整展開、去除重複，並要求 fact IDs 完全一致。
+
+舊版收藏資料缺少 seed IDs 時會讀取為空陣列，不得回溯宣稱已通過新版 seed 驗證。
 
 本機基本解讀直接使用 deterministic seeds 產生內容，優先顯示非 baseline 線索，並把 App 產生的盤面顯示文字、核准 meaning 與生活核對問題分層呈現。
 

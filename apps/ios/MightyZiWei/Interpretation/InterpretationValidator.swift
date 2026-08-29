@@ -172,6 +172,8 @@ struct InterpretationValidator: Sendable {
 }
 
 struct ConversationAnswerValidator: Sendable {
+    private static let unsupportedContent = "目前命盤資料不足以直接回答。你可以改問個性、工作方式、財務傾向、感情或人際互動。"
+
     enum ValidationError: LocalizedError, Equatable {
         case emptyContent
         case contentTooLong
@@ -288,14 +290,6 @@ struct ConversationAnswerValidator: Sendable {
             throw ValidationError.contentTooLong
         }
 
-        let contentForSafetyCheck = allowedDisclaimerPhrases.reduce(content) {
-            result, disclaimer in
-            result.replacingOccurrences(of: disclaimer, with: "")
-        }
-        guard !blockedPhrases.contains(where: contentForSafetyCheck.contains) else {
-            throw ValidationError.unsafeContent
-        }
-
         if answer.status == .unsupported {
             guard answer.evidenceSeedIDs.isEmpty,
                   answer.evidenceFactIDs.isEmpty else {
@@ -303,10 +297,18 @@ struct ConversationAnswerValidator: Sendable {
             }
             return ChartConversationAnswer(
                 status: answer.status,
-                content: content,
+                content: Self.unsupportedContent,
                 evidenceSeedIDs: [],
                 evidenceFactIDs: []
             )
+        }
+
+        let contentForSafetyCheck = allowedDisclaimerPhrases.reduce(content) {
+            result, disclaimer in
+            result.replacingOccurrences(of: disclaimer, with: "")
+        }
+        guard !blockedPhrases.contains(where: contentForSafetyCheck.contains) else {
+            throw ValidationError.unsafeContent
         }
 
         guard !answer.evidenceSeedIDs.isEmpty,

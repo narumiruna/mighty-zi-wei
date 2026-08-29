@@ -91,6 +91,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     let title: String
     let body: String
     let marker: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
     let reviewDate: Date?
     let createdAt: Date
@@ -104,6 +105,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         title: String,
         body: String,
         marker: String = SavedInsight.Marker.none.rawValue,
+        evidenceSeedIDs: [String] = [],
         evidenceFactIDs: [String] = [],
         reviewDate: Date? = nil,
         createdAt: Date = .now,
@@ -116,6 +118,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         self.title = title
         self.body = body
         self.marker = marker
+        self.evidenceSeedIDs = evidenceSeedIDs
         self.evidenceFactIDs = evidenceFactIDs
         self.reviewDate = reviewDate
         self.createdAt = createdAt
@@ -131,6 +134,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
             title: savedInsight.title,
             body: savedInsight.content,
             marker: savedInsight.markerRawValue,
+            evidenceSeedIDs: savedInsight.evidenceSeedIDs,
             evidenceFactIDs: savedInsight.evidenceFactIDs,
             reviewDate: savedInsight.reviewDate,
             createdAt: savedInsight.createdAt,
@@ -147,6 +151,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
             title: title,
             content: body,
             marker: SavedInsight.Marker(rawValue: marker)!,
+            evidenceSeedIDs: evidenceSeedIDs,
             evidenceFactIDs: evidenceFactIDs,
             reviewDate: reviewDate,
             createdAt: createdAt,
@@ -161,11 +166,46 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         savedInsight.title = title
         savedInsight.content = body
         savedInsight.markerRawValue = marker
+        savedInsight.evidenceSeedIDsData = (try? BackupJSONCoding.encoder().encode(evidenceSeedIDs)) ?? Data("[]".utf8)
         savedInsight.evidenceFactIDsData = (try? BackupJSONCoding.encoder().encode(evidenceFactIDs)) ?? Data("[]".utf8)
         savedInsight.reviewDate = reviewDate
         savedInsight.reminderIdentifier = nil
         savedInsight.createdAt = createdAt
         savedInsight.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case chartID
+        case kind
+        case locationID
+        case title
+        case body
+        case marker
+        case evidenceSeedIDs
+        case evidenceFactIDs
+        case reviewDate
+        case createdAt
+        case updatedAt
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        chartID = try container.decode(UUID.self, forKey: .chartID)
+        kind = try container.decode(String.self, forKey: .kind)
+        locationID = try container.decode(String.self, forKey: .locationID)
+        title = try container.decode(String.self, forKey: .title)
+        body = try container.decode(String.self, forKey: .body)
+        marker = try container.decode(String.self, forKey: .marker)
+        evidenceSeedIDs = try container.decodeIfPresent(
+            [String].self,
+            forKey: .evidenceSeedIDs
+        ) ?? []
+        evidenceFactIDs = try container.decode([String].self, forKey: .evidenceFactIDs)
+        reviewDate = try container.decodeIfPresent(Date.self, forKey: .reviewDate)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }
 
@@ -225,6 +265,7 @@ struct BackupPayload: Codable, Equatable, Sendable {
         let currentRuleSet = RuleSetIdentity.taiwanTraditionalSanheV1
         var chartIDs = Set<UUID>()
         var validFactIDsByChartID: [UUID: Set<String>] = [:]
+        var seedsByChartID: [UUID: [InterpretationSeed]] = [:]
         for chart in charts {
             guard chartIDs.insert(chart.id).inserted else {
                 throw BackupError.duplicateChartID(chart.id)
@@ -246,9 +287,9 @@ struct BackupPayload: Codable, Equatable, Sendable {
             guard let resolvedChart = try? ZiWeiCalculator().calculate(chart.birthProfile) else {
                 throw BackupError.invalidChartData(chart.id)
             }
-            validFactIDsByChartID[chart.id] = Set(
-                ChartFactBuilder().makeFacts(from: resolvedChart).map(\.id)
-            )
+            let facts = ChartFactBuilder().makeFacts(from: resolvedChart)
+            validFactIDsByChartID[chart.id] = Set(facts.map(\.id))
+            seedsByChartID[chart.id] = InterpretationSeedBuilder().makeSeeds(from: facts)
         }
 
         var insightIDs = Set<UUID>()
@@ -284,8 +325,19 @@ struct BackupPayload: Codable, Equatable, Sendable {
             guard !insight.locationID.isEmpty else {
                 throw BackupError.invalidInsightLocation
             }
+            let seeds = seedsByChartID[insight.chartID] ?? []
+            let validSeedIDs = Set(seeds.map(\.id))
+            guard Set(insight.evidenceSeedIDs).count == insight.evidenceSeedIDs.count,
+                  insight.evidenceSeedIDs.allSatisfy(validSeedIDs.contains) else {
+                throw BackupError.invalidEvidenceSeedID
+            }
             let validFactIDs = validFactIDsByChartID[insight.chartID] ?? []
-            guard insight.evidenceFactIDs.allSatisfy(validFactIDs.contains) else {
+            guard PersistedInterpretationEvidenceValidator().isValid(
+                seedIDs: insight.evidenceSeedIDs,
+                factIDs: insight.evidenceFactIDs,
+                seeds: seeds,
+                validFactIDs: validFactIDs
+            ) else {
                 throw BackupError.invalidEvidenceFactID
             }
         }

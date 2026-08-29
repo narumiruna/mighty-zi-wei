@@ -167,6 +167,14 @@ private struct SavedBookmarkDetailView: View {
                     .lineSpacing(5)
                     .textSelection(.enabled)
                     .accessibilityIdentifier("journal.bookmarkDetail.content")
+                if !insight.evidenceSeedIDs.isEmpty {
+                    Label(
+                        "保留 \(insight.evidenceSeedIDs.count) 項核准解讀線索",
+                        systemImage: "checkmark.seal"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
                 if !insight.evidenceFactIDs.isEmpty {
                     Label(
                         "保留 \(insight.evidenceFactIDs.count) 項命盤依據",
@@ -215,6 +223,14 @@ private struct InsightRow: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.orange)
+            }
+            if !insight.evidenceSeedIDs.isEmpty {
+                Label(
+                    "保留 \(insight.evidenceSeedIDs.count) 項核准解讀線索",
+                    systemImage: "checkmark.seal"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             if !insight.evidenceFactIDs.isEmpty {
                 Label("保留 \(insight.evidenceFactIDs.count) 項命盤依據", systemImage: "checkmark.seal")
@@ -488,6 +504,7 @@ struct InsightBookmarkButton: View {
     let locationID: String
     let title: String
     let content: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
 
     @Environment(\.modelContext) private var modelContext
@@ -516,6 +533,7 @@ struct InsightBookmarkButton: View {
         existing?.matchesBookmark(
             title: title,
             content: content,
+            evidenceSeedIDs: evidenceSeedIDs,
             evidenceFactIDs: evidenceFactIDs
         ) == true
     }
@@ -579,6 +597,7 @@ struct InsightBookmarkButton: View {
                 existing.updateBookmark(
                     title: title,
                     content: content,
+                    evidenceSeedIDs: evidenceSeedIDs,
                     evidenceFactIDs: evidenceFactIDs
                 )
             }
@@ -588,6 +607,7 @@ struct InsightBookmarkButton: View {
                 locationID: locationID,
                 title: title,
                 content: content,
+                evidenceSeedIDs: evidenceSeedIDs,
                 evidenceFactIDs: evidenceFactIDs
             ))
         }

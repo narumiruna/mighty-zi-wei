@@ -65,6 +65,7 @@
 		92D2115C7E6BB6EA9F1E1AA6 /* ZiWeiChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB955C7DF656FDC943976E73 /* ZiWeiChart.swift */; };
 		96C5BF79F91DF992D48C18CE /* InterpretationValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */; };
 		9DE3AC8EAF227B8CF9654AA5 /* CalendarNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBBCDC45378DE1542584A162 /* CalendarNormalizer.swift */; };
+		9F59C268EC68C10F812AF15D /* PersistedInterpretationEvidenceValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10ADFFA5714D9597AD50A4E2 /* PersistedInterpretationEvidenceValidator.swift */; };
 		A358EA97D679804CEC760488 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7BB733B679E4CC1FAC918ED /* HomeView.swift */; };
 		A780A7BB053C036AD90F2065 /* SavedInsightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B137F15DE4C1DFBDD7512 /* SavedInsightTests.swift */; };
 		A9434F7BC64F7162EFC349F4 /* ICloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A2DF22615AFE9F958AC27 /* ICloudSyncService.swift */; };
@@ -157,6 +158,7 @@
 		0D12FE744C4E5E89927DD0FF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0D504DB957AC3C401FBD7479 /* chart_005_historical_dst.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_005_historical_dst.json; sourceTree = "<group>"; };
 		100D21B9C83D74470714BF27 /* AppleVoiceOutputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVoiceOutputController.swift; sourceTree = "<group>"; };
+		10ADFFA5714D9597AD50A4E2 /* PersistedInterpretationEvidenceValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedInterpretationEvidenceValidator.swift; sourceTree = "<group>"; };
 		11937549E0F84C51ADF1EF1E /* BirthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BirthProfile.swift; sourceTree = "<group>"; };
 		18AABAE834D622A15AB7D45F /* chart_006_1900_boundary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_006_1900_boundary.json; sourceTree = "<group>"; };
 		1A41747DB3EB2606F350F913 /* AppleVoiceInputController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVoiceInputController.swift; sourceTree = "<group>"; };
@@ -514,6 +516,7 @@
 				FDA1772BF3EF5EA2C29BCB4B /* BackupRestoreService.swift */,
 				C527000DB05FA7F8DA1D74D7 /* EncryptedBackupService.swift */,
 				593A2DF22615AFE9F958AC27 /* ICloudSyncService.swift */,
+				10ADFFA5714D9597AD50A4E2 /* PersistedInterpretationEvidenceValidator.swift */,
 				2EFFB63FFA8D9A70F27728B1 /* SavedChart.swift */,
 				AA5BB6565FB64BE8A7F53CC8 /* SavedConversation.swift */,
 				873BDF01B1D332DB57D5B156 /* SavedInsight.swift */,
@@ -832,6 +835,7 @@
 				4F34923999E919A440F0939B /* OpenAIResponsesInterpreter.swift in Sources */,
 				2C1E451C5864455CCEDE6CDC /* Palace.swift in Sources */,
 				24AC73DF96E1DCF2A3E5827F /* PalaceDetailView.swift in Sources */,
+				9F59C268EC68C10F812AF15D /* PersistedInterpretationEvidenceValidator.swift in Sources */,
 				DDDE9FFEE1E0AA1B65ADE220 /* ReviewReminderScheduler.swift in Sources */,
 				6F295E1271F152D74D0BEE99 /* RootView.swift in Sources */,
 				C4ADD957C4D02683CF71C968 /* RuleBasedInterpreter.swift in Sources */,
