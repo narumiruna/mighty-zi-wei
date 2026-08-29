@@ -4,6 +4,7 @@ import UIKit
 struct ConversationTurnView: View {
     let turn: ChartConversationTurn
     let factsByID: [String: ChartFact]
+    let seedsByID: [String: InterpretationSeed]
     let chartID: UUID?
 
     var body: some View {
@@ -37,9 +38,14 @@ struct ConversationTurnView: View {
             Label("命盤助理", systemImage: "sparkles")
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
-            Label("已確認引用命盤依據", systemImage: "checkmark.seal")
-                .font(.caption.weight(.semibold))
-                .accessibilityIdentifier("assistant.answer.verified")
+            Label(
+                turn.evidenceSeedIDs.isEmpty
+                    ? "已確認引用命盤依據"
+                    : "已確認解讀線索與命盤依據一致",
+                systemImage: "checkmark.seal"
+            )
+            .font(.caption.weight(.semibold))
+            .accessibilityIdentifier("assistant.answer.verified")
             Text(turn.answer)
                 .lineSpacing(5)
                 .textSelection(.enabled)
@@ -63,8 +69,17 @@ struct ConversationTurnView: View {
             }
 
             Divider()
-            DisclosureGroup("回答依據") {
-                VStack(alignment: .leading, spacing: 8) {
+            DisclosureGroup("為什麼這樣說") {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(turn.evidenceSeedIDs, id: \.self) { identifier in
+                        if let seed = seedsByID[identifier] {
+                            Text(seed.meaning)
+                                .font(.footnote)
+                        }
+                    }
+                    if !turn.evidenceSeedIDs.isEmpty {
+                        Divider()
+                    }
                     ForEach(turn.evidenceFactIDs, id: \.self) { identifier in
                         if let fact = factsByID[identifier] {
                             Label(fact.displayText, systemImage: "checkmark.seal")

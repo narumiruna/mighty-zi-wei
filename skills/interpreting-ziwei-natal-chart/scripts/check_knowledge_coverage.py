@@ -525,7 +525,13 @@ def check_product_contract() -> list[str]:
     if "natal.star.ziWei.palace" not in ruleset or "natal.star.ziwei.palace" in ruleset:
         failures.append("RULESET.md 的紫微 fact ID 與 Star.rawValue 不一致")
     boundaries = read_text(PRODUCT_BOUNDARIES)
-    for marker in ("InterpretationSection", "沒有 seed IDs", "產品 validator 通過", "不等於", "未來產品工作"):
+    for marker in (
+        "InterpretationSection",
+        "`evidenceSeedIDs` 與 `evidenceFactIDs`",
+        "產品 validator 通過",
+        "不能宣稱",
+        "後續產品工作",
+    ):
         if marker not in boundaries:
             failures.append(f"產品整合邊界缺少：{marker}")
     return failures

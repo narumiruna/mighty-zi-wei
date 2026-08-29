@@ -33,6 +33,46 @@ final class InterpretationSeedBuilderTests: XCTestCase {
         XCTAssertEqual(starSeed?.evidenceFactIDs, [starFact.id])
     }
 
+    func test基本解讀先說個人化傾向再提供情境核對問題() throws {
+        let facts = [
+            fact(id: "natal.palace.life.branch", subject: "life", value: "yin"),
+            starFact(id: "ziWei", palace: "life", text: "紫微位於命宮。"),
+            starFact(id: "tianJi", palace: "fortune", text: "天機位於福德宮。")
+        ]
+        let seeds = InterpretationSeedBuilder().makeSeeds(from: facts)
+        let interpretation = RuleBasedInterpreter().interpret(facts: facts, seeds: seeds)
+        let section = try XCTUnwrap(
+            interpretation.sections.first { $0.category == .personality }
+        )
+
+        XCTAssertTrue(section.content.hasPrefix("紫微位於命宮。你可能傾向先形成自己的判斷"))
+        XCTAssertTrue(section.content.contains("一起看："))
+        XCTAssertTrue(section.content.contains("拿生活來核對："))
+        XCTAssertEqual(
+            section.evidenceSeedIDs,
+            ["seed.personality.ziWei.life", "seed.personality.tianJi.fortune"]
+        )
+        XCTAssertEqual(
+            section.evidenceFactIDs,
+            ["natal.star.ziWei.palace", "natal.star.tianJi.palace"]
+        )
+        XCTAssertFalse(section.evidenceSeedIDs.contains("seed.personality.baseline"))
+    }
+
+    private func starFact(
+        id: String,
+        palace: String,
+        text: String
+    ) -> ChartFact {
+        ChartFact(
+            id: "natal.star.\(id).palace",
+            category: .star,
+            subject: .init(kind: "star", identifier: id),
+            value: .init(kind: "palace", identifier: palace),
+            displayText: text
+        )
+    }
+
     private func fact(id: String, subject: String, value: String) -> ChartFact {
         ChartFact(
             id: id,

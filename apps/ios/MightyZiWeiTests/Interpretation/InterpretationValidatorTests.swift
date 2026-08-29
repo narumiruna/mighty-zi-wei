@@ -10,221 +10,168 @@ final class InterpretationValidatorTests: XCTestCase {
         displayText: "紫微位於命宮。"
     )
 
-    func test接受五個分類與已知依據() throws {
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
-
-        let result = try InterpretationValidator().validate(sections: sections, facts: [fact])
+    func test接受五個分類與線索完全對應的命盤依據() throws {
+        let result = try InterpretationValidator().validate(
+            sections: makeSections(),
+            facts: [fact],
+            seeds: makeSeeds()
+        )
 
         XCTAssertEqual(result.count, InterpretationCategory.allCases.count)
     }
 
-    func test拒絕未知依據() {
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [category == .career ? "unknown" : fact.id]
-            )
-        }
+    func test拒絕未知重複與分類錯誤的解讀線索() {
+        let unknown = makeSections(seedIDs: { category in
+            category == .career ? ["unknown"] : ["seed.\(category.rawValue)"]
+        })
+        XCTAssertThrowsError(try validate(unknown))
 
-        XCTAssertThrowsError(try InterpretationValidator().validate(sections: sections, facts: [fact]))
+        let duplicate = makeSections(seedIDs: { category in
+            let identifier = "seed.\(category.rawValue)"
+            return category == .overview ? [identifier, identifier] : [identifier]
+        })
+        XCTAssertThrowsError(try validate(duplicate))
+
+        let wrongCategory = makeSections(seedIDs: { category in
+            category == .career ? ["seed.personality"] : ["seed.\(category.rawValue)"]
+        })
+        XCTAssertThrowsError(try validate(wrongCategory))
     }
 
-    func test拒絕重複依據與空白內容() {
-        let duplicateEvidence = makeSections { category in
-            category == .overview ? [fact.id, fact.id] : [fact.id]
-        }
-        XCTAssertThrowsError(
-            try InterpretationValidator().validate(sections: duplicateEvidence, facts: [fact])
+    func test拒絕線索與命盤依據不一致() {
+        let unknownFact = makeSections(
+            evidence: { category in
+                category == .career ? ["unknown"] : [self.fact.id]
+            }
         )
+        XCTAssertThrowsError(try validate(unknownFact))
 
-        let emptyContent = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: category == .personality ? "   " : "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
-        XCTAssertThrowsError(
-            try InterpretationValidator().validate(sections: emptyContent, facts: [fact])
+        let missingFact = makeSections(
+            evidence: { category in
+                category == .career ? [] : [self.fact.id]
+            }
         )
+        XCTAssertThrowsError(try validate(missingFact))
+
+        let duplicateFact = makeSections(
+            evidence: { category in
+                category == .overview ? [self.fact.id, self.fact.id] : [self.fact.id]
+            }
+        )
+        XCTAssertThrowsError(try validate(duplicateFact))
     }
 
-    func test接受否定式專業建議免責文字() throws {
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: category == .wealth
-                    ? "財帛宮適合用來觀察資源安排傾向，但不構成任何投資建議。"
-                    : "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
+    func test拒絕空白與確定式或專業建議() {
+        for content in ["   ", "你一定會成功。", "以下是適合你的投資建議。"] {
+            let sections = makeSections(content: { category in
+                category == .wealth ? content : "你可能傾向先掌握整體方向。"
+            })
+            XCTAssertThrowsError(try validate(sections))
         }
-
-        let result = try InterpretationValidator().validate(sections: sections, facts: [fact])
-
-        XCTAssertEqual(result.count, InterpretationCategory.allCases.count)
     }
 
-    func test接受否定式確定語氣() throws {
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: category == .career
-                    ? "接近四十歲不一定會限制你的工作選擇。"
-                    : "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
+    func test接受否定式確定語氣與專業建議免責文字() {
+        let sections = makeSections(content: { category in
+            switch category {
+            case .career:
+                "接近四十歲不一定會限制你的工作選擇。"
+            case .wealth:
+                "這是資源安排傾向，不構成任何投資建議。"
+            default:
+                "你可能傾向先掌握整體方向。"
+            }
+        })
 
-        XCTAssertNoThrow(
-            try InterpretationValidator().validate(sections: sections, facts: [fact])
-        )
-        XCTAssertNoThrow(
-            try ConversationAnswerValidator().validate(
-                ChartConversationAnswer(
-                    status: .answered,
-                    content: "年齡不一定會限制你的工作選擇，也無法保證單一路線最合適。",
-                    evidenceFactIDs: [fact.id]
-                ),
-                facts: [fact]
-            )
-        )
+        XCTAssertNoThrow(try validate(sections))
     }
 
-    func test接受一般提及專業詞彙() throws {
-        let content = "命盤不能替代診斷或治療；買進與賣出仍應依現實資訊自行判斷。"
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: category == .overview ? content : "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
-
-        XCTAssertNoThrow(
-            try InterpretationValidator().validate(sections: sections, facts: [fact])
-        )
-        XCTAssertNoThrow(
-            try ConversationAnswerValidator().validate(
-                ChartConversationAnswer(
-                    status: .answered,
-                    content: content,
-                    evidenceFactIDs: [fact.id]
-                ),
-                facts: [fact]
-            )
-        )
-    }
-
-    func test仍拒絕實際專業建議() {
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: category == .wealth
-                    ? "以下是適合你的投資建議。"
-                    : "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
-
-        XCTAssertThrowsError(
-            try InterpretationValidator().validate(sections: sections, facts: [fact])
-        )
-    }
-
-    func test拒絕確定式預測() {
-        let sections = InterpretationCategory.allCases.map { category in
-            InterpretationSection(
-                id: category.rawValue,
-                category: category,
-                title: category.title,
-                content: category == .wealth ? "你一定會獲利。" : "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
-
-        XCTAssertThrowsError(try InterpretationValidator().validate(sections: sections, facts: [fact]))
-    }
-
-    func test對話回答必須引用已知且不重複的依據() throws {
+    func test對話回答必須引用線索及其完整命盤依據() throws {
+        let seed = try XCTUnwrap(makeSeeds().first)
         let answer = ChartConversationAnswer(
             status: .answered,
             content: "你可能傾向先掌握整體方向。",
+            evidenceSeedIDs: [seed.id],
             evidenceFactIDs: [fact.id]
         )
 
         XCTAssertEqual(
-            try ConversationAnswerValidator().validate(answer, facts: [fact]),
+            try ConversationAnswerValidator().validate(
+                answer,
+                facts: [fact],
+                seeds: [seed]
+            ),
             answer
         )
 
-        XCTAssertThrowsError(
-            try ConversationAnswerValidator().validate(
-                ChartConversationAnswer(
-                    status: .answered,
-                    content: answer.content,
-                    evidenceFactIDs: ["unknown"]
-                ),
-                facts: [fact]
+        for invalid in [
+            ChartConversationAnswer(
+                status: .answered,
+                content: answer.content,
+                evidenceSeedIDs: ["unknown"],
+                evidenceFactIDs: [fact.id]
+            ),
+            ChartConversationAnswer(
+                status: .answered,
+                content: answer.content,
+                evidenceSeedIDs: [seed.id, seed.id],
+                evidenceFactIDs: [fact.id]
+            ),
+            ChartConversationAnswer(
+                status: .answered,
+                content: answer.content,
+                evidenceSeedIDs: [seed.id],
+                evidenceFactIDs: ["unknown"]
+            ),
+            ChartConversationAnswer(
+                status: .answered,
+                content: answer.content,
+                evidenceSeedIDs: [seed.id],
+                evidenceFactIDs: []
             )
-        )
-        XCTAssertThrowsError(
-            try ConversationAnswerValidator().validate(
-                ChartConversationAnswer(
-                    status: .answered,
-                    content: answer.content,
-                    evidenceFactIDs: [fact.id, fact.id]
-                ),
-                facts: [fact]
+        ] {
+            XCTAssertThrowsError(
+                try ConversationAnswerValidator().validate(
+                    invalid,
+                    facts: [fact],
+                    seeds: [seed]
+                )
             )
-        )
+        }
     }
 
-    func test不支援的對話回答不得附加命盤依據() throws {
+    func test不支援回答保留具體替代方向且不得附加依據() throws {
+        let content = "目前不能診斷健康；可以改問壓力下的反應傾向。"
         let unsupported = ChartConversationAnswer(
             status: .unsupported,
-            content: "目前命盤資料不足以回答這個問題。",
+            content: content,
             evidenceFactIDs: []
         )
 
-        let validated = try ConversationAnswerValidator().validate(unsupported, facts: [fact])
-        XCTAssertEqual(validated.status, .unsupported)
+        let validated = try ConversationAnswerValidator().validate(
+            unsupported,
+            facts: [fact],
+            seeds: makeSeeds()
+        )
+        XCTAssertEqual(validated.content, content)
+        XCTAssertTrue(validated.evidenceSeedIDs.isEmpty)
         XCTAssertTrue(validated.evidenceFactIDs.isEmpty)
-        XCTAssertTrue(validated.content.contains("目前命盤資料不足"))
+
         XCTAssertThrowsError(
             try ConversationAnswerValidator().validate(
                 ChartConversationAnswer(
                     status: .unsupported,
-                    content: unsupported.content,
+                    content: content,
+                    evidenceSeedIDs: ["seed.overview"],
                     evidenceFactIDs: [fact.id]
                 ),
-                facts: [fact]
+                facts: [fact],
+                seeds: makeSeeds()
             )
         )
     }
 
-    func test對話回答拒絕空白與不安全內容() {
+    func test對話回答拒絕空白過長與不安全內容() {
+        let seed = makeSeeds()[0]
         for content in [
             "   ",
             "你一定會成功。",
@@ -236,24 +183,48 @@ final class InterpretationValidatorTests: XCTestCase {
                     ChartConversationAnswer(
                         status: .answered,
                         content: content,
+                        evidenceSeedIDs: [seed.id],
                         evidenceFactIDs: [fact.id]
                     ),
-                    facts: [fact]
+                    facts: [fact],
+                    seeds: [seed]
                 )
             )
         }
     }
 
+    private func validate(_ sections: [InterpretationSection]) throws -> [InterpretationSection] {
+        try InterpretationValidator().validate(
+            sections: sections,
+            facts: [fact],
+            seeds: makeSeeds()
+        )
+    }
+
+    private func makeSeeds() -> [InterpretationSeed] {
+        InterpretationCategory.allCases.map { category in
+            InterpretationSeed(
+                id: "seed.\(category.rawValue)",
+                category: category,
+                meaning: "你可能傾向先掌握整體方向。",
+                evidenceFactIDs: [fact.id]
+            )
+        }
+    }
+
     private func makeSections(
-        evidence: (InterpretationCategory) -> [String]
+        seedIDs: (InterpretationCategory) -> [String] = { ["seed.\($0.rawValue)"] },
+        evidence: (InterpretationCategory) -> [String]? = { _ in nil },
+        content: (InterpretationCategory) -> String = { _ in "你可能傾向先掌握整體方向。" }
     ) -> [InterpretationSection] {
         InterpretationCategory.allCases.map { category in
             InterpretationSection(
                 id: category.rawValue,
                 category: category,
                 title: category.title,
-                content: "你可能傾向先掌握整體方向。",
-                evidenceFactIDs: evidence(category)
+                content: content(category),
+                evidenceSeedIDs: seedIDs(category),
+                evidenceFactIDs: evidence(category) ?? [fact.id]
             )
         }
     }
