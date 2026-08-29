@@ -207,6 +207,9 @@ final class InterpretationValidatorTests: XCTestCase {
       "以下是適合你的投資建議。",
       "我可以替你診斷。",
       "以下是治療方案。",
+      "**你可能傾向先掌握整體方向。**",
+      "使用到的解讀：\(seed.id)",
+      "命盤依據：\(fact.id)",
       String(repeating: "字", count: 2_001),
     ] {
       XCTAssertThrowsError(
@@ -222,6 +225,27 @@ final class InterpretationValidatorTests: XCTestCase {
         )
       )
     }
+  }
+
+  func test舊回答顯示時移除Markdown與內部依據() {
+    let content = """
+      1. **先形成自己的判斷，再決定如何推進 **：你可能重視自己的看法。
+
+      以上只能作為與生活經驗對照的角度。
+      使用到的解讀：seed.personality.ziWei.life
+      """
+
+    let displayed = ConversationAnswerContentPolicy.displayText(
+      content,
+      hiding: ["seed.personality.ziWei.life"]
+    )
+
+    XCTAssertEqual(
+      displayed,
+      "1. 先形成自己的判斷，再決定如何推進：你可能重視自己的看法。\n\n以上只能作為與生活經驗對照的角度。"
+    )
+    XCTAssertFalse(displayed.contains("**"))
+    XCTAssertFalse(displayed.contains("seed.personality"))
   }
 
   private func validate(_ sections: [InterpretationSection]) throws -> [InterpretationSection] {

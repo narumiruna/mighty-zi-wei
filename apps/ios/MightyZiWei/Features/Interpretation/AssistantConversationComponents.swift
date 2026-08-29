@@ -33,6 +33,13 @@ struct ConversationTurnView: View {
     .accessibilityIdentifier("assistant.answer")
   }
 
+  private var displayedAnswer: String {
+    ConversationAnswerContentPolicy.displayText(
+      turn.answer,
+      hiding: Array(seedsByID.keys) + Array(factsByID.keys)
+    )
+  }
+
   private var verifiedAnswer: some View {
     VStack(alignment: .leading, spacing: 12) {
       Label("命盤助理", systemImage: "sparkles")
@@ -46,7 +53,7 @@ struct ConversationTurnView: View {
       )
       .font(.caption.weight(.semibold))
       .accessibilityIdentifier("assistant.answer.verified")
-      Text(turn.answer)
+      Text(displayedAnswer)
         .lineSpacing(5)
         .textSelection(.enabled)
 
@@ -54,7 +61,7 @@ struct ConversationTurnView: View {
         HStack {
           VoicePlaybackControls(
             contentID: "assistant.\(turn.id.uuidString)",
-            text: turn.answer
+            text: displayedAnswer
           )
           Spacer()
           bookmark
@@ -62,7 +69,7 @@ struct ConversationTurnView: View {
         VStack(alignment: .leading, spacing: 8) {
           VoicePlaybackControls(
             contentID: "assistant.\(turn.id.uuidString)",
-            text: turn.answer
+            text: displayedAnswer
           )
           bookmark
         }
@@ -101,7 +108,7 @@ struct ConversationTurnView: View {
       chartID: chartID,
       locationID: "assistant.\(turn.id.uuidString)",
       title: "命盤助理：\(turn.question)",
-      content: turn.answer,
+      content: displayedAnswer,
       evidenceSeedIDs: turn.evidenceSeedIDs,
       evidenceFactIDs: turn.evidenceFactIDs
     )
