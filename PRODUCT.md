@@ -836,6 +836,8 @@ SwiftData store 使用 App 本機容器；若舊版本的自動設定曾解析�
 收藏具有 seed evidence 時，備份還原與同步必須依 seed 順序展開、去除重複後，驗證 fact evidence 完全一致。
 舊版收藏、備份或同步資料缺少 `evidenceSeedIDs` 時必須遷移為空陣列，不得回溯宣稱具有 seed provenance。
 
+加入 `evidenceSeedIDs` 後，備份 payload schema version 必須升為 2；version 2 的每筆收藏與筆記都必須明確包含 `evidenceSeedIDs`，還原流程只可遷移允許缺少此欄位的 version 1，並拒絕其他版本，避免舊版 App 靜默移除 seed provenance。
+
 MVP 不自動永久保存完整 AI interpretation 或命盤助理對話。
 
 命盤助理必須持續顯示本次對話尚未保存、已保存到第幾輪，以及後續尚未保存的輪數。

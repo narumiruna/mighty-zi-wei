@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Foundation
 
 /// 備份檔內唯一允許的命盤來源資料。
@@ -228,7 +229,7 @@ struct BackupExportSnapshot: Sendable {
 }
 
 struct BackupPayload: Codable, Equatable, Sendable {
-  static let currentSchemaVersion = 1
+  static let currentSchemaVersion = 2
 
   let schemaVersion: Int
   let charts: [BackupChartDTO]
@@ -260,8 +261,35 @@ struct BackupPayload: Codable, Equatable, Sendable {
     self.init(charts: snapshot.charts, insights: snapshot.insights)
   }
 
+  private enum CodingKeys: String, CodingKey {
+    case schemaVersion
+    case charts
+    case insights
+  }
+
+  private enum InsightCodingKeys: String, CodingKey {
+    case evidenceSeedIDs
+  }
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+    charts = try container.decode([BackupChartDTO].self, forKey: .charts)
+
+    if schemaVersion == Self.currentSchemaVersion {
+      var encodedInsights = try container.nestedUnkeyedContainer(forKey: .insights)
+      while !encodedInsights.isAtEnd {
+        let insight = try encodedInsights.nestedContainer(keyedBy: InsightCodingKeys.self)
+        _ = try insight.decode([String].self, forKey: .evidenceSeedIDs)
+      }
+    }
+
+    insights = try container.decode([BackupInsightDTO].self, forKey: .insights)
+  }
+
+  // swiftlint:disable:next cyclomatic_complexity function_body_length
   func validate() throws {
-    guard schemaVersion == Self.currentSchemaVersion else {
+    guard schemaVersion == Self.currentSchemaVersion || schemaVersion == 1 else {
       throw BackupError.unsupportedPayloadSchema(schemaVersion)
     }
 
@@ -352,7 +380,10 @@ struct BackupPayload: Codable, Equatable, Sendable {
 
   func validated() throws -> ValidatedBackupPayload {
     try validate()
-    return ValidatedBackupPayload(payload: self)
+    let payload =
+      schemaVersion == Self.currentSchemaVersion
+      ? self : BackupPayload(charts: charts, insights: insights)
+    return ValidatedBackupPayload(payload: payload)
   }
 }
 
