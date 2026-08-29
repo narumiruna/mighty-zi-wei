@@ -1,193 +1,208 @@
 import XCTest
+
 @testable import MightyZiWei
 
 final class ChartLearningContentTests: XCTestCase {
-    func test十二宮都有新手可理解的學習內容() {
-        XCTAssertEqual(PalaceKind.allCases.count, 12)
+  func test十二宮都有新手可理解的學習內容() {
+    XCTAssertEqual(PalaceKind.allCases.count, 12)
 
-        for kind in PalaceKind.allCases {
-            let content = ChartLearningCatalog.palace(kind)
-            XCTAssertFalse(content.focusTitle.isEmpty, "\(kind) 缺少焦點標題")
-            XCTAssertFalse(content.purpose.isEmpty, "\(kind) 缺少用途說明")
-            XCTAssertFalse(content.relatedLabel.isEmpty, "\(kind) 缺少生活化名稱")
-        }
+    for kind in PalaceKind.allCases {
+      let content = ChartLearningCatalog.palace(kind)
+      XCTAssertFalse(content.focusTitle.isEmpty, "\(kind) 缺少焦點標題")
+      XCTAssertFalse(content.purpose.isEmpty, "\(kind) 缺少用途說明")
+      XCTAssertFalse(content.relatedLabel.isEmpty, "\(kind) 缺少生活化名稱")
     }
+  }
 
-    func test所有支援星曜都有關鍵詞與漸進學習內容() {
-        for star in Star.allCases {
-            let content = ChartLearningCatalog.star(star)
-            XCTAssertFalse(content.keywords.isEmpty, "\(star) 缺少關鍵詞")
-            XCTAssertFalse(content.summary.isEmpty, "\(star) 缺少摘要")
-            XCTAssertFalse(content.strengths.isEmpty, "\(star) 缺少優勢說明")
-            XCTAssertFalse(content.cautions.isEmpty, "\(star) 缺少留意事項")
-        }
+  func test所有支援星曜都有關鍵詞與漸進學習內容() {
+    for star in Star.allCases {
+      let content = ChartLearningCatalog.star(star)
+      XCTAssertFalse(content.keywords.isEmpty, "\(star) 缺少關鍵詞")
+      XCTAssertFalse(content.summary.isEmpty, "\(star) 缺少摘要")
+      XCTAssertFalse(content.strengths.isEmpty, "\(star) 缺少優勢說明")
+      XCTAssertFalse(content.cautions.isEmpty, "\(star) 缺少留意事項")
     }
+  }
 
-    func test宮位摘要只採用目前主星的已驗證Seed() {
-        let fact = makeStarFact(star: .ziWei, palace: .life)
-        let unrelatedFact = makeStarFact(star: .wuQu, palace: .wealth)
-        let seeds = [
-            InterpretationSeed(
-                id: "seed.personality.ziwei.life",
-                category: .personality,
-                meaning: "你可能重視自主與整體方向。",
-                evidenceFactIDs: [fact.id]
-            ),
-            InterpretationSeed(
-                id: "seed.wealth.wuqu.wealth",
-                category: .wealth,
-                meaning: "這段不應出現在命宮摘要。",
-                evidenceFactIDs: [unrelatedFact.id]
-            )
+  func test宮位摘要只採用目前主星的已驗證Seed() {
+    let fact = makeStarFact(star: .ziWei, palace: .life)
+    let unrelatedFact = makeStarFact(star: .wuQu, palace: .wealth)
+    let seeds = [
+      InterpretationSeed(
+        id: "seed.personality.ziwei.life",
+        category: .personality,
+        meaning: "你可能重視自主與整體方向。",
+        evidenceFactIDs: [fact.id]
+      ),
+      InterpretationSeed(
+        id: "seed.wealth.wuqu.wealth",
+        category: .wealth,
+        meaning: "這段不應出現在命宮摘要。",
+        evidenceFactIDs: [unrelatedFact.id]
+      ),
+    ]
+
+    let summary = PalaceLearningSummaryBuilder().make(
+      palaceKind: .life,
+      mainStars: [.ziWei],
+      facts: [fact, unrelatedFact],
+      seeds: seeds
+    )
+
+    XCTAssertEqual(summary, "你可能重視自主與整體方向。")
+    XCTAssertFalse(summary.contains("不應出現"))
+  }
+
+  func test未支援宮位摘要不會挪用其他分類Seed() {
+    let cases: [(PalaceKind, InterpretationCategory, String)] = [
+      (.travel, .career, "工作內容不能解讀外在環境。"),
+      (.property, .wealth, "資源內容不能解讀家庭與安定感。"),
+      (.health, .overview, "總覽內容不能解讀身心節奏。"),
+    ]
+
+    for (palace, category, unsupportedMeaning) in cases {
+      let fact = makeStarFact(star: .ziWei, palace: palace)
+      let summary = PalaceLearningSummaryBuilder().make(
+        palaceKind: palace,
+        mainStars: [.ziWei],
+        facts: [fact],
+        seeds: [
+          InterpretationSeed(
+            id: "seed.\(category.rawValue).ziwei.\(palace.rawValue)",
+            category: category,
+            meaning: unsupportedMeaning,
+            evidenceFactIDs: [fact.id]
+          )
         ]
+      )
 
-        let summary = PalaceLearningSummaryBuilder().make(
-            palaceKind: .life,
-            mainStars: [.ziWei],
-            facts: [fact, unrelatedFact],
-            seeds: seeds
-        )
+      XCTAssertFalse(summary.contains(unsupportedMeaning), "\(palace) 誤用了 \(category) seed")
+      XCTAssertTrue(summary.contains("已驗證位置"), "\(palace) 應退回 facts-only 摘要")
+    }
+  }
 
-        XCTAssertEqual(summary, "你可能重視自主與整體方向。")
-        XCTAssertFalse(summary.contains("不應出現"))
+  func test雙主星摘要最多使用兩段已驗證內容() {
+    let stars: [Star] = [.ziWei, .tanLang, .wuQu]
+    let facts = stars.map { makeStarFact(star: $0, palace: .life) }
+    let seeds = zip(stars, facts).map { pair in
+      let (star, fact) = pair
+      return InterpretationSeed(
+        id: "seed.\(star.rawValue)",
+        category: .personality,
+        meaning: "\(star.displayName)的已驗證傾向。",
+        evidenceFactIDs: [fact.id]
+      )
     }
 
-    func test未支援宮位摘要不會挪用其他分類Seed() {
-        let cases: [(PalaceKind, InterpretationCategory, String)] = [
-            (.travel, .career, "工作內容不能解讀外在環境。"),
-            (.property, .wealth, "資源內容不能解讀家庭與安定感。"),
-            (.health, .overview, "總覽內容不能解讀身心節奏。")
-        ]
+    let summary = PalaceLearningSummaryBuilder().make(
+      palaceKind: .life,
+      mainStars: stars,
+      facts: facts,
+      seeds: seeds
+    )
 
-        for (palace, category, unsupportedMeaning) in cases {
-            let fact = makeStarFact(star: .ziWei, palace: palace)
-            let summary = PalaceLearningSummaryBuilder().make(
-                palaceKind: palace,
-                mainStars: [.ziWei],
-                facts: [fact],
-                seeds: [InterpretationSeed(
-                    id: "seed.\(category.rawValue).ziwei.\(palace.rawValue)",
-                    category: category,
-                    meaning: unsupportedMeaning,
-                    evidenceFactIDs: [fact.id]
-                )]
-            )
+    XCTAssertTrue(summary.contains("紫微"))
+    XCTAssertTrue(summary.contains("貪狼"))
+    XCTAssertFalse(summary.contains("武曲"))
+  }
 
-            XCTAssertFalse(summary.contains(unsupportedMeaning), "\(palace) 誤用了 \(category) seed")
-            XCTAssertTrue(summary.contains("已驗證位置"), "\(palace) 應退回 facts-only 摘要")
-        }
-    }
-
-    func test雙主星摘要最多使用兩段已驗證內容() {
-        let stars: [Star] = [.ziWei, .tanLang, .wuQu]
-        let facts = stars.map { makeStarFact(star: $0, palace: .life) }
-        let seeds = zip(stars, facts).map { pair in
-            let (star, fact) = pair
-            return InterpretationSeed(
-                id: "seed.\(star.rawValue)",
-                category: .personality,
-                meaning: "\(star.displayName)的已驗證傾向。",
-                evidenceFactIDs: [fact.id]
-            )
-        }
-
-        let summary = PalaceLearningSummaryBuilder().make(
-            palaceKind: .life,
-            mainStars: stars,
-            facts: facts,
-            seeds: seeds
+  func test宮位建議問題只填入已驗證範圍() {
+    let fact = makeStarFact(star: .ziWei, palace: .life)
+    let supported = PalaceQuestionSuggestionBuilder().make(
+      palaceKind: .life,
+      mainStars: [.ziWei],
+      facts: [fact],
+      seeds: [
+        InterpretationSeed(
+          id: "seed.personality.ziwei.life",
+          category: .personality,
+          meaning: "可能重視整體方向。",
+          evidenceFactIDs: [fact.id]
         )
+      ]
+    )
+    XCTAssertEqual(
+      supported,
+      [
+        "關於你的核心性格，我有哪些值得自我觀察的傾向？",
+        "你自己有哪些可能值得留意的地方？",
+        "這些說法有哪些已驗證的命盤依據？",
+      ])
 
-        XCTAssertTrue(summary.contains("紫微"))
-        XCTAssertTrue(summary.contains("貪狼"))
-        XCTAssertFalse(summary.contains("武曲"))
-    }
-
-    func test宮位建議問題只填入已驗證範圍() {
-        let fact = makeStarFact(star: .ziWei, palace: .life)
-        let supported = PalaceQuestionSuggestionBuilder().make(
-            palaceKind: .life,
-            mainStars: [.ziWei],
-            facts: [fact],
-            seeds: [InterpretationSeed(
-                id: "seed.personality.ziwei.life",
-                category: .personality,
-                meaning: "可能重視整體方向。",
-                evidenceFactIDs: [fact.id]
-            )]
+    let mismatchedCategory = PalaceQuestionSuggestionBuilder().make(
+      palaceKind: .life,
+      mainStars: [.ziWei],
+      facts: [fact],
+      seeds: [
+        InterpretationSeed(
+          id: "seed.overview.ziwei.life",
+          category: .overview,
+          meaning: "這個分類不能支持命宮主題。",
+          evidenceFactIDs: [fact.id]
         )
-        XCTAssertEqual(supported, [
-            "關於你的核心性格，我有哪些值得自我觀察的傾向？",
-            "你自己有哪些可能值得留意的地方？",
-            "這些說法有哪些已驗證的命盤依據？"
-        ])
+      ]
+    )
+    XCTAssertEqual(
+      mismatchedCategory,
+      [
+        "關於你的核心性格，目前可以確認哪些盤面事實？",
+        "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？",
+        "請區分盤面事實與解讀，說明命宮目前能回答到什麼範圍。",
+      ])
 
-        let mismatchedCategory = PalaceQuestionSuggestionBuilder().make(
-            palaceKind: .life,
-            mainStars: [.ziWei],
-            facts: [fact],
-            seeds: [InterpretationSeed(
-                id: "seed.overview.ziwei.life",
-                category: .overview,
-                meaning: "這個分類不能支持命宮主題。",
-                evidenceFactIDs: [fact.id]
-            )]
+    let healthFact = makeStarFact(star: .ziWei, palace: .health)
+    let unsupportedPalace = PalaceQuestionSuggestionBuilder().make(
+      palaceKind: .health,
+      mainStars: [.ziWei],
+      facts: [healthFact],
+      seeds: [
+        InterpretationSeed(
+          id: "seed.overview.ziwei.health",
+          category: .overview,
+          meaning: "只能用於總覽，不能解讀身心節奏。",
+          evidenceFactIDs: [healthFact.id]
         )
-        XCTAssertEqual(mismatchedCategory, [
-            "關於你的核心性格，目前可以確認哪些盤面事實？",
-            "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？",
-            "請區分盤面事實與解讀，說明命宮目前能回答到什麼範圍。"
-        ])
+      ]
+    )
+    XCTAssertEqual(
+      unsupportedPalace,
+      [
+        "關於身心節奏，目前可以確認哪些盤面事實？",
+        "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？",
+        "請區分盤面事實與解讀，說明疾厄宮目前能回答到什麼範圍。",
+      ])
+    XCTAssertFalse(unsupportedPalace.joined().contains("預測"))
+    XCTAssertFalse(unsupportedPalace.joined().contains("值得留意"))
+  }
 
-        let healthFact = makeStarFact(star: .ziWei, palace: .health)
-        let unsupportedPalace = PalaceQuestionSuggestionBuilder().make(
-            palaceKind: .health,
-            mainStars: [.ziWei],
-            facts: [healthFact],
-            seeds: [InterpretationSeed(
-                id: "seed.overview.ziwei.health",
-                category: .overview,
-                meaning: "只能用於總覽，不能解讀身心節奏。",
-                evidenceFactIDs: [healthFact.id]
-            )]
-        )
-        XCTAssertEqual(unsupportedPalace, [
-            "關於身心節奏，目前可以確認哪些盤面事實？",
-            "這個宮位目前哪些內容只能確認位置，還不能進一步解讀？",
-            "請區分盤面事實與解讀，說明疾厄宮目前能回答到什麼範圍。"
-        ])
-        XCTAssertFalse(unsupportedPalace.joined().contains("預測"))
-        XCTAssertFalse(unsupportedPalace.joined().contains("值得留意"))
-    }
+  func test無主星與缺少Seed時提供誠實的部分狀態() {
+    let noMainStar = PalaceLearningSummaryBuilder().make(
+      palaceKind: .life,
+      mainStars: [],
+      facts: [],
+      seeds: []
+    )
+    XCTAssertTrue(noMainStar.contains("沒有主星"))
+    XCTAssertTrue(noMainStar.contains("不代表"))
 
-    func test無主星與缺少Seed時提供誠實的部分狀態() {
-        let noMainStar = PalaceLearningSummaryBuilder().make(
-            palaceKind: .life,
-            mainStars: [],
-            facts: [],
-            seeds: []
-        )
-        XCTAssertTrue(noMainStar.contains("沒有主星"))
-        XCTAssertTrue(noMainStar.contains("不代表"))
+    let fact = makeStarFact(star: .ziWei, palace: .life)
+    let missingMeaning = PalaceLearningSummaryBuilder().make(
+      palaceKind: .life,
+      mainStars: [.ziWei],
+      facts: [fact],
+      seeds: []
+    )
+    XCTAssertTrue(missingMeaning.contains("紫微"))
+    XCTAssertTrue(missingMeaning.contains("更多規則資料"))
+  }
 
-        let fact = makeStarFact(star: .ziWei, palace: .life)
-        let missingMeaning = PalaceLearningSummaryBuilder().make(
-            palaceKind: .life,
-            mainStars: [.ziWei],
-            facts: [fact],
-            seeds: []
-        )
-        XCTAssertTrue(missingMeaning.contains("紫微"))
-        XCTAssertTrue(missingMeaning.contains("更多規則資料"))
-    }
-
-    private func makeStarFact(star: Star, palace: PalaceKind) -> ChartFact {
-        ChartFact(
-            id: "natal.star.\(star.rawValue).palace",
-            category: .star,
-            subject: .init(kind: "star", identifier: star.rawValue),
-            value: .init(kind: "palace", identifier: palace.rawValue),
-            displayText: "\(star.displayName)位於\(palace.displayName)。"
-        )
-    }
+  private func makeStarFact(star: Star, palace: PalaceKind) -> ChartFact {
+    ChartFact(
+      id: "natal.star.\(star.rawValue).palace",
+      category: .star,
+      subject: .init(kind: "star", identifier: star.rawValue),
+      value: .init(kind: "palace", identifier: palace.rawValue),
+      displayText: "\(star.displayName)位於\(palace.displayName)。"
+    )
+  }
 }

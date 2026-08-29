@@ -2,730 +2,732 @@ import SwiftData
 import SwiftUI
 
 struct SavedInsightDeletionSummary: Equatable {
-    let noteCount: Int
-    let bookmarkCount: Int
+  let noteCount: Int
+  let bookmarkCount: Int
 
-    init(insights: [SavedInsight]) {
-        noteCount = insights.count { $0.kind == .note }
-        bookmarkCount = insights.count { $0.kind == .bookmark }
-    }
+  init(insights: [SavedInsight]) {
+    noteCount = insights.count { $0.kind == .note }
+    bookmarkCount = insights.count { $0.kind == .bookmark }
+  }
 
-    var message: String {
-        "將一併永久刪除 \(noteCount) 則私人筆記與 \(bookmarkCount) 則收藏。這個動作無法復原。"
-    }
+  var message: String {
+    "將一併永久刪除 \(noteCount) 則私人筆記與 \(bookmarkCount) 則收藏。這個動作無法復原。"
+  }
 }
 
 struct SavedChartDuplicateKey: Hashable {
-    let profile: BirthProfile
+  let profile: BirthProfile
 
-    init(_ profile: BirthProfile) {
-        self.profile = profile
-    }
+  init(_ profile: BirthProfile) {
+    self.profile = profile
+  }
 }
 
 struct SavedChartTagSelectionPolicy: Sendable {
-    func validSelection(_ selection: String?, availableTags: [String]) -> String? {
-        guard let selection, availableTags.contains(selection) else { return nil }
-        return selection
-    }
+  func validSelection(_ selection: String?, availableTags: [String]) -> String? {
+    guard let selection, availableTags.contains(selection) else { return nil }
+    return selection
+  }
 }
 
 enum SavedChartsResultState: Equatable, Sendable {
-    case results
-    case searchEmpty
-    case filterEmpty
-    case searchAndFilterEmpty
+  case results
+  case searchEmpty
+  case filterEmpty
+  case searchAndFilterEmpty
 }
 
 struct SavedChartsResultStatePolicy: Sendable {
-    func state(
-        hasResults: Bool,
-        searchText: String,
-        hasActiveFilters: Bool
-    ) -> SavedChartsResultState {
-        guard !hasResults else { return .results }
-        let hasSearch = !searchText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        ).isEmpty
-        switch (hasSearch, hasActiveFilters) {
-        case (true, true): return .searchAndFilterEmpty
-        case (true, false): return .searchEmpty
-        case (false, true): return .filterEmpty
-        case (false, false): return .results
-        }
+  func state(
+    hasResults: Bool,
+    searchText: String,
+    hasActiveFilters: Bool
+  ) -> SavedChartsResultState {
+    guard !hasResults else { return .results }
+    let hasSearch = !searchText.trimmingCharacters(
+      in: .whitespacesAndNewlines
+    ).isEmpty
+    switch (hasSearch, hasActiveFilters) {
+    case (true, true): return .searchAndFilterEmpty
+    case (true, false): return .searchEmpty
+    case (false, true): return .filterEmpty
+    case (false, false): return .results
     }
+  }
 }
 
 enum SavedChartCreatedDateFilter: String, CaseIterable, Identifiable {
-    case all
-    case sevenDays
-    case thirtyDays
-    case thisYear
+  case all
+  case sevenDays
+  case thirtyDays
+  case thisYear
 
-    var id: String { rawValue }
+  var id: String { rawValue }
 
-    var title: String {
-        switch self {
-        case .all: "不限日期"
-        case .sevenDays: "最近 7 天"
-        case .thirtyDays: "最近 30 天"
-        case .thisYear: "今年建立"
-        }
+  var title: String {
+    switch self {
+    case .all: "不限日期"
+    case .sevenDays: "最近 7 天"
+    case .thirtyDays: "最近 30 天"
+    case .thisYear: "今年建立"
     }
+  }
 
-    func includes(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> Bool {
-        switch self {
-        case .all:
-            true
-        case .sevenDays:
-            date >= calendar.date(byAdding: .day, value: -7, to: now) ?? .distantPast
-        case .thirtyDays:
-            date >= calendar.date(byAdding: .day, value: -30, to: now) ?? .distantPast
-        case .thisYear:
-            calendar.component(.year, from: date) == calendar.component(.year, from: now)
-        }
+  func includes(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> Bool {
+    switch self {
+    case .all:
+      true
+    case .sevenDays:
+      date >= calendar.date(byAdding: .day, value: -7, to: now) ?? .distantPast
+    case .thirtyDays:
+      date >= calendar.date(byAdding: .day, value: -30, to: now) ?? .distantPast
+    case .thisYear:
+      calendar.component(.year, from: date) == calendar.component(.year, from: now)
     }
+  }
 }
 
 private struct ExternalSavedDestination: Identifiable, Hashable {
-    enum Kind: Hashable { case chart, journal }
-    let id: UUID
-    let kind: Kind
+  enum Kind: Hashable { case chart, journal }
+  let id: UUID
+  let kind: Kind
 }
 
 struct SavedChartsView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(AppNavigationState.self) private var navigation
-    @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
-    @Query private var insights: [SavedInsight]
+  @Environment(\.modelContext) private var modelContext
+  @Environment(AppNavigationState.self) private var navigation
+  @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
+  @Query private var insights: [SavedInsight]
 
-    @State private var searchText = ""
-    @State private var selectedTag: String?
-    @State private var createdDateFilter: SavedChartCreatedDateFilter = .all
-    @State private var externalDestination: ExternalSavedDestination?
-    @State private var chartToRename: SavedChart?
-    @State private var chartToEditTags: SavedChart?
-    @State private var chartToDelete: SavedChart?
-    @State private var proposedName = ""
-    @State private var proposedTags = ""
-    @State private var showsDeleteAllConfirmation = false
-    @State private var errorMessage: String?
+  @State private var searchText = ""
+  @State private var selectedTag: String?
+  @State private var createdDateFilter: SavedChartCreatedDateFilter = .all
+  @State private var externalDestination: ExternalSavedDestination?
+  @State private var chartToRename: SavedChart?
+  @State private var chartToEditTags: SavedChart?
+  @State private var chartToDelete: SavedChart?
+  @State private var proposedName = ""
+  @State private var proposedTags = ""
+  @State private var showsDeleteAllConfirmation = false
+  @State private var errorMessage: String?
 
-    private var availableTags: [String] {
-        Array(Set(charts.flatMap(\.tags))).sorted {
-            $0.localizedStandardCompare($1) == .orderedAscending
-        }
+  private var availableTags: [String] {
+    Array(Set(charts.flatMap(\.tags))).sorted {
+      $0.localizedStandardCompare($1) == .orderedAscending
     }
+  }
 
-    private var duplicateChartIDs: Set<UUID> {
-        let valid = charts.compactMap { chart in
-            (try? chart.birthProfile()).map { (SavedChartDuplicateKey($0), chart) }
-        }
-        let grouped = Dictionary(grouping: valid, by: \.0)
-        return Set(grouped.values.filter { $0.count > 1 }.flatMap { $0.map(\.1.id) })
+  private var duplicateChartIDs: Set<UUID> {
+    let valid = charts.compactMap { chart in
+      (try? chart.birthProfile()).map { (SavedChartDuplicateKey($0), chart) }
     }
+    let grouped = Dictionary(grouping: valid, by: \.0)
+    return Set(grouped.values.filter { $0.count > 1 }.flatMap { $0.map(\.1.id) })
+  }
 
-    private var filteredCharts: [SavedChart] {
-        charts.filter { chart in
-            chart.matchesSearch(searchText)
-                && (selectedTag.map(chart.tags.contains) ?? true)
-                && createdDateFilter.includes(chart.createdAt)
-        }.sorted {
-            if $0.isPinned != $1.isPinned { return $0.isPinned }
-            return $0.updatedAt > $1.updatedAt
-        }
+  private var filteredCharts: [SavedChart] {
+    charts.filter { chart in
+      chart.matchesSearch(searchText)
+        && (selectedTag.map(chart.tags.contains) ?? true)
+        && createdDateFilter.includes(chart.createdAt)
+    }.sorted {
+      if $0.isPinned != $1.isPinned { return $0.isPinned }
+      return $0.updatedAt > $1.updatedAt
     }
+  }
 
-    private var hasActiveFilters: Bool {
-        selectedTag != nil || createdDateFilter != .all
+  private var hasActiveFilters: Bool {
+    selectedTag != nil || createdDateFilter != .all
+  }
+
+  private var filterSummary: String {
+    var conditions: [String] = []
+    if createdDateFilter != .all {
+      conditions.append(createdDateFilter.title)
     }
-
-    private var filterSummary: String {
-        var conditions: [String] = []
-        if createdDateFilter != .all {
-            conditions.append(createdDateFilter.title)
-        }
-        if let selectedTag {
-            conditions.append("#\(selectedTag)")
-        }
-        return conditions.joined(separator: "、")
+    if let selectedTag {
+      conditions.append("#\(selectedTag)")
     }
+    return conditions.joined(separator: "、")
+  }
 
-    var body: some View {
-        NavigationStack {
-            screenContent
-            .navigationTitle("已儲存命盤")
-            .searchable(text: $searchText, prompt: "搜尋姓名、標籤或建立日期")
-            .navigationDestination(item: $externalDestination) { destination in
-                externalDestinationView(destination)
-            }
-            .task { handleExternalDestination() }
-            .onChange(of: navigation.requestedSavedDestination) { _, _ in
-                handleExternalDestination()
-            }
-            .onChange(of: availableTags) { _, tags in
-                selectedTag = SavedChartTagSelectionPolicy().validSelection(
-                    selectedTag,
-                    availableTags: tags
-                )
-            }
-            .toolbar {
-                filterToolbar
-                moreActionsToolbar
-            }
-            .alert("編輯自訂標籤", isPresented: tagsArePresented) {
-                TextField("例如：家人、朋友、個案", text: $proposedTags)
-                Button("取消", role: .cancel) {}
-                Button("儲存") { saveTags() }
-            } message: {
-                Text("以逗號、頓號或換行分隔，最多 20 個標籤。")
-            }
-            .alert("重新命名", isPresented: renameIsPresented) {
-                TextField("命盤名稱", text: $proposedName)
-                Button("取消", role: .cancel) {}
-                Button("儲存") { rename() }
-            } message: {
-                Text("名稱只會儲存在本機。")
-            }
-            .confirmationDialog(
-                "刪除這張命盤？",
-                isPresented: deleteIsPresented,
-                titleVisibility: .visible
-            ) {
-                Button("刪除命盤、筆記與收藏", role: .destructive) {
-                    guard let chartToDelete else { return }
-                    delete(chartToDelete)
-                    self.chartToDelete = nil
-                }
-                Button("取消", role: .cancel) {
-                    chartToDelete = nil
-                }
-            } message: {
-                Text(singleDeletionSummary.message)
-            }
-            .confirmationDialog(
-                "刪除所有已儲存命盤？",
-                isPresented: $showsDeleteAllConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("刪除所有命盤、筆記與收藏", role: .destructive) { deleteAll() }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text(SavedInsightDeletionSummary(insights: insights).message)
-            }
-            .alert("操作未完成", isPresented: errorIsPresented) {
-                Button("好", role: .cancel) {}
-            } message: {
-                Text(errorMessage ?? "未知錯誤")
-            }
+  var body: some View {
+    NavigationStack {
+      screenContent
+        .navigationTitle("已儲存命盤")
+        .searchable(text: $searchText, prompt: "搜尋姓名、標籤或建立日期")
+        .navigationDestination(item: $externalDestination) { destination in
+          externalDestinationView(destination)
         }
-    }
-
-    @ViewBuilder
-    private var screenContent: some View {
-        if charts.isEmpty {
-            VStack(spacing: 16) {
-                EmptyStateView(
-                    symbol: "rectangle.stack",
-                    title: "還沒有已儲存命盤",
-                    message: "先排一張命盤，完成後即可儲存在這台裝置。"
-                )
-                NavigationLink {
-                    BirthInputView()
-                } label: {
-                    Label("排一張命盤", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("savedCharts.createChart")
-            }
-            .padding()
-        } else {
-            List {
-                if hasActiveFilters {
-                    Section {
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Label("篩選：\(filterSummary)", systemImage: "line.3.horizontal.decrease.circle.fill")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Button("清除") {
-                                clearFilters()
-                            }
-                            .accessibilityLabel("清除篩選")
-                        }
-                    }
-                    .accessibilityIdentifier("savedCharts.filterSummary")
-                }
-
-                if filteredCharts.isEmpty {
-                    resultEmptyState
-                } else {
-                    ForEach(filteredCharts) { chart in
-                        chartRow(chart)
-                    }
-                }
-            }
+        .task { handleExternalDestination() }
+        .onChange(of: navigation.requestedSavedDestination) { _, _ in
+          handleExternalDestination()
         }
-    }
-
-    @ViewBuilder
-    private var resultEmptyState: some View {
-        switch SavedChartsResultStatePolicy().state(
-            hasResults: !filteredCharts.isEmpty,
-            searchText: searchText,
-            hasActiveFilters: hasActiveFilters
+        .onChange(of: availableTags) { _, tags in
+          selectedTag = SavedChartTagSelectionPolicy().validSelection(
+            selectedTag,
+            availableTags: tags
+          )
+        }
+        .toolbar {
+          filterToolbar
+          moreActionsToolbar
+        }
+        .alert("編輯自訂標籤", isPresented: tagsArePresented) {
+          TextField("例如：家人、朋友、個案", text: $proposedTags)
+          Button("取消", role: .cancel) {}
+          Button("儲存") { saveTags() }
+        } message: {
+          Text("以逗號、頓號或換行分隔，最多 20 個標籤。")
+        }
+        .alert("重新命名", isPresented: renameIsPresented) {
+          TextField("命盤名稱", text: $proposedName)
+          Button("取消", role: .cancel) {}
+          Button("儲存") { rename() }
+        } message: {
+          Text("名稱只會儲存在本機。")
+        }
+        .confirmationDialog(
+          "刪除這張命盤？",
+          isPresented: deleteIsPresented,
+          titleVisibility: .visible
         ) {
-        case .searchAndFilterEmpty:
-            ContentUnavailableView {
-                Label("找不到符合搜尋與篩選的命盤", systemImage: "magnifyingglass")
-            } description: {
-                Text("搜尋文字與篩選條件目前同時生效。")
-            } actions: {
-                Button("清除全部條件") {
-                    searchText = ""
-                    clearFilters()
-                }
-            }
-            .accessibilityIdentifier("savedCharts.empty.searchAndFilter")
-        case .searchEmpty:
-            ContentUnavailableView {
-                Label("找不到搜尋結果", systemImage: "magnifyingglass")
-            } description: {
-                Text("沒有命盤符合「\(searchText)」。")
-            } actions: {
-                Button("清除搜尋") {
-                    searchText = ""
-                }
-            }
-            .accessibilityIdentifier("savedCharts.empty.search")
-        case .filterEmpty:
-            ContentUnavailableView {
-                Label("沒有符合篩選的命盤", systemImage: "line.3.horizontal.decrease.circle")
-            } description: {
-                Text("目前條件：\(filterSummary)")
-            } actions: {
-                Button("清除篩選") {
-                    clearFilters()
-                }
-            }
-            .accessibilityIdentifier("savedCharts.empty.filter")
-        case .results:
-            EmptyView()
+          Button("刪除命盤、筆記與收藏", role: .destructive) {
+            guard let chartToDelete else { return }
+            delete(chartToDelete)
+            self.chartToDelete = nil
+          }
+          Button("取消", role: .cancel) {
+            chartToDelete = nil
+          }
+        } message: {
+          Text(singleDeletionSummary.message)
+        }
+        .confirmationDialog(
+          "刪除所有已儲存命盤？",
+          isPresented: $showsDeleteAllConfirmation,
+          titleVisibility: .visible
+        ) {
+          Button("刪除所有命盤、筆記與收藏", role: .destructive) { deleteAll() }
+          Button("取消", role: .cancel) {}
+        } message: {
+          Text(SavedInsightDeletionSummary(insights: insights).message)
+        }
+        .alert("操作未完成", isPresented: errorIsPresented) {
+          Button("好", role: .cancel) {}
+        } message: {
+          Text(errorMessage ?? "未知錯誤")
         }
     }
+  }
 
-    @ToolbarContentBuilder
-    private var filterToolbar: some ToolbarContent {
-        if !charts.isEmpty {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("建立日期", selection: $createdDateFilter) {
-                        ForEach(SavedChartCreatedDateFilter.allCases) { filter in
-                            Text(filter.title).tag(filter)
-                        }
-                    }
-                    if !availableTags.isEmpty {
-                        Picker("標籤", selection: $selectedTag) {
-                            Text("所有標籤").tag(String?.none)
-                            ForEach(availableTags, id: \.self) { tag in
-                                Text(tag).tag(String?.some(tag))
-                            }
-                        }
-                    }
-                    if hasActiveFilters {
-                        Divider()
-                        Button("清除篩選", systemImage: "xmark.circle") {
-                            clearFilters()
-                        }
-                    }
-                } label: {
-                    Label(
-                        "篩選",
-                        systemImage: hasActiveFilters
-                            ? "line.3.horizontal.decrease.circle.fill"
-                            : "line.3.horizontal.decrease.circle"
-                    )
-                }
-                .accessibilityValue(hasActiveFilters ? "已套用：\(filterSummary)" : "未套用")
-                .accessibilityIdentifier("savedCharts.filter")
-            }
+  @ViewBuilder
+  private var screenContent: some View {
+    if charts.isEmpty {
+      VStack(spacing: 16) {
+        EmptyStateView(
+          symbol: "rectangle.stack",
+          title: "還沒有已儲存命盤",
+          message: "先排一張命盤，完成後即可儲存在這台裝置。"
+        )
+        NavigationLink {
+          BirthInputView()
+        } label: {
+          Label("排一張命盤", systemImage: "plus")
         }
-    }
+        .buttonStyle(.borderedProminent)
+        .accessibilityIdentifier("savedCharts.createChart")
+      }
+      .padding()
+    } else {
+      List {
+        if hasActiveFilters {
+          Section {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+              Label("篩選：\(filterSummary)", systemImage: "line.3.horizontal.decrease.circle.fill")
+                .frame(maxWidth: .infinity, alignment: .leading)
+              Button("清除") {
+                clearFilters()
+              }
+              .accessibilityLabel("清除篩選")
+            }
+          }
+          .accessibilityIdentifier("savedCharts.filterSummary")
+        }
 
-    @ToolbarContentBuilder
-    private var moreActionsToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                if charts.count >= 2 {
-                    NavigationLink {
-                        DualChartComparisonView()
-                    } label: {
-                        Label("雙人互動參考", systemImage: "person.2")
-                    }
-                }
-                NavigationLink {
-                    BackupManagementView()
-                } label: {
-                    Label("加密備份與還原", systemImage: "lock.doc")
-                }
-                if !charts.isEmpty {
-                    Divider()
-                    Button("刪除所有已儲存命盤", systemImage: "trash", role: .destructive) {
-                        showsDeleteAllConfirmation = true
-                    }
-                }
-            } label: {
-                Label("更多操作", systemImage: "ellipsis.circle")
-            }
-        }
-    }
-
-    private func chartRow(_ chart: SavedChart) -> some View {
-        HStack(spacing: 8) {
-            NavigationLink {
-                SavedChartLoaderView(savedChart: chart)
-            } label: {
-                SavedChartRow(
-                    chart: chart,
-                    isDuplicate: duplicateChartIDs.contains(chart.id)
-                )
-            }
-            Menu {
-                Button {
-                    togglePinned(chart)
-                } label: {
-                    Label(
-                        chart.isPinned ? "取消釘選" : "釘選",
-                        systemImage: chart.isPinned ? "pin.slash" : "pin"
-                    )
-                }
-                Button {
-                    chartToEditTags = chart
-                    proposedTags = chart.tags.joined(separator: "、")
-                } label: {
-                    Label("編輯標籤", systemImage: "tag")
-                }
-                Button {
-                    chartToRename = chart
-                    proposedName = chart.name
-                } label: {
-                    Label("重新命名", systemImage: "pencil")
-                }
-            } label: {
-                Label("命盤分類操作", systemImage: "ellipsis.circle")
-                    .labelStyle(.iconOnly)
-                    .frame(minWidth: 44, minHeight: 44)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityIdentifier("savedCharts.rowMenu.\(chart.id.uuidString)")
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button {
-                togglePinned(chart)
-            } label: {
-                Label(
-                    chart.isPinned ? "取消釘選" : "釘選",
-                    systemImage: chart.isPinned ? "pin.slash" : "pin"
-                )
-            }
-            .tint(.orange)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                chartToDelete = chart
-            } label: {
-                Label("刪除", systemImage: "trash")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func externalDestinationView(_ destination: ExternalSavedDestination) -> some View {
-        if let chart = charts.first(where: { $0.id == destination.id }) {
-            switch destination.kind {
-            case .chart:
-                SavedChartLoaderView(savedChart: chart)
-            case .journal:
-                ChartJournalView(
-                    chartID: chart.id,
-                    chartName: chart.name,
-                    startsWithNewNote: true
-                )
-            }
+        if filteredCharts.isEmpty {
+          resultEmptyState
         } else {
-            ContentUnavailableView(
-                "找不到釘選命盤",
-                systemImage: "pin.slash",
-                description: Text("請先在已儲存命盤中釘選一張常用命盤。")
-            )
+          ForEach(filteredCharts) { chart in
+            chartRow(chart)
+          }
         }
+      }
     }
+  }
 
-    private func handleExternalDestination() {
-        guard let request = navigation.requestedSavedDestination else { return }
-        navigation.requestedSavedDestination = nil
-        switch request {
-        case .chart(let id):
-            externalDestination = ExternalSavedDestination(id: id, kind: .chart)
-        case .journal(let id):
-            externalDestination = ExternalSavedDestination(id: id, kind: .journal)
+  @ViewBuilder
+  private var resultEmptyState: some View {
+    switch SavedChartsResultStatePolicy().state(
+      hasResults: !filteredCharts.isEmpty,
+      searchText: searchText,
+      hasActiveFilters: hasActiveFilters
+    ) {
+    case .searchAndFilterEmpty:
+      ContentUnavailableView {
+        Label("找不到符合搜尋與篩選的命盤", systemImage: "magnifyingglass")
+      } description: {
+        Text("搜尋文字與篩選條件目前同時生效。")
+      } actions: {
+        Button("清除全部條件") {
+          searchText = ""
+          clearFilters()
         }
-    }
-
-    private var renameIsPresented: Binding<Bool> {
-        Binding(
-            get: { chartToRename != nil },
-            set: { if !$0 { chartToRename = nil } }
-        )
-    }
-
-    private var tagsArePresented: Binding<Bool> {
-        Binding(
-            get: { chartToEditTags != nil },
-            set: { if !$0 { chartToEditTags = nil } }
-        )
-    }
-
-    private var deleteIsPresented: Binding<Bool> {
-        Binding(
-            get: { chartToDelete != nil },
-            set: { if !$0 { chartToDelete = nil } }
-        )
-    }
-
-    private var singleDeletionSummary: SavedInsightDeletionSummary {
-        guard let chartToDelete else {
-            return SavedInsightDeletionSummary(insights: [])
+      }
+      .accessibilityIdentifier("savedCharts.empty.searchAndFilter")
+    case .searchEmpty:
+      ContentUnavailableView {
+        Label("找不到搜尋結果", systemImage: "magnifyingglass")
+      } description: {
+        Text("沒有命盤符合「\(searchText)」。")
+      } actions: {
+        Button("清除搜尋") {
+          searchText = ""
         }
-        return SavedInsightDeletionSummary(
-            insights: insights.filter { $0.chartID == chartToDelete.id }
-        )
-    }
-
-    private var errorIsPresented: Binding<Bool> {
-        Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )
-    }
-
-    private func clearFilters() {
-        selectedTag = nil
-        createdDateFilter = .all
-    }
-
-    private func rename() {
-        guard let chartToRename else { return }
-        do {
-            try chartToRename.rename(to: proposedName)
-            try modelContext.save()
-            self.chartToRename = nil
-        } catch {
-            errorMessage = "無法重新命名命盤。"
+      }
+      .accessibilityIdentifier("savedCharts.empty.search")
+    case .filterEmpty:
+      ContentUnavailableView {
+        Label("沒有符合篩選的命盤", systemImage: "line.3.horizontal.decrease.circle")
+      } description: {
+        Text("目前條件：\(filterSummary)")
+      } actions: {
+        Button("清除篩選") {
+          clearFilters()
         }
+      }
+      .accessibilityIdentifier("savedCharts.empty.filter")
+    case .results:
+      EmptyView()
     }
+  }
 
-    private func saveTags() {
-        guard let chartToEditTags else { return }
-        let separators = CharacterSet(charactersIn: ",，、\n")
-        chartToEditTags.updateTags(
-            proposedTags.components(separatedBy: separators)
+  @ToolbarContentBuilder
+  private var filterToolbar: some ToolbarContent {
+    if !charts.isEmpty {
+      ToolbarItem(placement: .topBarTrailing) {
+        Menu {
+          Picker("建立日期", selection: $createdDateFilter) {
+            ForEach(SavedChartCreatedDateFilter.allCases) { filter in
+              Text(filter.title).tag(filter)
+            }
+          }
+          if !availableTags.isEmpty {
+            Picker("標籤", selection: $selectedTag) {
+              Text("所有標籤").tag(String?.none)
+              ForEach(availableTags, id: \.self) { tag in
+                Text(tag).tag(String?.some(tag))
+              }
+            }
+          }
+          if hasActiveFilters {
+            Divider()
+            Button("清除篩選", systemImage: "xmark.circle") {
+              clearFilters()
+            }
+          }
+        } label: {
+          Label(
+            "篩選",
+            systemImage: hasActiveFilters
+              ? "line.3.horizontal.decrease.circle.fill"
+              : "line.3.horizontal.decrease.circle"
+          )
+        }
+        .accessibilityValue(hasActiveFilters ? "已套用：\(filterSummary)" : "未套用")
+        .accessibilityIdentifier("savedCharts.filter")
+      }
+    }
+  }
+
+  @ToolbarContentBuilder
+  private var moreActionsToolbar: some ToolbarContent {
+    ToolbarItem(placement: .topBarTrailing) {
+      Menu {
+        if charts.count >= 2 {
+          NavigationLink {
+            DualChartComparisonView()
+          } label: {
+            Label("雙人互動參考", systemImage: "person.2")
+          }
+        }
+        NavigationLink {
+          BackupManagementView()
+        } label: {
+          Label("加密備份與還原", systemImage: "lock.doc")
+        }
+        if !charts.isEmpty {
+          Divider()
+          Button("刪除所有已儲存命盤", systemImage: "trash", role: .destructive) {
+            showsDeleteAllConfirmation = true
+          }
+        }
+      } label: {
+        Label("更多操作", systemImage: "ellipsis.circle")
+      }
+    }
+  }
+
+  private func chartRow(_ chart: SavedChart) -> some View {
+    HStack(spacing: 8) {
+      NavigationLink {
+        SavedChartLoaderView(savedChart: chart)
+      } label: {
+        SavedChartRow(
+          chart: chart,
+          isDuplicate: duplicateChartIDs.contains(chart.id)
         )
-        do {
-            try modelContext.save()
-            self.chartToEditTags = nil
-        } catch {
-            modelContext.rollback()
-            errorMessage = "無法更新命盤標籤。"
+      }
+      Menu {
+        Button {
+          togglePinned(chart)
+        } label: {
+          Label(
+            chart.isPinned ? "取消釘選" : "釘選",
+            systemImage: chart.isPinned ? "pin.slash" : "pin"
+          )
         }
-    }
-
-    private func togglePinned(_ chart: SavedChart) {
-        chart.setPinned(!chart.isPinned)
-        saveChanges(errorText: "無法更新釘選狀態。") {
-            PinnedChartShortcut.reconcile(charts: charts)
+        Button {
+          chartToEditTags = chart
+          proposedTags = chart.tags.joined(separator: "、")
+        } label: {
+          Label("編輯標籤", systemImage: "tag")
         }
+        Button {
+          chartToRename = chart
+          proposedName = chart.name
+        } label: {
+          Label("重新命名", systemImage: "pencil")
+        }
+      } label: {
+        Label("命盤分類操作", systemImage: "ellipsis.circle")
+          .labelStyle(.iconOnly)
+          .frame(minWidth: 44, minHeight: 44)
+      }
+      .buttonStyle(.borderless)
+      .accessibilityIdentifier("savedCharts.rowMenu.\(chart.id.uuidString)")
     }
+    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+      Button {
+        togglePinned(chart)
+      } label: {
+        Label(
+          chart.isPinned ? "取消釘選" : "釘選",
+          systemImage: chart.isPinned ? "pin.slash" : "pin"
+        )
+      }
+      .tint(.orange)
+    }
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      Button(role: .destructive) {
+        chartToDelete = chart
+      } label: {
+        Label("刪除", systemImage: "trash")
+      }
+    }
+  }
 
-    private func delete(_ chart: SavedChart) {
-        let deletedInsights = insights.filter { $0.chartID == chart.id }
-        let reminderIdentifiers = deletedInsights.compactMap(\.reminderIdentifier)
+  @ViewBuilder
+  private func externalDestinationView(_ destination: ExternalSavedDestination) -> some View {
+    if let chart = charts.first(where: { $0.id == destination.id }) {
+      switch destination.kind {
+      case .chart:
+        SavedChartLoaderView(savedChart: chart)
+      case .journal:
+        ChartJournalView(
+          chartID: chart.id,
+          chartName: chart.name,
+          startsWithNewNote: true
+        )
+      }
+    } else {
+      ContentUnavailableView(
+        "找不到釘選命盤",
+        systemImage: "pin.slash",
+        description: Text("請先在已儲存命盤中釘選一張常用命盤。")
+      )
+    }
+  }
+
+  private func handleExternalDestination() {
+    guard let request = navigation.requestedSavedDestination else { return }
+    navigation.requestedSavedDestination = nil
+    switch request {
+    case .chart(let id):
+      externalDestination = ExternalSavedDestination(id: id, kind: .chart)
+    case .journal(let id):
+      externalDestination = ExternalSavedDestination(id: id, kind: .journal)
+    }
+  }
+
+  private var renameIsPresented: Binding<Bool> {
+    Binding(
+      get: { chartToRename != nil },
+      set: { if !$0 { chartToRename = nil } }
+    )
+  }
+
+  private var tagsArePresented: Binding<Bool> {
+    Binding(
+      get: { chartToEditTags != nil },
+      set: { if !$0 { chartToEditTags = nil } }
+    )
+  }
+
+  private var deleteIsPresented: Binding<Bool> {
+    Binding(
+      get: { chartToDelete != nil },
+      set: { if !$0 { chartToDelete = nil } }
+    )
+  }
+
+  private var singleDeletionSummary: SavedInsightDeletionSummary {
+    guard let chartToDelete else {
+      return SavedInsightDeletionSummary(insights: [])
+    }
+    return SavedInsightDeletionSummary(
+      insights: insights.filter { $0.chartID == chartToDelete.id }
+    )
+  }
+
+  private var errorIsPresented: Binding<Bool> {
+    Binding(
+      get: { errorMessage != nil },
+      set: { if !$0 { errorMessage = nil } }
+    )
+  }
+
+  private func clearFilters() {
+    selectedTag = nil
+    createdDateFilter = .all
+  }
+
+  private func rename() {
+    guard let chartToRename else { return }
+    do {
+      try chartToRename.rename(to: proposedName)
+      try modelContext.save()
+      self.chartToRename = nil
+    } catch {
+      errorMessage = "無法重新命名命盤。"
+    }
+  }
+
+  private func saveTags() {
+    guard let chartToEditTags else { return }
+    let separators = CharacterSet(charactersIn: ",，、\n")
+    chartToEditTags.updateTags(
+      proposedTags.components(separatedBy: separators)
+    )
+    do {
+      try modelContext.save()
+      self.chartToEditTags = nil
+    } catch {
+      modelContext.rollback()
+      errorMessage = "無法更新命盤標籤。"
+    }
+  }
+
+  private func togglePinned(_ chart: SavedChart) {
+    chart.setPinned(!chart.isPinned)
+    saveChanges(errorText: "無法更新釘選狀態。") {
+      PinnedChartShortcut.reconcile(charts: charts)
+    }
+  }
+
+  private func delete(_ chart: SavedChart) {
+    let deletedInsights = insights.filter { $0.chartID == chart.id }
+    let reminderIdentifiers = deletedInsights.compactMap(\.reminderIdentifier)
+    ICloudSyncService.recordDeletion(
+      entityID: chart.id,
+      entityType: "SavedChart",
+      modelContext: modelContext
+    )
+    deletedInsights.forEach { insight in
+      ICloudSyncService.recordDeletion(
+        entityID: insight.id,
+        entityType: "SavedInsight",
+        modelContext: modelContext
+      )
+      modelContext.delete(insight)
+    }
+    modelContext.delete(chart)
+    saveChanges(errorText: "無法刪除命盤。") {
+      reminderIdentifiers.forEach {
+        ReviewReminderScheduler().cancel(identifier: $0)
+      }
+      PinnedChartShortcut.reconcile(charts: charts.filter { $0.id != chart.id })
+    }
+  }
+
+  private func deleteAll() {
+    let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
+    do {
+      charts.forEach {
         ICloudSyncService.recordDeletion(
-            entityID: chart.id,
-            entityType: "SavedChart",
-            modelContext: modelContext
+          entityID: $0.id,
+          entityType: "SavedChart",
+          modelContext: modelContext
         )
-        deletedInsights.forEach { insight in
-            ICloudSyncService.recordDeletion(
-                entityID: insight.id,
-                entityType: "SavedInsight",
-                modelContext: modelContext
-            )
-            modelContext.delete(insight)
-        }
-        modelContext.delete(chart)
-        saveChanges(errorText: "無法刪除命盤。") {
-            reminderIdentifiers.forEach {
-                ReviewReminderScheduler().cancel(identifier: $0)
-            }
-            PinnedChartShortcut.reconcile(charts: charts.filter { $0.id != chart.id })
-        }
+      }
+      insights.forEach {
+        ICloudSyncService.recordDeletion(
+          entityID: $0.id,
+          entityType: "SavedInsight",
+          modelContext: modelContext
+        )
+      }
+      try modelContext.delete(model: SavedInsight.self)
+      try modelContext.delete(model: SavedChart.self)
+      try modelContext.save()
+      reminderIdentifiers.forEach {
+        ReviewReminderScheduler().cancel(identifier: $0)
+      }
+      PinnedChartShortcut.reconcile(charts: [])
+    } catch {
+      modelContext.rollback()
+      errorMessage = "無法刪除所有已儲存命盤。"
     }
+  }
 
-    private func deleteAll() {
-        let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
-        do {
-            charts.forEach {
-                ICloudSyncService.recordDeletion(
-                    entityID: $0.id,
-                    entityType: "SavedChart",
-                    modelContext: modelContext
-                )
-            }
-            insights.forEach {
-                ICloudSyncService.recordDeletion(
-                    entityID: $0.id,
-                    entityType: "SavedInsight",
-                    modelContext: modelContext
-                )
-            }
-            try modelContext.delete(model: SavedInsight.self)
-            try modelContext.delete(model: SavedChart.self)
-            try modelContext.save()
-            reminderIdentifiers.forEach {
-                ReviewReminderScheduler().cancel(identifier: $0)
-            }
-            PinnedChartShortcut.reconcile(charts: [])
-        } catch {
-            modelContext.rollback()
-            errorMessage = "無法刪除所有已儲存命盤。"
-        }
+  private func saveChanges(errorText: String, afterSave: () -> Void = {}) {
+    do {
+      try modelContext.save()
+      afterSave()
+    } catch {
+      modelContext.rollback()
+      errorMessage = errorText
     }
-
-    private func saveChanges(errorText: String, afterSave: () -> Void = {}) {
-        do {
-            try modelContext.save()
-            afterSave()
-        } catch {
-            modelContext.rollback()
-            errorMessage = errorText
-        }
-    }
+  }
 }
 
 struct SavedChartRow: View {
-    let chart: SavedChart
-    var isDuplicate = false
+  let chart: SavedChart
+  var isDuplicate = false
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                if chart.isPinned {
-                    Image(systemName: "pin.fill")
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel("已釘選")
-                }
-                Text(chart.name)
-                    .font(.headline)
-                if isDuplicate {
-                    Image(systemName: "doc.on.doc")
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel("有相同出生資料的命盤")
-                }
-            }
-            if let profile = try? chart.birthProfile() {
-                Text(dateText(profile))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(profile.timeZoneIdentifier)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if !chart.tags.isEmpty {
-                Text(chart.tags.map { "#\($0)" }.joined(separator: "  "))
-                    .font(.caption)
-                    .foregroundStyle(.tint)
-                    .lineLimit(2)
-            }
-            if isDuplicate {
-                Text("這份出生資料也存在於其他命盤")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 5) {
+      HStack {
+        if chart.isPinned {
+          Image(systemName: "pin.fill")
+            .foregroundStyle(.orange)
+            .accessibilityLabel("已釘選")
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        Text(chart.name)
+          .font(.headline)
+        if isDuplicate {
+          Image(systemName: "doc.on.doc")
+            .foregroundStyle(.orange)
+            .accessibilityLabel("有相同出生資料的命盤")
+        }
+      }
+      if let profile = try? chart.birthProfile() {
+        Text(dateText(profile))
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+        Text(profile.timeZoneIdentifier)
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+      }
+      if !chart.tags.isEmpty {
+        Text(chart.tags.map { "#\($0)" }.joined(separator: "  "))
+          .font(.caption)
+          .foregroundStyle(.tint)
+          .lineLimit(2)
+      }
+      if isDuplicate {
+        Text("這份出生資料也存在於其他命盤")
+          .font(.caption)
+          .foregroundStyle(.orange)
+      }
     }
+    .padding(.vertical, 4)
+    .accessibilityElement(children: .combine)
+  }
 
-    private func dateText(_ profile: BirthProfile) -> String {
-        let date = profile.localDate
-        let time = profile.localTime
-        return String(format: "%04d/%02d/%02d　%02d:%02d", date.year, date.month, date.day, time.hour, time.minute)
-    }
+  private func dateText(_ profile: BirthProfile) -> String {
+    let date = profile.localDate
+    let time = profile.localTime
+    return String(
+      format: "%04d/%02d/%02d　%02d:%02d", date.year, date.month, date.day, time.hour, time.minute)
+  }
 }
 
 struct SavedChartContentRevision: Hashable, Sendable {
-    let birthProfileData: Data
-    let ruleSetID: String
-    let ruleSetVersion: Int
-    let appSchemaVersion: Int
+  let birthProfileData: Data
+  let ruleSetID: String
+  let ruleSetVersion: Int
+  let appSchemaVersion: Int
 
-    init(savedChart: SavedChart) {
-        birthProfileData = savedChart.birthProfileData
-        ruleSetID = savedChart.ruleSetID
-        ruleSetVersion = savedChart.ruleSetVersion
-        appSchemaVersion = savedChart.appSchemaVersion
-    }
+  init(savedChart: SavedChart) {
+    birthProfileData = savedChart.birthProfileData
+    ruleSetID = savedChart.ruleSetID
+    ruleSetVersion = savedChart.ruleSetVersion
+    appSchemaVersion = savedChart.appSchemaVersion
+  }
 }
 
 struct SavedChartLoaderView: View {
-    let savedChart: SavedChart
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @State private var chart: ZiWeiChart?
-    @State private var notice: String?
-    @State private var errorMessage: String?
+  let savedChart: SavedChart
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.modelContext) private var modelContext
+  @State private var chart: ZiWeiChart?
+  @State private var notice: String?
+  @State private var errorMessage: String?
 
-    var body: some View {
-        Group {
-            if let chart {
-                ChartView(
-                    chart: chart,
-                    name: savedChart.name,
-                    allowsSaving: false,
-                    notice: notice,
-                    savedChartID: savedChart.id
-                )
-            } else if let errorMessage {
-                EmptyStateView(
-                    symbol: "exclamationmark.triangle",
-                    title: "無法開啟命盤",
-                    message: errorMessage,
-                    actionTitle: "返回已儲存管理",
-                    actionSymbol: "chevron.backward",
-                    action: { dismiss() }
-                )
-            } else {
-                ProgressView("正在準備命盤…")
-            }
-        }
-        .task(id: SavedChartContentRevision(savedChart: savedChart)) {
-            load()
-        }
+  var body: some View {
+    Group {
+      if let chart {
+        ChartView(
+          chart: chart,
+          name: savedChart.name,
+          allowsSaving: false,
+          notice: notice,
+          savedChartID: savedChart.id
+        )
+      } else if let errorMessage {
+        EmptyStateView(
+          symbol: "exclamationmark.triangle",
+          title: "無法開啟命盤",
+          message: errorMessage,
+          actionTitle: "返回已儲存管理",
+          actionSymbol: "chevron.backward",
+          action: { dismiss() }
+        )
+      } else {
+        ProgressView("正在準備命盤…")
+      }
     }
+    .task(id: SavedChartContentRevision(savedChart: savedChart)) {
+      load()
+    }
+  }
 
-    private func load() {
-        errorMessage = nil
-        let current = RuleSetIdentity.taiwanTraditionalSanheV1
-        let needsRecalculation = savedChart.ruleSetID != current.id
-            || savedChart.ruleSetVersion != current.version
-            || savedChart.appSchemaVersion != SavedChart.schemaVersion
-        do {
-            chart = try savedChart.resolvedChart()
-            if needsRecalculation {
-                notice = "這張命盤已依目前規則重新計算，結果可能與舊版不同。"
-                try modelContext.save()
-            }
-        } catch {
-            errorMessage = "本機資料可能已損毀，請刪除這張命盤後重新建立。"
-        }
+  private func load() {
+    errorMessage = nil
+    let current = RuleSetIdentity.taiwanTraditionalSanheV1
+    let needsRecalculation =
+      savedChart.ruleSetID != current.id
+      || savedChart.ruleSetVersion != current.version
+      || savedChart.appSchemaVersion != SavedChart.schemaVersion
+    do {
+      chart = try savedChart.resolvedChart()
+      if needsRecalculation {
+        notice = "這張命盤已依目前規則重新計算，結果可能與舊版不同。"
+        try modelContext.save()
+      }
+    } catch {
+      errorMessage = "本機資料可能已損毀，請刪除這張命盤後重新建立。"
     }
+  }
 }
