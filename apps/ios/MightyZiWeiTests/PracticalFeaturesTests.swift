@@ -548,6 +548,8 @@ final class PracticalFeaturesTests: XCTestCase {
             locationID: "chart.general",
             title: "新標題",
             content: "新內容",
+            evidenceSeedIDs: ["seed.career.baseline"],
+            evidenceFactIDs: ["natal.palace.career.branch"],
             reviewDate: makeDate(2027, 2, 1),
             updatedAt: makeDate(2026, 9, 1)
         )
@@ -555,8 +557,34 @@ final class PracticalFeaturesTests: XCTestCase {
         CloudInsightPayload(remote).apply(to: local)
 
         XCTAssertEqual(local.title, "新標題")
+        XCTAssertEqual(local.evidenceSeedIDs, ["seed.career.baseline"])
+        XCTAssertEqual(local.evidenceFactIDs, ["natal.palace.career.branch"])
         XCTAssertEqual(local.reviewDate, makeDate(2027, 2, 1))
         XCTAssertEqual(local.reminderIdentifier, "review.old-device-request")
+    }
+
+    func test舊版CloudKit收藏缺少EvidenceSeedIDs時遷移為空陣列() throws {
+        let insight = SavedInsight(
+            chartID: UUID(),
+            kind: .bookmark,
+            locationID: "interpretation.overview",
+            title: "舊版收藏",
+            content: "舊版內容",
+            evidenceFactIDs: ["natal.bureau"]
+        )
+        let data = try JSONEncoder().encode(CloudInsightPayload(insight))
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "evidenceSeedIDs")
+
+        let decoded = try JSONDecoder().decode(
+            CloudInsightPayload.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertTrue(decoded.evidenceSeedIDs.isEmpty)
+        XCTAssertEqual(decoded.evidenceFactIDs, ["natal.bureau"])
     }
 
     func test刪除標記會定位原始CloudKit內容紀錄() throws {

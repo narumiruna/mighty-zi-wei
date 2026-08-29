@@ -62,6 +62,34 @@ final class InterpretationSeedBuilderTests: XCTestCase {
         XCTAssertFalse(section.evidenceSeedIDs.contains("seed.personality.baseline"))
     }
 
+    func test只有Baseline線索時使用中性核對問題() throws {
+        let lifeFact = fact(
+            id: "natal.palace.life.branch",
+            subject: "life",
+            value: "yin"
+        )
+        let baseline = InterpretationSeed(
+            id: "seed.personality.baseline",
+            category: .personality,
+            meaning: "命宮可先用來觀察你面對選擇時的實際反應。",
+            evidenceFactIDs: [lifeFact.id]
+        )
+
+        let interpretation = RuleBasedInterpreter().interpret(
+            facts: [lifeFact],
+            seeds: [baseline]
+        )
+        let section = try XCTUnwrap(
+            interpretation.sections.first { $0.category == .personality }
+        )
+
+        XCTAssertTrue(section.content.contains("上面的觀察和你近期哪一次真實經驗最接近"))
+        XCTAssertTrue(section.content.contains("哪一次不符合"))
+        XCTAssertFalse(section.content.contains("形成判斷"))
+        XCTAssertFalse(section.content.contains("蒐集資訊"))
+        XCTAssertFalse(section.content.contains("觀察他人反應"))
+    }
+
     private func starFact(
         id: String,
         palace: String,

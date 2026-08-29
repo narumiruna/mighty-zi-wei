@@ -529,9 +529,12 @@ final class ICloudSyncService: ICloudSynchronizing {
                   let linkedChart = chartsByID[remote.chartID] else {
                 throw SyncError.invalidRemoteData
             }
-            let validFactIDs = Set(
-                ChartFactBuilder().makeFacts(from: try linkedChart.resolvedChart()).map(\.id)
-            )
+            let facts = ChartFactBuilder().makeFacts(from: try linkedChart.resolvedChart())
+            let validSeedIDs = Set(InterpretationSeedBuilder().makeSeeds(from: facts).map(\.id))
+            guard remote.evidenceSeedIDs.allSatisfy(validSeedIDs.contains) else {
+                throw SyncError.invalidRemoteData
+            }
+            let validFactIDs = Set(facts.map(\.id))
             guard remote.evidenceFactIDs.allSatisfy(validFactIDs.contains) else {
                 throw SyncError.invalidRemoteData
             }
@@ -860,6 +863,7 @@ struct CloudInsightPayload: Codable {
     let title: String
     let content: String
     let marker: String
+    let evidenceSeedIDs: [String]
     let evidenceFactIDs: [String]
     let reviewDate: Date?
     let createdAt: Date
@@ -873,6 +877,7 @@ struct CloudInsightPayload: Codable {
         title = insight.title
         content = insight.content
         marker = insight.markerRawValue
+        evidenceSeedIDs = insight.evidenceSeedIDs
         evidenceFactIDs = insight.evidenceFactIDs
         reviewDate = insight.reviewDate
         createdAt = insight.createdAt
@@ -909,6 +914,7 @@ struct CloudInsightPayload: Codable {
             title: title,
             content: content,
             marker: SavedInsight.Marker(rawValue: marker) ?? .none,
+            evidenceSeedIDs: evidenceSeedIDs,
             evidenceFactIDs: evidenceFactIDs,
             reviewDate: reviewDate,
             reminderIdentifier: nil,
@@ -924,10 +930,45 @@ struct CloudInsightPayload: Codable {
         insight.title = title
         insight.content = content
         insight.markerRawValue = marker
+        insight.evidenceSeedIDsData = (try? JSONEncoder().encode(evidenceSeedIDs)) ?? Data("[]".utf8)
         insight.evidenceFactIDsData = (try? JSONEncoder().encode(evidenceFactIDs)) ?? Data("[]".utf8)
         insight.reviewDate = reviewDate
         insight.createdAt = createdAt
         insight.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case chartID
+        case kind
+        case locationID
+        case title
+        case content
+        case marker
+        case evidenceSeedIDs
+        case evidenceFactIDs
+        case reviewDate
+        case createdAt
+        case updatedAt
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        chartID = try container.decode(UUID.self, forKey: .chartID)
+        kind = try container.decode(String.self, forKey: .kind)
+        locationID = try container.decode(String.self, forKey: .locationID)
+        title = try container.decode(String.self, forKey: .title)
+        content = try container.decode(String.self, forKey: .content)
+        marker = try container.decode(String.self, forKey: .marker)
+        evidenceSeedIDs = try container.decodeIfPresent(
+            [String].self,
+            forKey: .evidenceSeedIDs
+        ) ?? []
+        evidenceFactIDs = try container.decode([String].self, forKey: .evidenceFactIDs)
+        reviewDate = try container.decodeIfPresent(Date.self, forKey: .reviewDate)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }
 

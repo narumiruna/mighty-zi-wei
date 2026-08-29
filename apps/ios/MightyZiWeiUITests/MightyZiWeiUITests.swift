@@ -476,15 +476,28 @@ final class MightyZiWeiUITests: XCTestCase {
         composer.tap()
         composer.typeText("可以再說清楚一點嗎？")
         app.buttons["assistant.send"].tap()
+        let secondAnswerLoading = app.staticTexts["assistant.loading"]
+        XCTAssertTrue(secondAnswerLoading.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForNonExistence(secondAnswerLoading, timeout: 7))
         XCTAssertTrue(
             app.staticTexts
                 .matching(identifier: "assistant.answer.verified")
                 .element(boundBy: 1)
-                .waitForExistence(timeout: 7)
+                .exists
         )
         let updateConversation = app.buttons["assistant.saveConversation"]
         scrollToElement(updateConversation)
+        if updateConversation.frame.midY > app.frame.midY {
+            app.swipeUp()
+            scrollToElement(updateConversation)
+        }
+        expectation(
+            for: NSPredicate(format: "enabled == true"),
+            evaluatedWith: updateConversation
+        )
+        waitForExpectations(timeout: 3)
         updateConversation.tap()
+        XCTAssertTrue(app.staticTexts["已保存目前 2 輪對話。"].waitForExistence(timeout: 3))
         app.buttons["assistant.savedConversations"].tap()
         XCTAssertTrue(app.navigationBars["已保存對話"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.cells.count, 1)

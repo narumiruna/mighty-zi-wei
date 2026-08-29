@@ -28,10 +28,12 @@ final class SavedInsightTests: XCTestCase {
         XCTAssertEqual(restored.kind, .note)
         XCTAssertEqual(restored.marker, .observe)
         XCTAssertEqual(restored.locationID, "palace.life")
+        XCTAssertTrue(restored.evidenceSeedIDs.isEmpty)
     }
 
-    func test收藏保留EvidenceFactIDs() throws {
-        let evidence = [
+    func test收藏保留Seed與FactEvidenceIDs() throws {
+        let seedEvidence = ["seed.overview.ziWei.life"]
+        let factEvidence = [
             "natal.palace.life.branch",
             "natal.star.ziWei.palace"
         ]
@@ -40,11 +42,13 @@ final class SavedInsightTests: XCTestCase {
             locationID: "interpretation.overview",
             title: "命盤總覽",
             content: "收藏內容",
-            evidenceFactIDs: evidence
+            evidenceSeedIDs: seedEvidence,
+            evidenceFactIDs: factEvidence
         )
 
         XCTAssertEqual(bookmark.kind, .bookmark)
-        XCTAssertEqual(bookmark.evidenceFactIDs, evidence)
+        XCTAssertEqual(bookmark.evidenceSeedIDs, seedEvidence)
+        XCTAssertEqual(bookmark.evidenceFactIDs, factEvidence)
         XCTAssertEqual(bookmark.marker, .none)
     }
 
@@ -78,6 +82,7 @@ final class SavedInsightTests: XCTestCase {
             locationID: "interpretation.ai.overview",
             title: "原始標題",
             content: "原始內容",
+            evidenceSeedIDs: ["seed.original"],
             evidenceFactIDs: ["fact.original"]
         )
         let originalID = bookmark.id
@@ -85,27 +90,32 @@ final class SavedInsightTests: XCTestCase {
         XCTAssertTrue(bookmark.matchesBookmark(
             title: "原始標題",
             content: "原始內容",
+            evidenceSeedIDs: ["seed.original"],
             evidenceFactIDs: ["fact.original"]
         ))
         XCTAssertFalse(bookmark.matchesBookmark(
             title: "更新標題",
             content: "更新內容",
+            evidenceSeedIDs: ["seed.updated"],
             evidenceFactIDs: ["fact.updated"]
         ))
 
         bookmark.updateBookmark(
             title: "更新標題",
             content: "更新內容",
+            evidenceSeedIDs: ["seed.updated"],
             evidenceFactIDs: ["fact.updated"]
         )
 
         XCTAssertEqual(bookmark.id, originalID)
         XCTAssertEqual(bookmark.title, "更新標題")
         XCTAssertEqual(bookmark.content, "更新內容")
+        XCTAssertEqual(bookmark.evidenceSeedIDs, ["seed.updated"])
         XCTAssertEqual(bookmark.evidenceFactIDs, ["fact.updated"])
         XCTAssertTrue(bookmark.matchesBookmark(
             title: "更新標題",
             content: "更新內容",
+            evidenceSeedIDs: ["seed.updated"],
             evidenceFactIDs: ["fact.updated"]
         ))
     }

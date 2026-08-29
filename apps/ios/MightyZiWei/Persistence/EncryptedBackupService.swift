@@ -70,6 +70,7 @@ enum BackupError: Error, Equatable {
     case invalidInsightKind(String)
     case invalidInsightMarker(String)
     case invalidInsightLocation
+    case invalidEvidenceSeedID
     case invalidEvidenceFactID
 }
 
@@ -110,6 +111,8 @@ extension BackupError: LocalizedError {
             "備份包含不支援的自我觀察標記。"
         case .invalidInsightLocation:
             "備份中的收藏或筆記缺少來源位置。"
+        case .invalidEvidenceSeedID:
+            "備份中的收藏包含無效核准解讀線索。"
         case .invalidEvidenceFactID:
             "備份中的收藏包含無效命盤依據。"
         }

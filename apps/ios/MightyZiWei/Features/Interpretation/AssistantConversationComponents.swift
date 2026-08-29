@@ -102,6 +102,7 @@ struct ConversationTurnView: View {
             locationID: "assistant.\(turn.id.uuidString)",
             title: "命盤助理：\(turn.question)",
             content: turn.answer,
+            evidenceSeedIDs: turn.evidenceSeedIDs,
             evidenceFactIDs: turn.evidenceFactIDs
         )
     }
@@ -113,8 +114,6 @@ struct ConversationTurnView: View {
                 .accessibilityAddTraits(.isHeader)
             Text(turn.answer)
                 .lineSpacing(5)
-            Text("可以改問個性、工作方式、財務傾向、感情或人際互動。")
-                .font(.footnote)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
