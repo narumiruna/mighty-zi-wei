@@ -563,6 +563,55 @@ final class PracticalFeaturesTests: XCTestCase {
         XCTAssertEqual(local.reminderIdentifier, "review.old-device-request")
     }
 
+    func testCloudKit收藏驗證Seed與Fact完整配對並保留舊資料例外() {
+        let seed = InterpretationSeed(
+            id: "seed.personality.baseline",
+            category: .personality,
+            meaning: "核准含義",
+            evidenceFactIDs: ["fact.expected"]
+        )
+        let validFactIDs: Set<String> = ["fact.expected", "fact.unrelated"]
+        let matching = SavedInsight(
+            chartID: UUID(),
+            kind: .bookmark,
+            locationID: "interpretation.personality",
+            title: "配對收藏",
+            content: "收藏內容",
+            evidenceSeedIDs: [seed.id],
+            evidenceFactIDs: ["fact.expected"]
+        )
+        let mismatched = SavedInsight(
+            chartID: UUID(),
+            kind: .bookmark,
+            locationID: "interpretation.personality",
+            title: "錯誤配對收藏",
+            content: "收藏內容",
+            evidenceSeedIDs: [seed.id],
+            evidenceFactIDs: ["fact.unrelated"]
+        )
+        let legacy = SavedInsight(
+            chartID: UUID(),
+            kind: .bookmark,
+            locationID: "interpretation.personality",
+            title: "舊版收藏",
+            content: "收藏內容",
+            evidenceFactIDs: ["fact.unrelated"]
+        )
+
+        XCTAssertTrue(CloudInsightPayload(matching).hasValidEvidence(
+            seeds: [seed],
+            validFactIDs: validFactIDs
+        ))
+        XCTAssertFalse(CloudInsightPayload(mismatched).hasValidEvidence(
+            seeds: [seed],
+            validFactIDs: validFactIDs
+        ))
+        XCTAssertTrue(CloudInsightPayload(legacy).hasValidEvidence(
+            seeds: [seed],
+            validFactIDs: validFactIDs
+        ))
+    }
+
     func test舊版CloudKit收藏缺少EvidenceSeedIDs時遷移為空陣列() throws {
         let insight = SavedInsight(
             chartID: UUID(),

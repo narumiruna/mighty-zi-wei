@@ -483,6 +483,25 @@ final class EncryptedBackupServiceTests: XCTestCase {
         }
     }
 
+    func test拒絕Seed與Fact皆有效但配對不一致() throws {
+        let fixture = try makeValidPayloadFixture()
+        var object = fixture.object
+        var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
+        insights[0]["evidenceFactIDs"] = ["natal.star.ziWei.palace"]
+        object["insights"] = insights
+        let backupData = try seal(
+            JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+            recoveryKey: fixture.recoveryKey
+        )
+
+        XCTAssertThrowsError(try EncryptedBackupService.restore(
+            from: backupData,
+            recoveryKey: fixture.recoveryKey
+        )) { error in
+            XCTAssertEqual(error as? BackupError, .invalidEvidenceFactID)
+        }
+    }
+
     func test拒絕無效EvidenceFactID() throws {
         let fixture = try makeValidPayloadFixture()
         var object = fixture.object
@@ -552,7 +571,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
             body: "這段內容有共鳴。",
             marker: "resonates",
             evidenceSeedIDs: ["seed.personality.baseline"],
-            evidenceFactIDs: ["natal.palace.life.branch", "natal.star.ziWei.palace"],
+            evidenceFactIDs: ["natal.palace.life.branch"],
             createdAt: Date(timeIntervalSinceReferenceDate: 123_456_800.25),
             updatedAt: Date(timeIntervalSinceReferenceDate: 123_456_900.5)
         )

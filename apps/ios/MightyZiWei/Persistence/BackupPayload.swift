@@ -265,7 +265,7 @@ struct BackupPayload: Codable, Equatable, Sendable {
         let currentRuleSet = RuleSetIdentity.taiwanTraditionalSanheV1
         var chartIDs = Set<UUID>()
         var validFactIDsByChartID: [UUID: Set<String>] = [:]
-        var validSeedIDsByChartID: [UUID: Set<String>] = [:]
+        var seedsByChartID: [UUID: [InterpretationSeed]] = [:]
         for chart in charts {
             guard chartIDs.insert(chart.id).inserted else {
                 throw BackupError.duplicateChartID(chart.id)
@@ -289,9 +289,7 @@ struct BackupPayload: Codable, Equatable, Sendable {
             }
             let facts = ChartFactBuilder().makeFacts(from: resolvedChart)
             validFactIDsByChartID[chart.id] = Set(facts.map(\.id))
-            validSeedIDsByChartID[chart.id] = Set(
-                InterpretationSeedBuilder().makeSeeds(from: facts).map(\.id)
-            )
+            seedsByChartID[chart.id] = InterpretationSeedBuilder().makeSeeds(from: facts)
         }
 
         var insightIDs = Set<UUID>()
@@ -327,12 +325,19 @@ struct BackupPayload: Codable, Equatable, Sendable {
             guard !insight.locationID.isEmpty else {
                 throw BackupError.invalidInsightLocation
             }
-            let validSeedIDs = validSeedIDsByChartID[insight.chartID] ?? []
-            guard insight.evidenceSeedIDs.allSatisfy(validSeedIDs.contains) else {
+            let seeds = seedsByChartID[insight.chartID] ?? []
+            let validSeedIDs = Set(seeds.map(\.id))
+            guard Set(insight.evidenceSeedIDs).count == insight.evidenceSeedIDs.count,
+                  insight.evidenceSeedIDs.allSatisfy(validSeedIDs.contains) else {
                 throw BackupError.invalidEvidenceSeedID
             }
             let validFactIDs = validFactIDsByChartID[insight.chartID] ?? []
-            guard insight.evidenceFactIDs.allSatisfy(validFactIDs.contains) else {
+            guard PersistedInterpretationEvidenceValidator().isValid(
+                seedIDs: insight.evidenceSeedIDs,
+                factIDs: insight.evidenceFactIDs,
+                seeds: seeds,
+                validFactIDs: validFactIDs
+            ) else {
                 throw BackupError.invalidEvidenceFactID
             }
         }

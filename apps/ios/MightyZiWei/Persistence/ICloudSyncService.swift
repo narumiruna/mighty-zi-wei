@@ -530,12 +530,11 @@ final class ICloudSyncService: ICloudSynchronizing {
                 throw SyncError.invalidRemoteData
             }
             let facts = ChartFactBuilder().makeFacts(from: try linkedChart.resolvedChart())
-            let validSeedIDs = Set(InterpretationSeedBuilder().makeSeeds(from: facts).map(\.id))
-            guard remote.evidenceSeedIDs.allSatisfy(validSeedIDs.contains) else {
-                throw SyncError.invalidRemoteData
-            }
-            let validFactIDs = Set(facts.map(\.id))
-            guard remote.evidenceFactIDs.allSatisfy(validFactIDs.contains) else {
+            let seeds = InterpretationSeedBuilder().makeSeeds(from: facts)
+            guard remote.hasValidEvidence(
+                seeds: seeds,
+                validFactIDs: Set(facts.map(\.id))
+            ) else {
                 throw SyncError.invalidRemoteData
             }
         }
@@ -894,6 +893,18 @@ struct CloudInsightPayload: Codable {
         SavedInsight.Kind(rawValue: kind) != nil
             && SavedInsight.Marker(rawValue: marker) != nil
             && !locationID.isEmpty
+    }
+
+    func hasValidEvidence(
+        seeds: [InterpretationSeed],
+        validFactIDs: Set<String>
+    ) -> Bool {
+        PersistedInterpretationEvidenceValidator().isValid(
+            seedIDs: evidenceSeedIDs,
+            factIDs: evidenceFactIDs,
+            seeds: seeds,
+            validFactIDs: validFactIDs
+        )
     }
 
     func record(existing: CKRecord? = nil) throws -> CKRecord {
