@@ -77,6 +77,28 @@ final class SavedInsightTests: XCTestCase {
     XCTAssertEqual(summary.message, "將一併永久刪除 1 則私人筆記與 1 則收藏。這個動作無法復原。")
   }
 
+  func test手動編輯筆記依據時清除舊SeedProvenance() {
+    let note = SavedInsight(
+      chartID: UUID(),
+      kind: .note,
+      locationID: "interpretation.personality",
+      title: "原始筆記",
+      content: "原始內容",
+      evidenceSeedIDs: ["seed.original"],
+      evidenceFactIDs: ["fact.original"]
+    )
+
+    note.updateNote(
+      title: "更新筆記",
+      content: "更新內容",
+      marker: .observe,
+      evidenceFactIDs: ["fact.updated"]
+    )
+
+    XCTAssertTrue(note.evidenceSeedIDs.isEmpty)
+    XCTAssertEqual(note.evidenceFactIDs, ["fact.updated"])
+  }
+
   func test重新產生內容後可辨識並更新同一收藏() {
     let bookmark = SavedInsight.bookmark(
       chartID: UUID(),

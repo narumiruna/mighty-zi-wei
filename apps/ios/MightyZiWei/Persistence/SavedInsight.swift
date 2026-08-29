@@ -99,6 +99,7 @@ final class SavedInsight {
       self.locationID = locationID
     }
     if let evidenceFactIDs {
+      evidenceSeedIDsData = Self.encodeEvidenceIDs([])
       evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
     }
     self.reviewDate = reviewDate

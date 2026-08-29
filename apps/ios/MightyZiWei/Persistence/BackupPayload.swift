@@ -228,7 +228,7 @@ struct BackupExportSnapshot: Sendable {
 }
 
 struct BackupPayload: Codable, Equatable, Sendable {
-  static let currentSchemaVersion = 1
+  static let currentSchemaVersion = 2
 
   let schemaVersion: Int
   let charts: [BackupChartDTO]
@@ -261,7 +261,7 @@ struct BackupPayload: Codable, Equatable, Sendable {
   }
 
   func validate() throws {
-    guard schemaVersion == Self.currentSchemaVersion else {
+    guard schemaVersion == Self.currentSchemaVersion || schemaVersion == 1 else {
       throw BackupError.unsupportedPayloadSchema(schemaVersion)
     }
 
@@ -352,7 +352,10 @@ struct BackupPayload: Codable, Equatable, Sendable {
 
   func validated() throws -> ValidatedBackupPayload {
     try validate()
-    return ValidatedBackupPayload(payload: self)
+    let payload =
+      schemaVersion == Self.currentSchemaVersion
+      ? self : BackupPayload(charts: charts, insights: insights)
+    return ValidatedBackupPayload(payload: payload)
   }
 }
 

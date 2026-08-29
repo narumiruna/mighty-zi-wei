@@ -21,7 +21,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
     )
 
     XCTAssertEqual(backup.recoveryKey.rawRepresentation.count, 32)
-    XCTAssertEqual(payload.schemaVersion, 1)
+    XCTAssertEqual(payload.schemaVersion, BackupPayload.currentSchemaVersion)
     XCTAssertEqual(payload.charts, [try BackupChartDTO(savedChart: savedChart)])
     XCTAssertEqual(payload.insights, [insight])
 
@@ -162,7 +162,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
   func test拒絕不支援的PayloadSchema() throws {
     let fixture = try makeValidPayloadFixture()
     var object = fixture.object
-    object["schemaVersion"] = 2
+    object["schemaVersion"] = 3
     let backupData = try seal(
       JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
       recoveryKey: fixture.recoveryKey
@@ -174,7 +174,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         recoveryKey: fixture.recoveryKey
       )
     ) { error in
-      XCTAssertEqual(error as? BackupError, .unsupportedPayloadSchema(2))
+      XCTAssertEqual(error as? BackupError, .unsupportedPayloadSchema(3))
     }
   }
 
@@ -474,6 +474,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
   func test舊版備份缺少EvidenceSeedIDs時遷移為空陣列() throws {
     let fixture = try makeValidPayloadFixture()
     var object = fixture.object
+    object["schemaVersion"] = 1
     var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
     insights[0].removeValue(forKey: "evidenceSeedIDs")
     object["insights"] = insights
@@ -487,6 +488,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
       recoveryKey: fixture.recoveryKey
     )
 
+    XCTAssertEqual(payload.schemaVersion, BackupPayload.currentSchemaVersion)
     XCTAssertTrue(try XCTUnwrap(payload.insights.first).evidenceSeedIDs.isEmpty)
   }
 
