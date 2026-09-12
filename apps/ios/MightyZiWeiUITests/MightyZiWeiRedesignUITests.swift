@@ -344,11 +344,14 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
 
   private func navigateBack(to title: String) {
     let destination = app.navigationBars[title]
-    let back = app.navigationBars.buttons["BackButton"]
+    let back = app.navigationBars.buttons.element(boundBy: 0)
     XCTAssertTrue(back.waitForExistence(timeout: 5))
     back.tap()
-    if !destination.waitForExistence(timeout: 5), back.exists {
-      back.tap()
+    if !destination.waitForExistence(timeout: 5) {
+      let retryBack = app.navigationBars.buttons.element(boundBy: 0)
+      if retryBack.exists {
+        retryBack.tap()
+      }
     }
     XCTAssertTrue(destination.waitForExistence(timeout: 5))
   }
