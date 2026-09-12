@@ -56,6 +56,68 @@ final class ObservationBackupTests: XCTestCase {
     }
   }
 
+  func test還原替換父命盤時移除未包含的不相容觀察與回顧() throws {
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    let chart = try ObservationTestSupport.chart()
+    let observation = try ObservationTestSupport.observation(chart: chart)
+    observation.reminderIdentifier = "待取消提醒"
+    let review = ObservationTestSupport.review(observation: observation)
+    let originalObservationRevision = observation.modifiedAt
+    context.insert(chart)
+    context.insert(observation)
+    context.insert(review)
+    try context.save()
+    let replacementProfile = BirthProfile(
+      localDate: LocalDate(year: 1991, month: 7, day: 16),
+      localTime: LocalTime(hour: 11, minute: 30),
+      timeZoneIdentifier: "Asia/Taipei"
+    )
+    let ruleSet = RuleSetIdentity.taiwanTraditionalSanheV1
+    let incomingChart = BackupChartDTO(
+      id: chart.id,
+      name: "替換後命盤",
+      birthProfile: replacementProfile,
+      ruleSetID: ruleSet.id,
+      ruleSetVersion: ruleSet.version,
+      appSchemaVersion: SavedChart.schemaVersion,
+      createdAt: chart.createdAt,
+      updatedAt: chart.updatedAt
+    )
+    let payload = try BackupPayload(charts: [incomingChart], insights: []).validated()
+    var cancelled: [String] = []
+
+    _ = try BackupRestoreService.restore(
+      payload,
+      existingCharts: [chart],
+      existingInsights: [],
+      modelContext: context,
+      restoredAt: Date.now.addingTimeInterval(60),
+      shortcutDefaults: nil,
+      cancelReminder: { identifier in
+        if let identifier { cancelled.append(identifier) }
+      }
+    )
+
+    XCTAssertEqual(try chart.birthProfile(), replacementProfile)
+    XCTAssertTrue(try context.fetch(FetchDescriptor<SavedObservation>()).isEmpty)
+    XCTAssertTrue(try context.fetch(FetchDescriptor<SavedObservationReview>()).isEmpty)
+    let deletions = try context.fetch(FetchDescriptor<CloudDeletion>())
+    XCTAssertEqual(
+      deletions.filter { $0.entityType == RecordType.observation }.map(\.entityID),
+      [observation.id]
+    )
+    XCTAssertEqual(
+      deletions.filter { $0.entityType == RecordType.review }.map(\.entityID),
+      [review.id]
+    )
+    XCTAssertGreaterThan(
+      try XCTUnwrap(deletions.first { $0.entityID == observation.id }).deletedAt,
+      originalObservationRevision
+    )
+    XCTAssertEqual(cancelled, ["待取消提醒"])
+  }
+
   func test未知版本缺少集合重複ID及孤兒回顧全部拒絕() throws {
     let chart = try ObservationTestSupport.chart()
     let observation = try ObservationTestSupport.observation(chart: chart)
@@ -140,6 +202,34 @@ final class ObservationBackupTests: XCTestCase {
         XCTAssertEqual(error as? ObservationError, .invalidSnapshot)
       }
     }
+  }
+
+  func test歷史內容版本允許Fact顯示文案更新但仍核對結構化依據() throws {
+    let chart = try ObservationTestSupport.chart()
+    let snapshot = try ObservationTestSupport.snapshot(chart: chart)
+    let fact = try XCTUnwrap(snapshot.facts.first)
+    let archivedFact = ChartFact(
+      id: fact.id,
+      category: fact.category,
+      subject: fact.subject,
+      value: fact.value,
+      displayText: "舊版保存的顯示文案"
+    )
+    let archivedSnapshot = ObservationSnapshot(
+      selectedText: snapshot.selectedText,
+      initialThought: snapshot.initialThought,
+      source: snapshot.source,
+      locationID: snapshot.locationID,
+      contentVersion: "歷史內容版本",
+      ruleSetID: snapshot.ruleSetID,
+      ruleSetVersion: snapshot.ruleSetVersion,
+      facts: [archivedFact] + Array(snapshot.facts.dropFirst()),
+      seeds: snapshot.seeds
+    )
+    let observation = try SavedObservation(chartID: chart.id, snapshot: archivedSnapshot)
+    let payload = try ObservationTestSupport.payload(chart: chart, observations: [observation])
+
+    XCTAssertNoThrow(try payload.validate())
   }
 
   func test父命盤Evidence有重複FactID時安全比對失敗() throws {
