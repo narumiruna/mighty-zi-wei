@@ -98,13 +98,22 @@ struct InterpretationValidator: Sendable {
     "不可視為法律建議",
   ]
 
+  // swiftlint:disable:next cyclomatic_complexity
   func validate(
     sections: [InterpretationSection],
     facts: [ChartFact],
     seeds: [InterpretationSeed]
   ) throws -> [InterpretationSection] {
-    let factIDs = Set(facts.map(\.id))
-    let seedsByID = Dictionary(uniqueKeysWithValues: seeds.map { ($0.id, $0) })
+    var factIDs: Set<String> = []
+    for fact in facts where !factIDs.insert(fact.id).inserted {
+      throw ValidationError.duplicateEvidence(fact.id)
+    }
+    var seedsByID: [String: InterpretationSeed] = [:]
+    for seed in seeds {
+      guard seedsByID.updateValue(seed, forKey: seed.id) == nil else {
+        throw ValidationError.duplicateSeed(seed.id)
+      }
+    }
     var validated: [InterpretationSection] = []
 
     for category in InterpretationCategory.allCases {
@@ -160,8 +169,7 @@ struct InterpretationValidator: Sendable {
         throw ValidationError.evidenceMismatch(category)
       }
       let contentForSafetyCheck = allowedDisclaimerPhrases.reduce(section.content) {
-        content, disclaimer in
-        content.replacingOccurrences(of: disclaimer, with: "")
+        $0.replacingOccurrences(of: $1, with: "")
       }
       if blockedPhrases.contains(where: contentForSafetyCheck.contains) {
         throw ValidationError.unsafeContent(category)
@@ -320,6 +328,7 @@ struct ConversationAnswerValidator: Sendable {
     "不可視為法律建議",
   ]
 
+  // swiftlint:disable:next cyclomatic_complexity
   func validate(
     _ answer: ChartConversationAnswer,
     facts: [ChartFact],
@@ -361,8 +370,7 @@ struct ConversationAnswerValidator: Sendable {
     }
 
     let contentForSafetyCheck = allowedDisclaimerPhrases.reduce(content) {
-      result, disclaimer in
-      result.replacingOccurrences(of: disclaimer, with: "")
+      $0.replacingOccurrences(of: $1, with: "")
     }
     guard !blockedPhrases.contains(where: contentForSafetyCheck.contains) else {
       throw ValidationError.unsafeContent
@@ -373,8 +381,16 @@ struct ConversationAnswerValidator: Sendable {
     else {
       throw ValidationError.emptyEvidence
     }
-    let factIDs = Set(facts.map(\.id))
-    let seedsByID = Dictionary(uniqueKeysWithValues: seeds.map { ($0.id, $0) })
+    var factIDs: Set<String> = []
+    for fact in facts where !factIDs.insert(fact.id).inserted {
+      throw ValidationError.duplicateEvidence(fact.id)
+    }
+    var seedsByID: [String: InterpretationSeed] = [:]
+    for seed in seeds {
+      guard seedsByID.updateValue(seed, forKey: seed.id) == nil else {
+        throw ValidationError.duplicateSeed(seed.id)
+      }
+    }
     var seenSeeds: Set<String> = []
     var expectedEvidence: [String] = []
     for identifier in answer.evidenceSeedIDs {

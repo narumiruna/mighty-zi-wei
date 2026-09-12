@@ -102,6 +102,7 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
   let evidenceSeedIDs: [String]
   let evidenceFactIDs: [String]
   let status: ChartConversationAnswer.Status
+  let interpretationContentVersion: String?
 
   init(
     id: UUID = UUID(),
@@ -109,7 +110,8 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
     answer: String,
     evidenceSeedIDs: [String] = [],
     evidenceFactIDs: [String],
-    status: ChartConversationAnswer.Status = .answered
+    status: ChartConversationAnswer.Status = .answered,
+    interpretationContentVersion: String? = nil
   ) {
     self.id = id
     self.question = question
@@ -117,6 +119,7 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
     self.evidenceSeedIDs = evidenceSeedIDs
     self.evidenceFactIDs = evidenceFactIDs
     self.status = status
+    self.interpretationContentVersion = interpretationContentVersion
   }
 
   private enum CodingKeys: String, CodingKey {
@@ -126,6 +129,7 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
     case evidenceSeedIDs
     case evidenceFactIDs
     case status
+    case interpretationContentVersion
   }
 
   init(from decoder: any Decoder) throws {
@@ -144,6 +148,10 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
         ChartConversationAnswer.Status.self,
         forKey: .status
       ) ?? (evidenceFactIDs.isEmpty ? .unsupported : .answered)
+    interpretationContentVersion = try container.decodeIfPresent(
+      String.self,
+      forKey: .interpretationContentVersion
+    )
   }
 
   func encode(to encoder: any Encoder) throws {
@@ -154,6 +162,10 @@ struct ChartConversationTurn: Identifiable, Codable, Hashable, Sendable {
     try container.encode(evidenceSeedIDs, forKey: .evidenceSeedIDs)
     try container.encode(evidenceFactIDs, forKey: .evidenceFactIDs)
     try container.encode(status, forKey: .status)
+    try container.encodeIfPresent(
+      interpretationContentVersion,
+      forKey: .interpretationContentVersion
+    )
   }
 }
 

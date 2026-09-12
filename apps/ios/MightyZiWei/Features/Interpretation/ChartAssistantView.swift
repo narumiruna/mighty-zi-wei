@@ -150,7 +150,8 @@ struct ChartAssistantView: View {
                 turn: turn,
                 factsByID: factsByID,
                 seedsByID: seedsByID,
-                chartID: chart.savedChartID
+                chartID: chart.savedChartID,
+                contentVersion: InterpretationContentVersion.current.rawValue
               )
               .id(turn.id)
             }

@@ -76,9 +76,9 @@ Checker 會解析三方四正 stable IDs，不依賴顯示文字的固定表格�
 
 安全字詞檢查不能取代 approved seed 限制、人工內容審核或產品端結構化驗證。
 
-目前 iOS validator 尚未實作 seed IDs 與 meaning 契約，詳細限制讀取 [產品整合邊界](product-integration-boundaries.md)。
+目前 iOS validator 已驗證 seed IDs 與 fact IDs 的完整配對，但不能證明 AI 每句文字都符合 seed meaning，詳細限制讀取 [產品整合邊界](product-integration-boundaries.md)。
 
-本量表的 100 分不表示 iOS validator 已完成該整合工作。
+本量表的 100 分不表示 AI 逐句語意或命理含義已獲人工認證。
 
 條目齊全不能把 `editorial-pending-review` 自動升格為 approved seed。
 

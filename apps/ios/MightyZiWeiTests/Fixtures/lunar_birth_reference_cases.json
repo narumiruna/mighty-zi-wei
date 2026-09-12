@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "evidencePolicy": "公開文字列為本次實際讀取的香港天文台日期對照表；既有 fixture 列只承接 repository 已記錄的獨立來源，不宣稱重新查得原始資料。香港資料不作海外歷史時區的獨立證明。往返 sweep 另列為 Foundation 自我一致測試。",
+  "sources": [
+    {
+      "id": "hko-2023",
+      "kind": "公開文字",
+      "locator": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2023c.txt",
+      "sha256": "4a5fc4dbb7a1b78824bc2b0cf9c07083f9487e610cece066102759cd5d23edee",
+      "excerpt": "2023年1月22日 正月；2月20日 二月；3月21日 三十；3月22日 閏二月；4月19日 廿九；4月20日 三月。",
+      "limitation": "日期對照的現代 UTC+08 抽樣，不證明整個支援範圍。"
+    },
+    {
+      "id": "hko-2024",
+      "kind": "公開文字",
+      "locator": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2024c.txt",
+      "sha256": "0120d4df9b6638b084dcf35a0633f970ec47f8c1adde2553fba3e3c3570217fc",
+      "excerpt": "2024年1月11日 十二月；2月9日 三十；2月10日 正月；2月11日 初二。",
+      "limitation": "同一農曆年依該年新年所在公曆年辨識；不以循環年推定絕對年。"
+    },
+    {
+      "id": "hko-2099",
+      "kind": "公開文字",
+      "locator": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2099c.txt",
+      "sha256": "fbb29bf02f5e1fc3c3d9872e24f0d674093ed8ede7b2035011874127e653c8a9",
+      "excerpt": "2099年1月21日 正月；12月12日 十一月；12月31日 二十。",
+      "limitation": "未來日期為來源發布的推算表，不是已發生的觀測。"
+    },
+    {
+      "id": "repo-1900",
+      "kind": "既有 fixture",
+      "locator": "apps/ios/MightyZiWeiTests/Fixtures/chart_006_1900_boundary.json",
+      "excerpt": "1900/01/01 對應循環年 36、十二月初一；sourceReference 記錄中央研究院兩千年中西曆轉換。",
+      "limitation": "本次只核對既有 fixture；原始轉換頁面與人工核對紀錄未重新取得。年界以新年所在公曆年命名，故為 1899 農曆年。"
+    },
+    {
+      "id": "repo-new-york",
+      "kind": "既有 fixture",
+      "locator": "apps/ios/MightyZiWeiTests/Fixtures/chart_005_historical_dst.json",
+      "excerpt": "1945/09/30 01:30 America/New_York 對應循環年 22、八月廿五；sourceReference 記錄 IANA tzdb 與中央研究院轉換。",
+      "limitation": "本次只承接既有歷史時區 fixture，不把香港文字資料或 Foundation 往返冒充海外獨立證據。"
+    },
+    {
+      "id": "repo-kiritimati",
+      "kind": "既有 fixture",
+      "locator": "apps/ios/MightyZiWeiTests/Fixtures/chart_007_2099_boundary.json",
+      "excerpt": "2099/12/31 Pacific/Kiritimati 對應循環年 56、十一月二十；sourceReference 記錄中央研究院轉換。",
+      "limitation": "本次只承接既有非台灣時區 fixture；沒有新增海外曆法來源。"
+    }
+  ],
+  "cases": [
+    {"name":"農曆新年午夜", "sourceID":"hko-2024", "lunar":{"year":2024,"month":1,"day":1,"isLeapMonth":false}, "gregorian":{"year":2024,"month":2,"day":10}, "time":{"hour":0,"minute":0}, "timeZone":"Asia/Taipei"},
+    {"name":"子時不提前換日", "sourceID":"hko-2024", "lunar":{"year":2024,"month":1,"day":1,"isLeapMonth":false}, "gregorian":{"year":2024,"month":2,"day":10}, "time":{"hour":23,"minute":30}, "timeZone":"Asia/Taipei"},
+    {"name":"跨公曆年仍屬前農曆年", "sourceID":"hko-2024", "lunar":{"year":2023,"month":12,"day":30,"isLeapMonth":false}, "gregorian":{"year":2024,"month":2,"day":9}, "time":{"hour":12,"minute":0}, "timeZone":"Asia/Taipei"},
+    {"name":"正常二月大月末日", "sourceID":"hko-2023", "lunar":{"year":2023,"month":2,"day":30,"isLeapMonth":false}, "gregorian":{"year":2023,"month":3,"day":21}, "time":{"hour":12,"minute":0}, "timeZone":"Asia/Taipei"},
+    {"name":"閏二月首日", "sourceID":"hko-2023", "lunar":{"year":2023,"month":2,"day":1,"isLeapMonth":true}, "gregorian":{"year":2023,"month":3,"day":22}, "time":{"hour":12,"minute":0}, "timeZone":"Asia/Taipei"},
+    {"name":"閏二月小月末日", "sourceID":"hko-2023", "lunar":{"year":2023,"month":2,"day":29,"isLeapMonth":true}, "gregorian":{"year":2023,"month":4,"day":19}, "time":{"hour":12,"minute":0}, "timeZone":"Asia/Taipei"},
+    {"name":"公曆下界屬1899農曆年", "sourceID":"repo-1900", "lunar":{"year":1899,"month":12,"day":1,"isLeapMonth":false}, "gregorian":{"year":1900,"month":1,"day":1}, "time":{"hour":0,"minute":0}, "timeZone":"Asia/Taipei"},
+    {"name":"公曆上界末分鐘", "sourceID":"hko-2099", "lunar":{"year":2099,"month":11,"day":20,"isLeapMonth":false}, "gregorian":{"year":2099,"month":12,"day":31}, "time":{"hour":23,"minute":59}, "timeZone":"Asia/Taipei"},
+    {"name":"紐約歷史重複時間", "sourceID":"repo-new-york", "lunar":{"year":1945,"month":8,"day":25,"isLeapMonth":false}, "gregorian":{"year":1945,"month":9,"day":30}, "time":{"hour":1,"minute":30}, "timeZone":"America/New_York"},
+    {"name":"海外時區公曆上界", "sourceID":"repo-kiritimati", "lunar":{"year":2099,"month":11,"day":20,"isLeapMonth":false}, "gregorian":{"year":2099,"month":12,"day":31}, "time":{"hour":23,"minute":59}, "timeZone":"Pacific/Kiritimati"}
+  ]
+}

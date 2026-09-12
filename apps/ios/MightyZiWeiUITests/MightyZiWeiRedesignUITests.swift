@@ -390,7 +390,7 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
     let generate = app.buttons["birthInput.generate"]
     XCTAssertTrue(create.waitForExistence(timeout: 5))
     create.tap()
-    XCTAssertTrue(generate.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["排一張命盤"].waitForExistence(timeout: 5))
     return generate
   }
 

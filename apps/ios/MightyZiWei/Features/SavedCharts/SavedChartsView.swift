@@ -202,7 +202,7 @@ struct SavedChartsView: View {
             chartToDelete = nil
           }
         } message: {
-          Text(singleDeletionSummary.message)
+          Text(singleDeletionSummary.message + " 所屬觀察、全部回顧與提醒也會一併刪除。已另存的完整對話仍保留，可至對話管理刪除。")
         }
         .confirmationDialog(
           "刪除所有已儲存命盤？",
@@ -212,7 +212,9 @@ struct SavedChartsView: View {
           Button("刪除所有命盤、筆記與收藏", role: .destructive) { deleteAll() }
           Button("取消", role: .cancel) {}
         } message: {
-          Text(SavedInsightDeletionSummary(insights: insights).message)
+          Text(
+            SavedInsightDeletionSummary(insights: insights).message
+              + " 所有觀察、回顧與提醒也會刪除。已另存的完整對話仍保留，可至對話管理刪除。")
         }
         .alert("操作未完成", isPresented: errorIsPresented) {
           Button("好", role: .cancel) {}
@@ -557,7 +559,16 @@ struct SavedChartsView: View {
 
   private func delete(_ chart: SavedChart) {
     let deletedInsights = insights.filter { $0.chartID == chart.id }
-    let reminderIdentifiers = deletedInsights.compactMap(\.reminderIdentifier)
+    let reminderIdentifiers: [String]
+    do {
+      reminderIdentifiers =
+        deletedInsights.compactMap(\.reminderIdentifier)
+        + (try ObservationStore.removeChartChildren(chartID: chart.id, modelContext: modelContext))
+    } catch {
+      modelContext.rollback()
+      errorMessage = "無法刪除關聯觀察，命盤仍保留。"
+      return
+    }
     ICloudSyncService.recordDeletion(
       entityID: chart.id,
       entityType: "SavedChart",
@@ -576,13 +587,16 @@ struct SavedChartsView: View {
       for identifier in reminderIdentifiers {
         ReviewReminderScheduler().cancel(identifier: identifier)
       }
+      ChartReadingGuideProgressStore.remove(chartID: chart.id)
       PinnedChartShortcut.reconcile(charts: charts.filter { $0.id != chart.id })
     }
   }
 
   private func deleteAll() {
-    let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
+    var reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
+    let deletedChartIDs = charts.map(\.id)
     do {
+      reminderIdentifiers += try ObservationStore.removeAll(modelContext: modelContext)
       for chart in charts {
         ICloudSyncService.recordDeletion(
           entityID: chart.id,
@@ -603,6 +617,7 @@ struct SavedChartsView: View {
       for identifier in reminderIdentifiers {
         ReviewReminderScheduler().cancel(identifier: identifier)
       }
+      for chartID in deletedChartIDs { ChartReadingGuideProgressStore.remove(chartID: chartID) }
       PinnedChartShortcut.reconcile(charts: [])
     } catch {
       modelContext.rollback()

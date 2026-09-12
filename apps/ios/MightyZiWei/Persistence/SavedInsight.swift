@@ -46,7 +46,11 @@ final class SavedInsight {
   }
 
   var evidenceSeedIDs: [String] {
-    Self.decodeEvidenceIDs(evidenceSeedIDsData)
+    Self.decodeSeedEvidence(evidenceSeedIDsData).identifiers
+  }
+
+  var interpretationContentVersion: String? {
+    Self.decodeSeedEvidence(evidenceSeedIDsData).contentVersion
   }
 
   var evidenceFactIDs: [String] {
@@ -63,6 +67,7 @@ final class SavedInsight {
     marker: Marker = .none,
     evidenceSeedIDs: [String] = [],
     evidenceFactIDs: [String] = [],
+    interpretationContentVersion: String? = nil,
     reviewDate: Date? = nil,
     reminderIdentifier: String? = nil,
     createdAt: Date = .now,
@@ -75,7 +80,10 @@ final class SavedInsight {
     self.title = title
     self.content = content
     self.markerRawValue = marker.rawValue
-    self.evidenceSeedIDsData = Self.encodeEvidenceIDs(evidenceSeedIDs)
+    self.evidenceSeedIDsData = Self.encodeSeedEvidence(
+      evidenceSeedIDs,
+      contentVersion: interpretationContentVersion
+    )
     self.evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
     self.reviewDate = reviewDate
     self.reminderIdentifier = reminderIdentifier
@@ -100,8 +108,11 @@ final class SavedInsight {
     }
     if let evidenceFactIDs {
       if Set(evidenceFactIDs) != Set(self.evidenceFactIDs) {
-        evidenceSeedIDsData = Self.encodeEvidenceIDs([])
-        evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
+        setEvidence(
+          seedIDs: [],
+          factIDs: evidenceFactIDs,
+          contentVersion: nil
+        )
       }
     }
     self.reviewDate = reviewDate
@@ -130,26 +141,44 @@ final class SavedInsight {
     title: String,
     content: String,
     evidenceSeedIDs: [String],
-    evidenceFactIDs: [String]
+    evidenceFactIDs: [String],
+    interpretationContentVersion: String? = nil
   ) -> Bool {
     kind == .bookmark
       && self.title == Self.normalized(title, fallback: "收藏內容")
       && self.content == content.trimmingCharacters(in: .whitespacesAndNewlines)
       && self.evidenceSeedIDs == evidenceSeedIDs
       && self.evidenceFactIDs == evidenceFactIDs
+      && self.interpretationContentVersion == interpretationContentVersion
   }
 
   func updateBookmark(
     title: String,
     content: String,
     evidenceSeedIDs: [String],
-    evidenceFactIDs: [String]
+    evidenceFactIDs: [String],
+    interpretationContentVersion: String? = nil
   ) {
     self.title = Self.normalized(title, fallback: "收藏內容")
     self.content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-    evidenceSeedIDsData = Self.encodeEvidenceIDs(evidenceSeedIDs)
-    evidenceFactIDsData = Self.encodeEvidenceIDs(evidenceFactIDs)
+    setEvidence(
+      seedIDs: evidenceSeedIDs,
+      factIDs: evidenceFactIDs,
+      contentVersion: interpretationContentVersion
+    )
     updatedAt = .now
+  }
+
+  func setEvidence(
+    seedIDs: [String],
+    factIDs: [String],
+    contentVersion: String?
+  ) {
+    evidenceSeedIDsData = Self.encodeSeedEvidence(
+      seedIDs,
+      contentVersion: contentVersion
+    )
+    evidenceFactIDsData = Self.encodeEvidenceIDs(factIDs)
   }
 
   static func bookmark(
@@ -158,7 +187,8 @@ final class SavedInsight {
     title: String,
     content: String,
     evidenceSeedIDs: [String] = [],
-    evidenceFactIDs: [String]
+    evidenceFactIDs: [String],
+    interpretationContentVersion: String? = nil
   ) -> SavedInsight {
     SavedInsight(
       chartID: chartID,
@@ -167,13 +197,42 @@ final class SavedInsight {
       title: normalized(title, fallback: "收藏內容"),
       content: content.trimmingCharacters(in: .whitespacesAndNewlines),
       evidenceSeedIDs: evidenceSeedIDs,
-      evidenceFactIDs: evidenceFactIDs
+      evidenceFactIDs: evidenceFactIDs,
+      interpretationContentVersion: interpretationContentVersion
     )
   }
 
   private static func normalized(_ value: String, fallback: String) -> String {
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? fallback : trimmed
+  }
+
+  private struct SeedEvidenceArchive: Codable {
+    let identifiers: [String]
+    let contentVersion: String?
+  }
+
+  private static func decodeSeedEvidence(_ data: Data) -> SeedEvidenceArchive {
+    if let archive = try? JSONDecoder().decode(SeedEvidenceArchive.self, from: data) {
+      return archive
+    }
+    return SeedEvidenceArchive(
+      identifiers: decodeEvidenceIDs(data),
+      contentVersion: nil
+    )
+  }
+
+  private static func encodeSeedEvidence(
+    _ identifiers: [String],
+    contentVersion: String?
+  ) -> Data {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    let archive = SeedEvidenceArchive(
+      identifiers: identifiers,
+      contentVersion: contentVersion
+    )
+    return (try? encoder.encode(archive)) ?? Data("[]".utf8)
   }
 
   private static func decodeEvidenceIDs(_ data: Data) -> [String] {

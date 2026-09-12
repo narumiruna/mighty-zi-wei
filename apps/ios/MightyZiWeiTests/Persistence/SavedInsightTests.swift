@@ -32,7 +32,7 @@ final class SavedInsightTests: XCTestCase {
     XCTAssertTrue(restored.evidenceSeedIDs.isEmpty)
   }
 
-  func test收藏保留Seed與FactEvidenceIDs() throws {
+  func test收藏保留內容版本Seed與FactEvidenceIDs() throws {
     let seedEvidence = ["seed.overview.ziWei.life"]
     let factEvidence = ["natal.palace.life.branch", "natal.star.ziWei.palace"]
     let bookmark = SavedInsight.bookmark(
@@ -41,18 +41,62 @@ final class SavedInsightTests: XCTestCase {
       title: "命盤總覽",
       content: "收藏內容",
       evidenceSeedIDs: seedEvidence,
-      evidenceFactIDs: factEvidence
+      evidenceFactIDs: factEvidence,
+      interpretationContentVersion: InterpretationSourceCatalog.contentVersion
     )
 
     XCTAssertEqual(bookmark.kind, .bookmark)
     XCTAssertEqual(bookmark.evidenceSeedIDs, seedEvidence)
     XCTAssertEqual(bookmark.evidenceFactIDs, factEvidence)
+    XCTAssertEqual(
+      bookmark.interpretationContentVersion,
+      InterpretationSourceCatalog.contentVersion
+    )
     XCTAssertEqual(bookmark.marker, .none)
+  }
+
+  func test收藏內容版本通過備份與CloudPayload往返() throws {
+    let bookmark = SavedInsight.bookmark(
+      chartID: UUID(),
+      locationID: "interpretation.overview",
+      title: "目前收藏",
+      content: "目前內容",
+      evidenceSeedIDs: ["seed.current"],
+      evidenceFactIDs: ["fact.current"],
+      interpretationContentVersion: InterpretationSourceCatalog.contentVersion
+    )
+
+    let backupData = try JSONEncoder().encode(BackupInsightDTO(savedInsight: bookmark))
+    let backup = try JSONDecoder().decode(BackupInsightDTO.self, from: backupData)
+    XCTAssertEqual(
+      backup.makeSavedInsight().interpretationContentVersion,
+      InterpretationSourceCatalog.contentVersion
+    )
+    let cloudData = try JSONEncoder().encode(CloudInsightPayload(bookmark))
+    let cloud = try JSONDecoder().decode(CloudInsightPayload.self, from: cloudData)
+    XCTAssertEqual(
+      cloud.makeModel().interpretationContentVersion,
+      InterpretationSourceCatalog.contentVersion
+    )
+  }
+
+  func test舊版陣列格式保持無版本而不回填目前版本() throws {
+    let bookmark = SavedInsight.bookmark(
+      chartID: UUID(),
+      locationID: "interpretation.overview",
+      title: "舊收藏",
+      content: "舊內容",
+      evidenceSeedIDs: ["seed.legacy"],
+      evidenceFactIDs: ["fact.legacy"]
+    )
+    bookmark.evidenceSeedIDsData = try JSONEncoder().encode(["seed.legacy"])
+
+    XCTAssertEqual(bookmark.evidenceSeedIDs, ["seed.legacy"])
+    XCTAssertNil(bookmark.interpretationContentVersion)
   }
 
   func test刪除命盤前摘要明確列出筆記與收藏數量() {
     let chartID = UUID()
-    // swiftlint:disable trailing_comma
     let summary = SavedInsightDeletionSummary(insights: [
       SavedInsight(
         chartID: chartID,
@@ -69,7 +113,6 @@ final class SavedInsightTests: XCTestCase {
         evidenceFactIDs: []
       ),
     ])
-    // swiftlint:enable trailing_comma
 
     XCTAssertEqual(summary.noteCount, 1)
     XCTAssertEqual(summary.bookmarkCount, 1)

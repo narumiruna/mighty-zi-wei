@@ -6,6 +6,8 @@ struct ConversationTurnView: View {
   let factsByID: [String: ChartFact]
   let seedsByID: [String: InterpretationSeed]
   let chartID: UUID?
+  // 只有呼叫端能確認當時版本；歷史對話預設不回填目前版本。
+  var contentVersion: String?
 
   var body: some View {
     VStack(spacing: 12) {
@@ -78,6 +80,22 @@ struct ConversationTurnView: View {
       Divider()
       DisclosureGroup("為什麼這樣說") {
         VStack(alignment: .leading, spacing: 10) {
+          NavigationLink {
+            InterpretationSourceView(
+              seedIDs: turn.evidenceSeedIDs,
+              factIDs: turn.evidenceFactIDs,
+              contentVersion: contentVersion,
+              seeds: turn.evidenceSeedIDs.compactMap { seedsByID[$0] },
+              facts: turn.evidenceFactIDs.compactMap { factsByID[$0] },
+              isAIGenerated: true
+            )
+          } label: {
+            Label("本段引用依據與來源", systemImage: "books.vertical")
+          }
+          .accessibilityIdentifier("assistant.sources")
+          Text("只驗證段落引用的對應，不代表 AI 已逐句核對語意；現行產品語句仍待專家審閱。")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
           ForEach(turn.evidenceSeedIDs, id: \.self) { identifier in
             if let seed = seedsByID[identifier] {
               Text(seed.meaning)
@@ -110,7 +128,8 @@ struct ConversationTurnView: View {
       title: "命盤助理：\(turn.question)",
       content: displayedAnswer,
       evidenceSeedIDs: turn.evidenceSeedIDs,
-      evidenceFactIDs: turn.evidenceFactIDs
+      evidenceFactIDs: turn.evidenceFactIDs,
+      interpretationContentVersion: contentVersion
     )
   }
 

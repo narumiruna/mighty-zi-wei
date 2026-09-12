@@ -206,6 +206,19 @@ private struct SavedConversationDetailView: View {
               .foregroundStyle(.secondary)
             Text(turn.answer)
               .textSelection(.enabled)
+            if turn.status == .answered {
+              NavigationLink {
+                InterpretationSourceView(
+                  seedIDs: turn.evidenceSeedIDs,
+                  factIDs: turn.evidenceFactIDs,
+                  contentVersion: turn.interpretationContentVersion,
+                  isAIGenerated: true
+                )
+              } label: {
+                Label(archivedSourceTitle(for: turn), systemImage: "books.vertical")
+              }
+              .accessibilityIdentifier("conversation.archivedSources.\(turn.id.uuidString)")
+            }
             if turn.status == .unsupported {
               Label("當時無法用命盤回答", systemImage: "questionmark.bubble")
                 .font(.caption)
@@ -260,7 +273,9 @@ private struct SavedConversationDetailView: View {
       Button("取消", role: .cancel) {}
     } message: {
       Text(
-        "純文字將包含\(SavedConversationExportPrivacyGuard().fieldSummary)：命盤名稱「\(conversation.chartName)」、命盤資料「\(conversation.chartDetail)」。下一步仍需點選匯出按鈕才會開啟系統分享選單。"
+        "純文字將包含\(SavedConversationExportPrivacyGuard().fieldSummary)："
+          + "命盤名稱「\(conversation.chartName)」、命盤資料「\(conversation.chartDetail)」。"
+          + "下一步仍需點選匯出按鈕才會開啟系統分享選單。"
       )
     }
     .confirmationDialog(
@@ -285,6 +300,12 @@ private struct SavedConversationDetailView: View {
       get: { errorMessage != nil },
       set: { if !$0 { errorMessage = nil } }
     )
+  }
+
+  private func archivedSourceTitle(for turn: ChartConversationTurn) -> String {
+    turn.interpretationContentVersion == nil
+      ? "查看本段引用依據（版本未保存）"
+      : "查看本段引用依據"
   }
 
   private func deleteConversation() {

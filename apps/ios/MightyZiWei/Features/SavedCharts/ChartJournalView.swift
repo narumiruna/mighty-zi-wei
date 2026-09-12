@@ -11,8 +11,11 @@ struct ChartJournalView: View {
   @Environment(\.modelContext) private var modelContext
   @Query private var savedCharts: [SavedChart]
   @Query(sort: \SavedInsight.updatedAt, order: .reverse) private var allInsights: [SavedInsight]
+  @Query(sort: \SavedObservation.createdAt, order: .reverse) private var allObservations:
+    [SavedObservation]
   @State private var editingInsight: SavedInsight?
   @State private var createsNewNote = false
+  @State private var startsObservation = false
   @State private var errorMessage: String?
 
   private var insights: [SavedInsight] {
@@ -41,9 +44,34 @@ struct ChartJournalView: View {
       }
 
       Section {
-        Text("筆記與收藏由 App 保存在本機，也可能依 iOS 設定納入裝置備份或移轉；只有你主動建立加密備份時，App 才會匯出這些內容。")
+        Text("筆記、收藏與觀察保存在本機，也可能納入 iOS 裝置備份或移轉。你可主動建立加密備份；觀察與回顧的 iCloud 同步需要另行同意，不會傳給 AI。")
           .font(.footnote)
           .foregroundStyle(.secondary)
+      }
+
+      Section {
+        ForEach(allObservations.filter { $0.chartID == chartID }) { observation in
+          NavigationLink {
+            ObservationDetailView(observation: observation)
+          } label: {
+            VStack(alignment: .leading, spacing: 6) {
+              Text(observation.snapshot?.selectedText ?? "無法讀取觀察快照")
+                .lineLimit(2)
+              Text(observation.createdAt, format: .dateTime.year().month().day())
+                .font(.caption).foregroundStyle(.secondary)
+            }
+          }
+          .accessibilityIdentifier("journal.observation")
+        }
+        Button("開始觀察", systemImage: "text.badge.plus") {
+          startsObservation = true
+        }
+        .disabled(!chartExists)
+        .accessibilityIdentifier("journal.startObservation")
+      } header: {
+        Text("觀察與前後回顧")
+      } footer: {
+        Text("只保存你選取的單段解讀與當時想法。之後新增回顧，不覆寫原文；主觀符合與否不代表命理準確率。")
       }
 
       Section {
@@ -72,7 +100,7 @@ struct ChartJournalView: View {
         .disabled(!chartExists)
         .accessibilityIdentifier("journal.addNote")
       } header: {
-        Text("觀察時間軸")
+        Text("私人筆記")
       } footer: {
         Text("回顧提醒只使用你選擇的日期，不會根據命盤推算吉凶或事件。")
       }
@@ -103,6 +131,9 @@ struct ChartJournalView: View {
       }
     }
     .navigationBarTitleDisplayMode(.inline)
+    .sheet(isPresented: $startsObservation) {
+      ObservationEditor(chartID: chartID)
+    }
     .sheet(isPresented: $createsNewNote) {
       InsightNoteEditor(
         chartID: chartID,
@@ -134,7 +165,7 @@ struct ChartJournalView: View {
 
   private func delete(insights: [SavedInsight]) {
     let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
-    insights.forEach { insight in
+    for insight in insights {
       ICloudSyncService.recordDeletion(
         entityID: insight.id,
         entityType: "SavedInsight",
@@ -144,8 +175,8 @@ struct ChartJournalView: View {
     }
     do {
       try modelContext.save()
-      reminderIdentifiers.forEach {
-        ReviewReminderScheduler().cancel(identifier: $0)
+      for identifier in reminderIdentifiers {
+        ReviewReminderScheduler().cancel(identifier: identifier)
       }
     } catch {
       modelContext.rollback()
@@ -167,10 +198,24 @@ private struct SavedBookmarkDetailView: View {
           .lineSpacing(5)
           .textSelection(.enabled)
           .accessibilityIdentifier("journal.bookmarkDetail.content")
+        Text(versionDescription)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .accessibilityIdentifier("journal.bookmarkDetail.versionLimitation")
+        NavigationLink {
+          InterpretationSourceView(
+            seedIDs: insight.evidenceSeedIDs,
+            factIDs: insight.evidenceFactIDs,
+            contentVersion: insight.interpretationContentVersion
+          )
+        } label: {
+          Label("查看本段引用依據", systemImage: "books.vertical")
+        }
+        .accessibilityIdentifier("journal.bookmarkDetail.sources")
         if !insight.evidenceSeedIDs.isEmpty {
           Label(
-            "保留 \(insight.evidenceSeedIDs.count) 項核准解讀線索",
-            systemImage: "checkmark.seal"
+            "保留 \(insight.evidenceSeedIDs.count) 項原始解讀引用",
+            systemImage: "text.quote"
           )
           .font(.footnote)
           .foregroundStyle(.secondary)
@@ -189,6 +234,13 @@ private struct SavedBookmarkDetailView: View {
     }
     .navigationTitle("收藏內容")
     .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private var versionDescription: String {
+    guard let version = insight.interpretationContentVersion else {
+      return "來源版本未保存。原文與引用僅供歷史閱讀，不回填目前規則或審閱認證。"
+    }
+    return "解讀內容版本：\(version)"
   }
 }
 
@@ -226,8 +278,8 @@ private struct InsightRow: View {
       }
       if !insight.evidenceSeedIDs.isEmpty {
         Label(
-          "保留 \(insight.evidenceSeedIDs.count) 項核准解讀線索",
-          systemImage: "checkmark.seal"
+          "保留 \(insight.evidenceSeedIDs.count) 項原始解讀引用",
+          systemImage: "text.quote"
         )
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -294,6 +346,7 @@ private struct InsightNoteEditor: View {
   @State private var reminderChoice: ReviewReminderChoice
   @State private var customReviewDate: Date
   @State private var isSaving = false
+  @State private var savedWithReminderWarning = false
   @State private var errorMessage: String?
 
   init(
@@ -414,8 +467,10 @@ private struct InsightNoteEditor: View {
             .accessibilityIdentifier("journal.saveNote")
         }
       }
-      .alert("無法儲存筆記", isPresented: errorIsPresented) {
-        Button("好", role: .cancel) {}
+      .alert(savedWithReminderWarning ? "筆記已儲存" : "無法儲存筆記", isPresented: errorIsPresented) {
+        Button("好", role: .cancel) {
+          if savedWithReminderWarning { dismiss() }
+        }
       } message: {
         Text(errorMessage ?? "未知錯誤")
       }
@@ -469,13 +524,18 @@ private struct InsightNoteEditor: View {
           title: title.trimmingCharacters(in: .whitespacesAndNewlines),
           date: reviewDate
         )
-      } catch let error as LocalizedError {
-        errorMessage = error.errorDescription ?? "無法建立回顧提醒。"
-        return
       } catch {
-        errorMessage = "無法建立回顧提醒。"
-        return
+        savedWithReminderWarning = true
+        newReminderIdentifier = oldReminderIdentifier
       }
+    }
+    guard savedCharts.contains(where: { $0.id == chartID }) else {
+      if newReminderIdentifier != oldReminderIdentifier {
+        ReviewReminderScheduler().cancel(identifier: newReminderIdentifier)
+      }
+      savedWithReminderWarning = false
+      errorMessage = "這張命盤已刪除，無法儲存筆記。"
+      return
     }
     target.updateNote(
       title: title,
@@ -483,7 +543,7 @@ private struct InsightNoteEditor: View {
       marker: marker,
       locationID: selectedLocationID,
       evidenceFactIDs: Array(selectedEvidenceIDs).sorted(),
-      reviewDate: selectedReviewDate,
+      reviewDate: savedWithReminderWarning ? target.reviewDate : selectedReviewDate,
       reminderIdentifier: newReminderIdentifier
     )
     if insight == nil {
@@ -494,8 +554,13 @@ private struct InsightNoteEditor: View {
       if oldReminderIdentifier != newReminderIdentifier {
         ReviewReminderScheduler().cancel(identifier: oldReminderIdentifier)
       }
-      dismiss()
+      if savedWithReminderWarning {
+        errorMessage = "筆記已儲存，但新的提醒未設定；原有提醒未變更。你仍可隨時回顧筆記。"
+      } else {
+        dismiss()
+      }
     } catch {
+      savedWithReminderWarning = false
       modelContext.rollback()
       if newReminderIdentifier != oldReminderIdentifier {
         ReviewReminderScheduler().cancel(identifier: newReminderIdentifier)
@@ -512,6 +577,7 @@ struct InsightBookmarkButton: View {
   let content: String
   let evidenceSeedIDs: [String]
   let evidenceFactIDs: [String]
+  let interpretationContentVersion: String?
 
   @Environment(\.modelContext) private var modelContext
   @Query private var savedCharts: [SavedChart]
@@ -541,7 +607,8 @@ struct InsightBookmarkButton: View {
       title: title,
       content: content,
       evidenceSeedIDs: evidenceSeedIDs,
-      evidenceFactIDs: evidenceFactIDs
+      evidenceFactIDs: evidenceFactIDs,
+      interpretationContentVersion: interpretationContentVersion
     ) == true
   }
 
@@ -605,7 +672,8 @@ struct InsightBookmarkButton: View {
           title: title,
           content: content,
           evidenceSeedIDs: evidenceSeedIDs,
-          evidenceFactIDs: evidenceFactIDs
+          evidenceFactIDs: evidenceFactIDs,
+          interpretationContentVersion: interpretationContentVersion
         )
       }
     } else {
@@ -616,7 +684,8 @@ struct InsightBookmarkButton: View {
           title: title,
           content: content,
           evidenceSeedIDs: evidenceSeedIDs,
-          evidenceFactIDs: evidenceFactIDs
+          evidenceFactIDs: evidenceFactIDs,
+          interpretationContentVersion: interpretationContentVersion
         ))
     }
     do {

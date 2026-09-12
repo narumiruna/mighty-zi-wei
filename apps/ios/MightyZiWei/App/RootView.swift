@@ -231,7 +231,8 @@ final class ChartAssistantStore {
             answer: answer.content,
             evidenceSeedIDs: answer.evidenceSeedIDs,
             evidenceFactIDs: answer.evidenceFactIDs,
-            status: answer.status
+            status: answer.status,
+            interpretationContentVersion: InterpretationSourceCatalog.contentVersion
           ))
         draft = ""
         finishRequest(state: .idle)

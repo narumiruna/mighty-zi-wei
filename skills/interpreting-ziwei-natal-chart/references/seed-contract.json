@@ -37,7 +37,7 @@
     }
   },
   "builderPath": "apps/ios/MightyZiWei/Interpretation/InterpretationSeedBuilder.swift",
-  "builderSourceSha256": "c7c22022a3ad75a48b88dfcf23e4387569a4fb7b74c84cb8e261064535b4946d",
+  "builderSourceSha256": "549d5261f856d9157a09523bd0756a06e528279fc512d9a2ea3c414de4d09aa2",
   "expectedSeedCount": 19,
   "mainStarIDs": [
     "ziWei",
