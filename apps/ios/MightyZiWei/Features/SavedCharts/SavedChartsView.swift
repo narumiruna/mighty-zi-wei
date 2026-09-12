@@ -154,6 +154,7 @@ struct SavedChartsView: View {
   var body: some View {
     NavigationStack {
       screenContent
+        .appPageBackground()
         .navigationTitle("已儲存命盤")
         .searchable(text: $searchText, prompt: "搜尋姓名、標籤或建立日期")
         .navigationDestination(item: $externalDestination) { destination in
@@ -224,21 +225,12 @@ struct SavedChartsView: View {
   @ViewBuilder
   private var screenContent: some View {
     if charts.isEmpty {
-      VStack(spacing: 16) {
-        EmptyStateView(
-          symbol: "rectangle.stack",
-          title: "還沒有已儲存命盤",
-          message: "先排一張命盤，完成後即可儲存在這台裝置。"
-        )
-        NavigationLink {
-          BirthInputView()
-        } label: {
-          Label("排一張命盤", systemImage: "plus")
-        }
-        .buttonStyle(.borderedProminent)
-        .accessibilityIdentifier("savedCharts.createChart")
-      }
-      .padding()
+      CreateChartEmptyState(
+        symbol: "rectangle.stack",
+        title: "還沒有已儲存命盤",
+        message: "先排一張命盤，將想認識的自己與重要的人，好好收藏。",
+        actionIdentifier: "savedCharts.createChart"
+      )
     } else {
       List {
         if hasActiveFilters {
@@ -258,8 +250,15 @@ struct SavedChartsView: View {
         if filteredCharts.isEmpty {
           resultEmptyState
         } else {
-          ForEach(filteredCharts) { chart in
-            chartRow(chart)
+          Section {
+            ForEach(filteredCharts) { chart in
+              chartRow(chart)
+                .listRowBackground(AppDesign.surface)
+            }
+          } header: {
+            Text(hasActiveFilters || !searchText.isEmpty ? "符合條件的命盤" : "你的命盤收藏")
+          } footer: {
+            Text("共 \(filteredCharts.count) 張命盤；釘選的命盤會優先顯示。")
           }
         }
       }
@@ -352,6 +351,17 @@ struct SavedChartsView: View {
 
   @ToolbarContentBuilder
   private var moreActionsToolbar: some ToolbarContent {
+    if !charts.isEmpty {
+      ToolbarItem(placement: .topBarTrailing) {
+        NavigationLink {
+          BirthInputView()
+        } label: {
+          Label("新增命盤", systemImage: "plus")
+        }
+        .accessibilityIdentifier("savedCharts.addChart")
+      }
+    }
+
     ToolbarItem(placement: .topBarTrailing) {
       Menu {
         if charts.count >= 2 {
@@ -553,7 +563,7 @@ struct SavedChartsView: View {
       entityType: "SavedChart",
       modelContext: modelContext
     )
-    deletedInsights.forEach { insight in
+    for insight in deletedInsights {
       ICloudSyncService.recordDeletion(
         entityID: insight.id,
         entityType: "SavedInsight",
@@ -563,8 +573,8 @@ struct SavedChartsView: View {
     }
     modelContext.delete(chart)
     saveChanges(errorText: "無法刪除命盤。") {
-      reminderIdentifiers.forEach {
-        ReviewReminderScheduler().cancel(identifier: $0)
+      for identifier in reminderIdentifiers {
+        ReviewReminderScheduler().cancel(identifier: identifier)
       }
       PinnedChartShortcut.reconcile(charts: charts.filter { $0.id != chart.id })
     }
@@ -573,16 +583,16 @@ struct SavedChartsView: View {
   private func deleteAll() {
     let reminderIdentifiers = insights.compactMap(\.reminderIdentifier)
     do {
-      charts.forEach {
+      for chart in charts {
         ICloudSyncService.recordDeletion(
-          entityID: $0.id,
+          entityID: chart.id,
           entityType: "SavedChart",
           modelContext: modelContext
         )
       }
-      insights.forEach {
+      for insight in insights {
         ICloudSyncService.recordDeletion(
-          entityID: $0.id,
+          entityID: insight.id,
           entityType: "SavedInsight",
           modelContext: modelContext
         )
@@ -590,8 +600,8 @@ struct SavedChartsView: View {
       try modelContext.delete(model: SavedInsight.self)
       try modelContext.delete(model: SavedChart.self)
       try modelContext.save()
-      reminderIdentifiers.forEach {
-        ReviewReminderScheduler().cancel(identifier: $0)
+      for identifier in reminderIdentifiers {
+        ReviewReminderScheduler().cancel(identifier: identifier)
       }
       PinnedChartShortcut.reconcile(charts: [])
     } catch {
@@ -616,42 +626,43 @@ struct SavedChartRow: View {
   var isDuplicate = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 5) {
-      HStack {
-        if chart.isPinned {
-          Image(systemName: "pin.fill")
-            .foregroundStyle(.orange)
-            .accessibilityLabel("已釘選")
+    HStack(alignment: .top, spacing: 12) {
+      AppSymbol(name: "person.crop.rectangle")
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+          Text(chart.name)
+            .font(.headline)
+            .foregroundStyle(.primary)
+          if chart.isPinned {
+            Image(systemName: "pin.fill")
+              .font(.caption)
+              .foregroundStyle(.tint)
+              .accessibilityLabel("已釘選")
+          }
         }
-        Text(chart.name)
-          .font(.headline)
+        if let profile = try? chart.birthProfile() {
+          Text(dateText(profile))
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(AppDesign.secondaryText)
+          Text(profile.timeZoneIdentifier)
+            .font(.caption)
+            .foregroundStyle(AppDesign.secondaryText)
+        }
+        if !chart.tags.isEmpty {
+          Text(chart.tags.map { "#\($0)" }.joined(separator: "  "))
+            .font(.caption)
+            .foregroundStyle(.tint)
+            .lineLimit(2)
+        }
         if isDuplicate {
-          Image(systemName: "doc.on.doc")
-            .foregroundStyle(.orange)
+          Label("這份出生資料也存在於其他命盤", systemImage: "doc.on.doc")
+            .font(.caption)
+            .foregroundStyle(AppDesign.secondaryText)
             .accessibilityLabel("有相同出生資料的命盤")
         }
       }
-      if let profile = try? chart.birthProfile() {
-        Text(dateText(profile))
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-        Text(profile.timeZoneIdentifier)
-          .font(.caption)
-          .foregroundStyle(.tertiary)
-      }
-      if !chart.tags.isEmpty {
-        Text(chart.tags.map { "#\($0)" }.joined(separator: "  "))
-          .font(.caption)
-          .foregroundStyle(.tint)
-          .lineLimit(2)
-      }
-      if isDuplicate {
-        Text("這份出生資料也存在於其他命盤")
-          .font(.caption)
-          .foregroundStyle(.orange)
-      }
     }
-    .padding(.vertical, 4)
+    .padding(.vertical, 8)
     .accessibilityElement(children: .combine)
   }
 

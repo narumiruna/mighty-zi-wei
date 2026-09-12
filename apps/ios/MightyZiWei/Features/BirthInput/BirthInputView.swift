@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BirthInputView: View {
+  @FocusState private var nameIsFocused: Bool
   @State private var name = ""
   @State private var localDate = LocalDate(year: 1990, month: 1, day: 1)
   @State private var localTime = LocalTime(hour: 12, minute: 0)
@@ -13,8 +14,23 @@ struct BirthInputView: View {
   var body: some View {
     Form {
       Section {
+        HStack(alignment: .top, spacing: 14) {
+          AppSymbol(name: "calendar")
+          SectionHeading(
+            title: "從出生資料開始",
+            subtitle: "只需日期、時間與時區，就能開始探索。"
+          )
+        }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+      }
+
+      Section {
         TextField("名稱或暱稱（選填）", text: $name)
           .textContentType(.nickname)
+          .focused($nameIsFocused)
+          .submitLabel(.done)
+          .onSubmit { nameIsFocused = false }
 
         DatePicker(
           "出生日期",
@@ -65,10 +81,9 @@ struct BirthInputView: View {
         Button {
           calculate()
         } label: {
-          Text("產生命盤")
-            .frame(maxWidth: .infinity)
+          Label("產生命盤", systemImage: "sparkles")
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(PrimaryActionStyle())
         .accessibilityIdentifier("birthInput.generate")
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
@@ -106,6 +121,8 @@ struct BirthInputView: View {
         Text("只比較盤面位置差異，不會替你選擇或猜測出生時辰。")
       }
     }
+    .appPageBackground()
+    .scrollDismissesKeyboard(.interactively)
     .navigationTitle("排一張命盤")
     .navigationBarTitleDisplayMode(.inline)
     .environment(\.timeZone, selectedTimeZone)
@@ -206,6 +223,7 @@ struct BirthInputView: View {
   }
 
   private func calculate() {
+    nameIsFocused = false
     validationMessage = nil
     do {
       let normalized = try ZiWeiCalculator().normalize(inputProfile)
@@ -278,6 +296,7 @@ private struct BirthLocalTimeCheck: View {
     VStack(alignment: .leading, spacing: 6) {
       Label("將採用出生地當地時間", systemImage: "clock")
         .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.tint)
       Text(localInputText)
         .font(.headline.monospacedDigit())
       Text(timeZoneSummary)

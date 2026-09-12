@@ -66,22 +66,22 @@ struct ChartView: View {
       VStack(alignment: .leading, spacing: AppDesign.pageSpacing) {
         VStack(alignment: .leading, spacing: 8) {
           Text("命盤總覽")
-            .font(.largeTitle.bold())
+            .font(.system(.title, design: .serif, weight: .semibold))
             .accessibilityAddTraits(.isHeader)
 
           Text(displayName)
-            .font(.headline)
+            .font(.subheadline.weight(.medium))
 
           Label(
             isChartSaved ? "已儲存於這台裝置" : "尚未儲存",
             systemImage: isChartSaved ? "checkmark.circle.fill" : "circle.dashed"
           )
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(AppDesign.secondaryText)
 
           Text("先看生活化摘要，再選擇完整解讀或命盤助理。")
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(AppDesign.secondaryText)
         }
 
         if let notice {
@@ -111,10 +111,8 @@ struct ChartView: View {
             )
           } label: {
             Label("閱讀命盤解讀", systemImage: "text.book.closed")
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 4)
           }
-          .buttonStyle(.borderedProminent)
+          .buttonStyle(PrimaryActionStyle())
           .accessibilityIdentifier("chart.interpretation")
 
           Button {
@@ -125,16 +123,16 @@ struct ChartView: View {
               .padding(.vertical, 4)
           }
           .buttonStyle(.bordered)
+          .controlSize(.large)
+          .buttonBorderShape(.roundedRectangle(radius: AppDesign.compactCornerRadius))
           .accessibilityIdentifier("chart.askAI")
         }
 
         VStack(alignment: .leading, spacing: 12) {
-          Text("自由探索十二宮")
-            .font(.title2.bold())
-            .accessibilityAddTraits(.isHeader)
-          Text("宮格顯示主星分布；點選宮位可查看完整內容。")
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+          SectionHeading(
+            title: "自由探索十二宮",
+            subtitle: "宮格顯示主星分布；點選宮位可查看完整內容。"
+          )
 
           ChartOverview(
             chart: chart,
@@ -144,9 +142,7 @@ struct ChartView: View {
         }
 
         VStack(alignment: .leading, spacing: 12) {
-          Text("命盤工具")
-            .font(.title2.bold())
-            .accessibilityAddTraits(.isHeader)
+          SectionHeading(title: "命盤工具")
 
           if let chartID = effectiveSavedChartID {
             NavigationLink {
@@ -195,8 +191,11 @@ struct ChartView: View {
 
         DisclaimerView(compact: true)
       }
-      .padding()
+      .frame(maxWidth: AppDesign.readingWidth)
+      .frame(maxWidth: .infinity)
+      .padding(AppDesign.pageInset)
     }
+    .appPageBackground()
     .navigationTitle(displayName)
     .navigationBarTitleDisplayMode(.inline)
     .onAppear {
@@ -415,13 +414,17 @@ private struct PrimaryPalaceGuide: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      Text("先從你自己開始")
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
-
-      Text("你的核心性格")
-        .font(.title2.bold())
-        .accessibilityAddTraits(.isHeader)
+      HStack(spacing: 12) {
+        AppSymbol(name: "sparkle")
+        VStack(alignment: .leading, spacing: 4) {
+          Text("先從你自己開始")
+            .font(.caption)
+            .foregroundStyle(AppDesign.secondaryText)
+          Text("你的核心性格")
+            .font(.title2.bold())
+            .accessibilityAddTraits(.isHeader)
+        }
+      }
 
       Text(summary)
         .lineSpacing(4)
@@ -519,12 +522,7 @@ private struct ChartOverview: View {
       )
 
       LazyVGrid(
-        columns: [
-          GridItem(
-            .flexible(),
-            spacing: ChartOverviewMetrics.spacing
-          )
-        ],
+        columns: [GridItem(.flexible(), spacing: ChartOverviewMetrics.spacing)],
         spacing: ChartOverviewMetrics.spacing
       ) {
         ForEach(PalaceKind.allCases) { kind in
@@ -614,11 +612,14 @@ private struct ChartIdentityCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
+      Label("本命盤", systemImage: "sparkle")
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.tint)
       Text(name)
-        .font(.headline)
+        .font(.system(.headline, design: .serif))
       Text(birthSummary)
         .font(.caption)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(AppDesign.secondaryText)
       Spacer(minLength: 0)
     }
     .padding(12)
@@ -629,7 +630,7 @@ private struct ChartIdentityCard: View {
       alignment: .topLeading
     )
     .background(
-      .background.secondary,
+      Color.accentColor.opacity(0.07),
       in: RoundedRectangle(cornerRadius: AppDesign.cornerRadius)
     )
     .accessibilityElement(children: .combine)
@@ -666,14 +667,16 @@ private struct PalaceOverviewCell: View {
       alignment: .topLeading
     )
     .background(
-      .background.secondary,
+      palace.kind == .life ? Color.accentColor.opacity(0.10) : AppDesign.surface,
       in: RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius)
     )
     .overlay {
-      if palace.kind == .life {
-        RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius)
-          .stroke(.tint, lineWidth: 2)
-      }
+      RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius)
+        .strokeBorder(
+          palace.kind == .life ? Color.accentColor : Color.primary.opacity(0.08),
+          lineWidth: palace.kind == .life ? 1.5 : 1
+        )
+        .allowsHitTesting(false)
     }
     .contentShape(RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius))
     .accessibilityElement(children: .ignore)
@@ -716,13 +719,13 @@ private struct PalaceOverviewCell: View {
       }
       Text("宮位干支：\(palace.stemBranch.displayName)")
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(AppDesign.secondaryText)
       Text(mainStarNames.isEmpty ? "本宮無主星" : "主星：\(mainStarNames.joined(separator: "、"))")
         .font(.subheadline)
       if !otherStarNames.isEmpty {
         Text("其他星曜：\(otherStarNames.joined(separator: "、"))")
           .font(.footnote)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(AppDesign.secondaryText)
       }
     }
   }

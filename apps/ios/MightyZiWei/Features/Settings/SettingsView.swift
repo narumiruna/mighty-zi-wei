@@ -93,7 +93,11 @@ struct SettingsView: View {
           Text("選擇性 iCloud 同步")
         } footer: {
           Text(
-            "預設關閉。開啟後資料會存入你 Apple ID 的私人 CloudKit 資料庫；同一筆內容衝突時保留較新的修改，刪除也會同步。API 設定、API key、AI 對話與提醒通知不會同步。關閉同步只停止後續同步，不會刪除 iCloud 已有資料。Apple 會依 iCloud 條款處理資料。"
+            """
+            預設關閉。開啟後資料會存入你 Apple ID 的私人 CloudKit 資料庫；同一筆內容衝突時保留較新的修改，刪除也會同步。\
+            API 設定、API key、AI 對話與提醒通知不會同步。\
+            關閉同步只停止後續同步，不會刪除 iCloud 已有資料。Apple 會依 iCloud 條款處理資料。
+            """
           )
         }
 
@@ -118,6 +122,7 @@ struct SettingsView: View {
           DisclaimerView()
         }
       }
+      .appPageBackground()
       .navigationTitle("設定")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
