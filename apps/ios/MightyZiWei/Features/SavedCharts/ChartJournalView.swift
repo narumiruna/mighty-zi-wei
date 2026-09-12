@@ -198,21 +198,15 @@ private struct SavedBookmarkDetailView: View {
           .lineSpacing(5)
           .textSelection(.enabled)
           .accessibilityIdentifier("journal.bookmarkDetail.content")
-        Text(
-          PersistedInterpretationEvidenceValidator().readingStatus(
-            contentVersion: nil,
-            seedIDs: insight.evidenceSeedIDs,
-            factIDs: insight.evidenceFactIDs,
-            seeds: [], validFactIDs: []
-          ).limitation ?? "來源版本未保存。"
-        )
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .accessibilityIdentifier("journal.bookmarkDetail.versionLimitation")
+        Text(versionDescription)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .accessibilityIdentifier("journal.bookmarkDetail.versionLimitation")
         NavigationLink {
           InterpretationSourceView(
-            seedIDs: insight.evidenceSeedIDs, factIDs: insight.evidenceFactIDs,
-            contentVersion: nil
+            seedIDs: insight.evidenceSeedIDs,
+            factIDs: insight.evidenceFactIDs,
+            contentVersion: insight.interpretationContentVersion
           )
         } label: {
           Label("查看本段引用依據", systemImage: "books.vertical")
@@ -240,6 +234,13 @@ private struct SavedBookmarkDetailView: View {
     }
     .navigationTitle("收藏內容")
     .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private var versionDescription: String {
+    guard let version = insight.interpretationContentVersion else {
+      return "來源版本未保存。原文與引用僅供歷史閱讀，不回填目前規則或審閱認證。"
+    }
+    return "解讀內容版本：\(version)"
   }
 }
 
@@ -576,6 +577,7 @@ struct InsightBookmarkButton: View {
   let content: String
   let evidenceSeedIDs: [String]
   let evidenceFactIDs: [String]
+  let interpretationContentVersion: String?
 
   @Environment(\.modelContext) private var modelContext
   @Query private var savedCharts: [SavedChart]
@@ -605,7 +607,8 @@ struct InsightBookmarkButton: View {
       title: title,
       content: content,
       evidenceSeedIDs: evidenceSeedIDs,
-      evidenceFactIDs: evidenceFactIDs
+      evidenceFactIDs: evidenceFactIDs,
+      interpretationContentVersion: interpretationContentVersion
     ) == true
   }
 
@@ -669,7 +672,8 @@ struct InsightBookmarkButton: View {
           title: title,
           content: content,
           evidenceSeedIDs: evidenceSeedIDs,
-          evidenceFactIDs: evidenceFactIDs
+          evidenceFactIDs: evidenceFactIDs,
+          interpretationContentVersion: interpretationContentVersion
         )
       }
     } else {
@@ -680,7 +684,8 @@ struct InsightBookmarkButton: View {
           title: title,
           content: content,
           evidenceSeedIDs: evidenceSeedIDs,
-          evidenceFactIDs: evidenceFactIDs
+          evidenceFactIDs: evidenceFactIDs,
+          interpretationContentVersion: interpretationContentVersion
         ))
     }
     do {

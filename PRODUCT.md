@@ -392,7 +392,7 @@ ID 使用語義穩定的 key，不使用依輸出順序編號的 `F001`。
 
 ```text
 natal.palace.life.branch: 命宮位於午宮。
-natal.star.ziwei.palace: 紫微星位於命宮。
+natal.star.ziWei.palace: 紫微星位於命宮。
 natal.star.tianfu.palace: 天府星位於財帛宮。
 natal.transformation.lu.star: 武曲化祿。
 ```
@@ -534,7 +534,7 @@ struct InterpretationSection: Decodable {
 也比較重視自己的判斷。
 
 依據：
-- natal.star.ziwei.palace 紫微位於命宮
+- natal.star.ziWei.palace 紫微位於命宮
 - natal.palace.life.transformation.quan 化權位於命宮
 ```
 

@@ -49,6 +49,22 @@ final class SavedObservationTests: XCTestCase {
     XCTAssertTrue(future.versionDescription.contains("僅供歷史回顧"))
   }
 
+  func test本機基本解讀快照文字與位置必須對應唯一封存Seed() throws {
+    let snapshot = try ObservationTestSupport.snapshot(chart: ObservationTestSupport.chart())
+    let forgedText = try ObservationTestSupport.changing(
+      snapshot,
+      key: "selectedText",
+      to: "與封存 seed meaning 不同的文字"
+    )
+    XCTAssertThrowsError(try forgedText.validate())
+    let forgedLocation = try ObservationTestSupport.changing(
+      snapshot,
+      key: "locationID",
+      to: "interpretation.other"
+    )
+    XCTAssertThrowsError(try forgedLocation.validate())
+  }
+
   func test未知快照Schema或缺少引用安全拒絕() throws {
     let snapshot = try ObservationTestSupport.snapshot(chart: ObservationTestSupport.chart())
     let future = try ObservationTestSupport.changing(snapshot, key: "schemaVersion", to: 999)

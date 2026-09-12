@@ -73,6 +73,32 @@ final class ChartReadingGuideTests: XCTestCase {
     XCTAssertEqual(reopened.load(for: identity, isSaved: false), .init())
   }
 
+  func test未存命盤首次儲存後沿用進度並改為持久保存() throws {
+    let (defaults, suite) = makeDefaults()
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let chart = try makeChart()
+    let sessionIdentity = ChartReadingGuideProgressStore.Identity(
+      chartID: UUID(),
+      chart: chart
+    )
+    let savedIdentity = ChartReadingGuideProgressStore.Identity(
+      chartID: UUID(),
+      chart: chart
+    )
+    let store = ChartReadingGuideProgressStore(defaults: defaults)
+    var progress = ChartReadingGuide.Progress()
+    progress.next()
+    progress.pause()
+    store.save(progress, for: sessionIdentity, isSaved: false)
+
+    store.promote(from: sessionIdentity, to: savedIdentity)
+
+    XCTAssertEqual(store.load(for: sessionIdentity, isSaved: false), .init())
+    XCTAssertEqual(store.load(for: savedIdentity, isSaved: true), progress)
+    let relaunched = ChartReadingGuideProgressStore(defaults: defaults)
+    XCTAssertEqual(relaunched.load(for: savedIdentity, isSaved: true), progress)
+  }
+
   func test命盤身分內容版本導覽版本Ruleset與排盤資料都隔離() throws {
     let (defaults, suite) = makeDefaults()
     defer { defaults.removePersistentDomain(forName: suite) }

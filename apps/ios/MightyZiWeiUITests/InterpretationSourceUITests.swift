@@ -58,15 +58,13 @@ final class InterpretationSourceUITests: XCTestCase {
     let assistant = app.buttons["chart.askAI"]
     app.scrollToVisibleContent(assistant)
     assistant.tap()
-    let composer = app.textFields["assistant.composer"]
-    XCTAssertTrue(composer.waitForExistence(timeout: 5))
-    composer.tap()
-    composer.typeText("有哪些可以自我觀察的傾向？")
-    if app.keyboards.firstMatch.exists { app.typeKey(.escape, modifierFlags: []) }
+    let suggestion = app.buttons["assistant.suggestion.0"]
+    XCTAssertTrue(suggestion.waitForExistence(timeout: 5))
+    suggestion.tap()
     let send = app.buttons["assistant.send"]
-    app.scrollToVisibleContent(send)
+    XCTAssertTrue(send.isEnabled)
     send.tap()
-    XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 8))
+    XCTAssertTrue(app.otherElements["assistant.answer"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.buttons["本段引用依據與來源"].exists)
     let evidence = app.buttons["為什麼這樣說"].firstMatch
     app.scrollToVisibleContent(evidence)
@@ -79,7 +77,7 @@ final class InterpretationSourceUITests: XCTestCase {
     XCTAssertFalse(app.buttons["assistant.stop"].exists)
   }
 
-  func test無版本收藏可以閱讀來源限制返回並刪除() {
+  func test新收藏保存內容版本且可閱讀來源返回並刪除() {
     launch()
     createChart()
     app.buttons["chart.save"].tap()
@@ -103,8 +101,8 @@ final class InterpretationSourceUITests: XCTestCase {
     app.scrollToVisibleContent(sources)
     sources.tap()
     XCTAssertTrue(app.navigationBars["解讀來源"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["sources.versionLimitation"].label.contains("來源版本未保存"))
-    XCTAssertFalse(app.staticTexts["專家審閱：待審"].exists)
+    XCTAssertEqual(app.staticTexts["sources.version"].label, "解讀內容版本：1")
+    XCTAssertTrue(app.staticTexts["專家審閱：待審"].exists)
     app.navigationBars.buttons.element(boundBy: 0).tap()
     XCTAssertTrue(content.waitForExistence(timeout: 5))
     app.navigationBars.buttons.element(boundBy: 0).tap()

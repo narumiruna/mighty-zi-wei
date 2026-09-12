@@ -61,6 +61,12 @@ final class ChartReadingGuideProgressStore {
     defaults.set(data, forKey: identity.storageKey)
   }
 
+  /// 命盤首次儲存時，把本次工作階段進度移到新的持久化身分。
+  func promote(from sessionIdentity: Identity, to savedIdentity: Identity) {
+    guard let progress = memory.removeValue(forKey: sessionIdentity) else { return }
+    save(progress, for: savedIdentity, isSaved: true)
+  }
+
   nonisolated static func remove(chartID: UUID) {
     remove(chartID: chartID, defaults: .standard)
   }

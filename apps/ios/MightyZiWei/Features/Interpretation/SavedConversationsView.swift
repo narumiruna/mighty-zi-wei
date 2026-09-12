@@ -209,11 +209,13 @@ private struct SavedConversationDetailView: View {
             if turn.status == .answered {
               NavigationLink {
                 InterpretationSourceView(
-                  seedIDs: turn.evidenceSeedIDs, factIDs: turn.evidenceFactIDs,
-                  contentVersion: nil, isAIGenerated: true
+                  seedIDs: turn.evidenceSeedIDs,
+                  factIDs: turn.evidenceFactIDs,
+                  contentVersion: turn.interpretationContentVersion,
+                  isAIGenerated: true
                 )
               } label: {
-                Label("查看本段引用依據（版本未保存）", systemImage: "books.vertical")
+                Label(archivedSourceTitle(for: turn), systemImage: "books.vertical")
               }
               .accessibilityIdentifier("conversation.archivedSources.\(turn.id.uuidString)")
             }
@@ -298,6 +300,12 @@ private struct SavedConversationDetailView: View {
       get: { errorMessage != nil },
       set: { if !$0 { errorMessage = nil } }
     )
+  }
+
+  private func archivedSourceTitle(for turn: ChartConversationTurn) -> String {
+    turn.interpretationContentVersion == nil
+      ? "查看本段引用依據（版本未保存）"
+      : "查看本段引用依據"
   }
 
   private func deleteConversation() {

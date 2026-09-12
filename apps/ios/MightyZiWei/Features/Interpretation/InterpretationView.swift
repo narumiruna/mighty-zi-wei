@@ -526,7 +526,8 @@ private struct InterpretationOverviewView: View {
           title: section.title,
           content: section.content,
           evidenceSeedIDs: section.evidenceSeedIDs,
-          evidenceFactIDs: section.evidenceFactIDs
+          evidenceFactIDs: section.evidenceFactIDs,
+          interpretationContentVersion: InterpretationSourceCatalog.contentVersion
         )
       }
 
@@ -578,7 +579,8 @@ private struct InterpretationCategoryDisclosure: View {
               title: section.title,
               content: section.content,
               evidenceSeedIDs: section.evidenceSeedIDs,
-              evidenceFactIDs: section.evidenceFactIDs
+              evidenceFactIDs: section.evidenceFactIDs,
+              interpretationContentVersion: InterpretationSourceCatalog.contentVersion
             )
           }
 

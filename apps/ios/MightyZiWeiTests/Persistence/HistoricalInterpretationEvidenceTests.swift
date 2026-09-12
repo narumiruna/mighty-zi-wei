@@ -53,6 +53,31 @@ final class HistoricalInterpretationEvidenceTests: XCTestCase {
     )
   }
 
+  func test對話輪次保存內容版本且舊資料保持無版本() throws {
+    let current = ChartConversationTurn(
+      question: "問題",
+      answer: "回答",
+      evidenceSeedIDs: [seed.id],
+      evidenceFactIDs: [factID],
+      interpretationContentVersion: InterpretationContentVersion.current.rawValue
+    )
+    let encoded = try JSONEncoder().encode(current)
+    XCTAssertEqual(
+      try JSONDecoder().decode(ChartConversationTurn.self, from: encoded)
+        .interpretationContentVersion,
+      InterpretationContentVersion.current.rawValue
+    )
+    var legacyObject = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+    )
+    legacyObject.removeValue(forKey: "interpretationContentVersion")
+    let legacy = try JSONDecoder().decode(
+      ChartConversationTurn.self,
+      from: JSONSerialization.data(withJSONObject: legacyObject)
+    )
+    XCTAssertNil(legacy.interpretationContentVersion)
+  }
+
   func test重複ID或不完整Seeds不可供目前引用使用() {
     XCTAssertFalse(
       validator.isValid(

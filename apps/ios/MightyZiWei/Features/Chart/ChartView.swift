@@ -366,6 +366,16 @@ struct ChartView: View {
       let saved = try SavedChart.make(name: name, profile: chart.birthProfile, chart: chart)
       modelContext.insert(saved)
       try modelContext.save()
+      readingGuideStore.promote(
+        from: ChartReadingGuideProgressStore.Identity(
+          chartID: readingGuideSessionID,
+          chart: chart
+        ),
+        to: ChartReadingGuideProgressStore.Identity(
+          chartID: saved.id,
+          chart: chart
+        )
+      )
       newlySavedChartID = saved.id
       let savedAssistantChart = ChartAssistantChart.make(
         id: saved.id,

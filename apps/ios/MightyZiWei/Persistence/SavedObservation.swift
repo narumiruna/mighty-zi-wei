@@ -76,6 +76,13 @@ struct ObservationSnapshot: Codable, Equatable, Sendable {
         validFactIDs: Set(facts.map(\.id))
       )
     else { throw ObservationError.invalidSnapshot }
+
+    if source == .localInterpretation {
+      guard seeds.count == 1,
+        selectedText == seeds[0].meaning,
+        locationID == "interpretation.\(seeds[0].id)"
+      else { throw ObservationError.invalidSnapshot }
+    }
   }
 
   static func capture(
@@ -92,7 +99,7 @@ struct ObservationSnapshot: Codable, Equatable, Sendable {
       initialThought: initialThought,
       source: .localInterpretation,
       locationID: "interpretation.\(seed.id)",
-      contentVersion: "1",
+      contentVersion: InterpretationSourceCatalog.contentVersion,
       ruleSetID: chart.ruleSetID,
       ruleSetVersion: chart.ruleSetVersion,
       facts: seed.evidenceFactIDs.compactMap { factsByID[$0] },

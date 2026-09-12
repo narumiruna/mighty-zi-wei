@@ -7,6 +7,8 @@ struct ObservationRestorePlan {
   let reviewsToInsert: [SavedObservationReview]
   let existingObservations: [SavedObservation]
   let existingReviews: [SavedObservationReview]
+  let incomingObservationRevisions: [UUID: Date]
+  let incomingReviewRevisions: [UUID: Date]
 
   init(payload: ValidatedBackupPayload, modelContext: ModelContext) throws {
     let observations = try modelContext.fetch(FetchDescriptor<SavedObservation>())
@@ -37,16 +39,34 @@ struct ObservationRestorePlan {
     reviewsToInsert = newReviews
     existingObservations = payload.observations.compactMap { observationsByID[$0.id] }
     existingReviews = payload.reviews.compactMap { reviewsByID[$0.id] }
+    incomingObservationRevisions = Dictionary(
+      uniqueKeysWithValues: payload.observations.map { ($0.id, $0.modifiedAt) }
+    )
+    incomingReviewRevisions = Dictionary(
+      uniqueKeysWithValues: payload.reviews.map { ($0.id, $0.modifiedAt) }
+    )
   }
 
   func apply(modelContext: ModelContext, revision: Date) {
     observationsToInsert.forEach(modelContext.insert)
     reviewsToInsert.forEach(modelContext.insert)
     for observation in existingObservations + observationsToInsert {
-      observation.modifiedAt = max(observation.modifiedAt, revision)
+      observation.modifiedAt = max(
+        max(
+          observation.modifiedAt,
+          incomingObservationRevisions[observation.id] ?? revision
+        ),
+        revision
+      )
     }
     for review in existingReviews + reviewsToInsert {
-      review.modifiedAt = max(review.modifiedAt, revision)
+      review.modifiedAt = max(
+        max(
+          review.modifiedAt,
+          incomingReviewRevisions[review.id] ?? revision
+        ),
+        revision
+      )
     }
   }
 }

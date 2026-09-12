@@ -140,6 +140,72 @@ final class ObservationBackupTests: XCTestCase {
     XCTAssertFalse(cancelled)
   }
 
+  func test還原相同內容時保留較新的傳入修改時間() throws {
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    let chart = try ObservationTestSupport.chart()
+    let snapshot = try ObservationTestSupport.snapshot(chart: chart)
+    let createdAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let localModifiedAt = createdAt.addingTimeInterval(60)
+    let restoredAt = createdAt.addingTimeInterval(120)
+    let incomingModifiedAt = createdAt.addingTimeInterval(180)
+    let observationID = UUID()
+    let reviewID = UUID()
+    let localObservation = try SavedObservation(
+      id: observationID,
+      chartID: chart.id,
+      snapshot: snapshot,
+      createdAt: createdAt,
+      modifiedAt: localModifiedAt
+    )
+    let localReview = SavedObservationReview(
+      id: reviewID,
+      observationID: observationID,
+      chartID: chart.id,
+      content: "同一份回顧",
+      outcome: .matches,
+      createdAt: createdAt,
+      modifiedAt: localModifiedAt
+    )
+    context.insert(chart)
+    context.insert(localObservation)
+    context.insert(localReview)
+    try context.save()
+    let incomingObservation = try SavedObservation(
+      id: observationID,
+      chartID: chart.id,
+      snapshot: snapshot,
+      createdAt: createdAt,
+      modifiedAt: incomingModifiedAt
+    )
+    let incomingReview = SavedObservationReview(
+      id: reviewID,
+      observationID: observationID,
+      chartID: chart.id,
+      content: "同一份回顧",
+      outcome: .matches,
+      createdAt: createdAt,
+      modifiedAt: incomingModifiedAt
+    )
+    let payload = try ObservationTestSupport.payload(
+      chart: chart,
+      observations: [incomingObservation],
+      reviews: [incomingReview]
+    ).validated()
+
+    _ = try BackupRestoreService.restore(
+      payload,
+      existingCharts: [chart],
+      existingInsights: [],
+      modelContext: context,
+      restoredAt: restoredAt,
+      shortcutDefaults: nil
+    )
+
+    XCTAssertEqual(localObservation.modifiedAt, incomingModifiedAt)
+    XCTAssertEqual(localReview.modifiedAt, incomingModifiedAt)
+  }
+
   func test同一備份重試不重複回顧且不覆寫既有原文() throws {
     let container = try ObservationTestSupport.container()
     let context = ModelContext(container)

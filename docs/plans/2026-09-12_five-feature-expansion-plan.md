@@ -1,6 +1,6 @@
 # 五項功能分階段實作計畫
 
-## Goal
+## 目標
 
 深化三合派綜合解讀、新增互動讀盤導覽、擴充觀察筆記的前後回顧、提供解讀來源卡，以及支援農曆生日輸入。
 維持可離線排盤、基本解讀、不需要 App 帳號、無開發者後端、正體中文與漸進式揭露。
@@ -8,20 +8,43 @@
 人工審閱、額外研究費用與 CloudKit 測試／部署的既有界線仍適用，不能由執行授權推定已取得證據或測試環境。
 下列核取方塊依實際證據更新，未完成工作不得宣稱交付完成。
 
-## Context
+## 背景
 
 以下為 2026-09-12 的 repository 查核結果，並非本次執行測試的結果。
 路徑前綴 `App/`、`Domain/`、`Interpretation/`、`Persistence/`、`Features/`、`AI/` 與 `ZiWeiCore/` 均相對於 `apps/ios/MightyZiWei/`。
 `Tests/` 相對於 `apps/ios/MightyZiWeiTests/`，`UITests/` 相對於 `apps/ios/MightyZiWeiUITests/`。
 未存在的檔名均為計畫中的新增檔案。
 
-| 功能 | 已有基礎 | 本次需要補足的差距 |
-| --- | --- | --- |
-| 綜合解讀 | `Interpretation/InterpretationSeedBuilder.swift` 產生五個 baseline 與十四主星落宮 seeds。 | 身宮、四化、輔煞與三方四正沒有對應的核准個人化 seeds，現行 renderer 只並列線索，不宣稱支持或牽制關係。 |
-| 互動導覽 | `Features/Chart/ChartView.swift`、`PalaceDetailView.swift` 與 `ChartLearningContent.swift` 已有分層閱讀及教學文字。 | 缺少可跳過、續讀、逐步標示盤面位置的引導流程。 |
-| 前後回顧 | `Persistence/SavedInsight.swift` 與 `Features/SavedCharts/ChartJournalView.swift` 已有可編輯筆記、標記、收藏與自訂提醒。 | 更新筆記或收藏會改寫原內容，沒有獨立的原始觀察快照及後續回顧紀錄。 |
-| 來源卡 | 解讀、問答及收藏已有 seed-fact IDs，`InterpretationValidator` 驗證完整配對。 | `InterpretationSeed` 沒有來源、審核紀錄及內容版本；引用 IDs 通過不代表 AI 逐句語意已證明。 |
-| 農曆輸入 | `BirthProfile` 只接受公曆，`CalendarNormalizer` 依出生地時區執行 Foundation 公曆轉農曆。 | 沒有農曆轉公曆輸入流程；現有 `LunarDate` 年份是六十年循環值，不能直接當作絕對農曆年。 |
+### 綜合解讀
+
+- 已有基礎：`Interpretation/InterpretationSeedBuilder.swift` 產生五個 baseline 與十四主星落宮 seeds。
+- 待補差距：身宮、四化、輔煞與三方四正沒有對應的核准個人化 seeds。
+- 待補差距：現行 renderer 只並列線索，不宣稱支持或牽制關係。
+
+### 互動導覽
+
+- 已有基礎：`Features/Chart/ChartView.swift`、`PalaceDetailView.swift` 與 `ChartLearningContent.swift` 已有分層閱讀及教學文字。
+- 待補差距：缺少可跳過、續讀、逐步標示盤面位置的引導流程。
+
+### 前後回顧
+
+- 已有基礎：`Persistence/SavedInsight.swift` 與 `Features/SavedCharts/ChartJournalView.swift` 已有可編輯筆記、標記、收藏與自訂提醒。
+- 待補差距：更新筆記或收藏會改寫原內容。
+- 待補差距：沒有獨立的原始觀察快照及後續回顧紀錄。
+
+### 來源卡
+
+- 已有基礎：解讀、問答及收藏已有 seed-fact IDs。
+- 已有基礎：`InterpretationValidator` 驗證完整配對。
+- 待補差距：`InterpretationSeed` 沒有來源、審核紀錄及內容版本。
+- 待補差距：引用 IDs 通過不代表 AI 逐句語意已證明。
+
+### 農曆輸入
+
+- 已有基礎：`BirthProfile` 只接受公曆。
+- 已有基礎：`CalendarNormalizer` 依出生地時區執行 Foundation 公曆轉農曆。
+- 待補差距：沒有農曆轉公曆輸入流程。
+- 待補差距：現有 `LunarDate` 年份是六十年循環值，不能直接當作絕對農曆年。
 
 `BackupPayload.currentSchemaVersion` 目前為 2，`SavedChart.schemaVersion` 為 1。
 `BackupPayload` 與 `CloudInsightPayload` 會以目前 builder 重新驗證歷史 evidence，擴充規則時必須處理版本相容性。
@@ -31,11 +54,12 @@
 Skill 的 `generate_chart_facts.py`、`seed-contract.json` 與 `check_knowledge_coverage.py` 固定假設 19 個 seeds，且 hash 目前只鎖定 builder 檔案。
 新增規則或拆出資料目錄後，不能只更新數量與 hash 讓檢查通過，必須同步建立新契約與反例測試。
 `RULESET.md` 尚有人工核對 gate，其對話保存敘述與 `PRODUCT.md` 不一致。
-實作前複核確認 `RULESET.md` 已使用正確的 `natal.star.ziWei.palace`；原計畫對此處大小寫不一致的描述有誤，不需變更產品 fact IDs。
+實作前複核確認 `RULESET.md` 已使用正確的 `natal.star.ziWei.palace`。
+`PRODUCT.md` 的兩個範例仍使用錯誤大小寫，本次已改成同一 stable fact ID，沒有變更執行中的產品 fact IDs。
 完整度量表也有落後於現行 seed-ID validator 的文字。
 這些差異須在相關契約階段修正，不能假設文件與測試基準已一致。
 
-## Non-Goals
+## 非目標
 
 - 大限、流年、流月、流日、每日吉凶分數與精確事件預測。
 - 合盤適配度、出生時辰推定、真太陽時、廟旺利陷、自化、飛化或新增流派切換。
@@ -44,7 +68,7 @@ Skill 的 `generate_chart_facts.py`、`seed-contract.json` 與 `check_knowledge_
 - 自動送出 AI 請求、把私人回顧當成命盤 facts，或以主觀認同統計命理準確率。
 - 未取得合法來源與人工審核就讓 AI 補出命理含義。
 
-## Architecture
+## 架構
 
 ```mermaid
 flowchart TD
@@ -108,17 +132,39 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 依目前出生地時區與完整當地時間核對，不擅自改成台灣時區，也不把閏月輸入先套用「閏月作下月」排盤規則。
 本階段只保存使用者確認的公曆資料；農曆輸入草稿與模式不永久保存，避免為輸入便利新增命盤 migration。
 
-## Unknowns
+## 待確認事項
 
-| 待確認項目 | 解決工作 | 無法解決時的處置 |
-| --- | --- | --- |
-| 身宮、四化與試點組合有哪些合法、充分且不依賴未支援規則的來源？ | 階段 0 建立有限 claim 清單及逐條來源紀錄。 | 保留 facts-only，不啟用缺證據的個人化含義。 |
-| 誰能審閱三合派規則與正體中文安全文案？ | 階段 0 記錄審閱者、範圍、內容版本與交付方式。 | 人工 gate 維持開放，不由 agent 自行認證。 |
-| Foundation 反向曆法轉換在海外時區、跨年與歷史時間是否符合既有規則？ | 階段 0 建立實驗與獨立 fixtures，階段 5 完成雙向核對。 | 拒絕無法唯一確認的輸入，不靜默修正既有排盤。 |
-| 新舊 App 共用 CloudKit 時如何保護歷史 evidence 與刪除關係？ | 階段 0 定義相容矩陣，階段 4 使用版本化 payload 與獨立 record types 驗證。 | 停用新增資料的同步，保留既有可用資料，待相容性通過。 |
-| 現有完整度 checker 與測試基準是否通過？ | 階段 0 執行本機基準檢查，記錄原有失敗與新增失敗。 | 不降低檢查條件，不把原有失敗藏成新功能通過。 |
+### 新命理含義的來源
 
-## Plan
+- 待確認：身宮、四化與試點組合有哪些合法、充分且不依賴未支援規則的來源？
+- 解決工作：階段 0 建立有限 claim 清單及逐條來源紀錄。
+- 無法解決時：保留 facts-only，不啟用缺證據的個人化含義。
+
+### 人工審閱者
+
+- 待確認：誰能審閱三合派規則與正體中文安全文案？
+- 解決工作：階段 0 記錄審閱者、範圍、內容版本與交付方式。
+- 無法解決時：人工 gate 維持開放，不由 agent 自行認證。
+
+### Foundation 反向曆法轉換
+
+- 待確認：海外時區、跨年與歷史時間是否符合既有規則？
+- 解決工作：階段 0 建立實驗與獨立 fixtures，階段 5 完成雙向核對。
+- 無法解決時：拒絕無法唯一確認的輸入，不靜默修正既有排盤。
+
+### CloudKit 相容性
+
+- 待確認：新舊 App 共用 CloudKit 時如何保護歷史 evidence 與刪除關係？
+- 解決工作：階段 0 定義相容矩陣，階段 4 使用版本化 payload 與獨立 record types 驗證。
+- 無法解決時：停用新增資料的同步，保留既有可用資料，待相容性通過。
+
+### 完整度檢查基準
+
+- 待確認：現有完整度 checker 與測試基準是否通過？
+- 解決工作：階段 0 執行本機基準檢查，記錄原有失敗與新增失敗。
+- 無法解決時：不降低檢查條件，不把原有失敗藏成新功能通過。
+
+## 計畫
 
 依序執行階段 0 至 6，只在取得實作授權後開始。
 來源卡先於綜合解讀建立，因為它提供新規則共用的來源與版本基礎。
@@ -157,7 +203,7 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 - [x] 為現行 seeds 建立來源對照與 legacy 政策，保留既有 ID 及 meaning；以現行 builder 測試及未具專家證據的項目不得顯示「已審閱」驗收。
 - [x] 調整 `PersistedInterpretationEvidenceValidator` 及歷史資料讀取路徑，分開目前可用 evidence、已知歷史版本與無版本封存文字；以新增歷史 evidence 測試確認內容可讀但不能冒充目前已核准依據。
 - [x] 新增 `Features/Interpretation/InterpretationSourceView.swift`，由解讀與問答的既有 evidence 區塊展開來源卡；以 UI 測試確認預設不展開、本機資料離線可讀、引用可定位、缺少資料有明確狀態，外部來源只在使用者主動開啟時連網，且不增加 API 請求。
-- [x] 將收藏詳情接入同一來源卡，對無版本舊收藏顯示限制而非補造來源；以 `SavedInsightTests` 與收藏 UI 測試確認舊資料仍可閱讀及刪除。
+- [x] 將收藏詳情接入同一來源卡，新收藏與新保存對話保留內容版本，對無版本舊資料顯示限制而非補造來源；以 `SavedInsightTests`、歷史對話測試與收藏 UI 測試確認舊資料仍可閱讀及刪除。
 
 ### 階段 2：有限範圍的三合派綜合解讀
 
@@ -173,7 +219,7 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 
 - [x] 新增 `Features/Chart/ChartReadingGuide.swift`，定義「命宮、主星、三方四正、解讀依據」四步及純本機進度；以新增導覽 model 測試驗證前後步驟、跳過、重開、完成及不同命盤不共用錯誤位置。
 - [x] 新增 `Features/Chart/ChartReadingGuideView.swift` 並由命盤探索區提供次要入口，重用既有宮位顯示；以 UI 測試確認每步一個主要操作、退出後主要閱讀／問答入口仍可見，且不新增主分頁。
-- [x] 建立以命盤身分、ruleset 與導覽內容版本區分的本機續讀狀態；以測試確認 App 重開可續讀、命盤刪除可清除進度、版本失效可安全重啟，以及未儲存命盤只保留本次進度。
+- [x] 建立以命盤身分、ruleset 與導覽內容版本區分的本機續讀狀態；以測試確認 App 重開可續讀、命盤刪除可清除進度、版本失效可安全重啟、未儲存命盤只保留本次進度，以及首次儲存後把本次進度轉成新命盤的持久狀態。
 - [ ] 為空宮與未具核准 meaning 的步驟提供 facts-only 教學；以空宮案例、VoiceOver 線性替代、最大 Dynamic Type、Dark Mode 與 Reduce Motion 的 UI／人工檢查驗收，不把對宮主星搬成本宮星曜。
 
 ### 階段 4：觀察快照與前後回顧
@@ -181,7 +227,7 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 - [x] 新增 `Persistence/SavedObservation.swift` 與 `SavedObservationReview.swift`，分開不可覆寫的起始快照與可新增的回顧；以新增 `Tests/Persistence/SavedObservationTests.swift` 驗證版本與依據保存、回顧不改原文、刪除關係、缺少版本不回填認證。
 - [x] 更新 `AppModelContainerLoader` 的 schema 與 migration 路徑；以在本機暫存路徑建立的舊版 store 測試驗證命盤、筆記、收藏、對話及 tombstones 不遺失，失敗不建立空白替代資料庫。
 - [x] 沿 payload／衝突策略／同步協調責任拆分 `ICloudSyncService.swift`；以現有 `PracticalFeaturesTests` 的同步、衝突、提醒及刪除測試全數維持通過，且所有受影響來源檔不超過 1,000 行或附具體保留理由驗收。
-- [x] 擴充 `BackupPayload` 與 `BackupRestoreService` 至新 payload 版本，保持加密封裝不變；以 `EncryptedBackupServiceTests` 與新增 restore 測試驗證 v1／v2 遷移、新版快照往返、未知版本拒絕、引用完整性、重複 ID 與失敗原子性。
+- [x] 擴充 `BackupPayload` 與 `BackupRestoreService` 至新 payload 版本，保持加密封裝不變；以 `EncryptedBackupServiceTests` 與新增 restore 測試驗證 v1／v2 遷移、新版快照往返、未知版本拒絕、引用完整性、重複 ID、傳入修改時間保留與失敗原子性。
 - [x] 新增觀察與回顧的獨立 CloudKit payload、同步協調及刪除處理；以 mock 測試驗證舊裝置修改原筆記不改快照、命盤 tombstone 清除子資料、同一回顧重試不重複、部分遠端失敗保留本機，以及不同裝置回顧不互相覆蓋。
 - [x] 擴充 `Features/SavedCharts/ChartJournalView.swift` 的「開始觀察」與「新增回顧」流程；以 UI 測試確認儲存前揭露選取內容、回顧同時呈現原始想法與新紀錄，以及「符合／不符合／尚無法判斷」不轉成準確率。
 - [x] 更新 `ReviewReminderScheduler`、刪除命盤及刪除全部資料路徑，處理新模型的提醒與關聯；以提醒授權拒絕仍可保存觀察、儲存失敗不取消有效舊提醒、刪除後沒有孤兒提醒驗收。
@@ -207,6 +253,9 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
   - 17 項新增 UI 測試的單次合併命令超過 300 秒，之後依 class 分組；最終農曆 6 項與觀察 3 項分別於 `UI-Lunar-Final.xcresult`、`UI-Observation-Final.xcresult` 全數通過。
   - Skill checker `--self-test` 退出碼 0、100/100，五項 seed 契約與反例測試通過；紀錄為 `knowledge-final-3.log` 與 `seed-contract-final-2.log`。
   - XcodeGen 2.46.0 重新產生專案，模擬器 build 退出碼 0；本次驗證結果及其二進位產物只留在本機 `/tmp`。
+  - PR review 修正後，對本次另外修改的 19 個 Swift 檔重新執行格式化與兩套 strict lint，三者退出碼皆為 0。
+  - PR review 修正後，284 項單元測試全部通過；來源卡 4 項 UI 測試中 3 項於 class run 通過，問答項因鍵盤未關閉造成按鈕未觸發，改用既有問題建議消除輸入法依賴後單獨重跑通過。
+  - PR review 修正後，讀盤導覽 4 項 UI 測試全部通過；review 驗證產物只留在本機 `/tmp/mighty-ziwei-pr26-review/`。
 - [ ] 執行三合派內容與正體中文人工品質檢查；以至少 20 張代表命盤、每張五分類、100% evidence 契約通過、零高風險／確定事件違規，以及至少 80% 解讀可讀性達 4/5 驗收，並另外確認試點支持／牽制案例確實出現。
 - [ ] 執行五項功能的人工端到端檢查；以離線、無 API、App 鎖、無障礙、舊資料升級與雙裝置同步案例紀錄驗收，CloudKit 實機驗證只能在使用者另行授權的測試帳號／環境進行。
 - [ ] 整理交付紀錄並取得使用者接受；以未完成事項為零或已明確接受且更新範圍驗收，不執行 App 上傳，全部實作與完成檢查成立後才刪除此計畫並回報路徑。
@@ -275,19 +324,49 @@ xcodebuild test \
 測試生成的 `.xcresult`、資料庫、PDF、圖片與其他二進位檔僅留在本機暫存路徑，不暫存、提交、上傳或傳送。
 外部來源另行查核時只保存合法的文字書目、必要短摘錄與定位資料。
 
-## Risks
+## 風險
 
-| 風險 | 處置及驗收界線 |
-| --- | --- |
-| 組合解讀只是把單星文字拼接成新主張。 | 組合需要獨立核准的條件與 meaning，缺少任一必要訊號就不產生；人工審閱與正反測試均不可省略。 |
-| 來源可追溯被誤解為科學證明或專家認證。 | 來源卡分開文本、轉譯、App 契約及專家審核狀態，不顯示預測準確率。 |
-| 舊引用被新版 catalog 重新詮釋。 | 保留內容版本與歷史文字，未知版本只能封存閱讀；不回填不存在的審核證據。 |
-| 新資料被舊裝置同步或刪除流程破壞。 | 使用獨立 record types、版本化 payload 與父命盤 tombstone 測試；不相容時停用新資料同步而非刪資料。 |
-| 農曆轉換在不同時區不一致。 | 固定沿用目前時區語意，使用獨立 fixtures、雙向核對與唯一性檢查；規則若需改動，另行提升版本。 |
-| 功能擠壓主要閱讀流程。 | 不新增主分頁，導覽與來源卡由使用者展開；主操作、儲存狀態與錯誤資訊始終可見。 |
-| 測試、審核或平台環境不可用。 | 保持相關核取方塊未勾選，明列所需外部條件，不把 mock 通過宣稱為實機或人工驗收。 |
+### 組合解讀只是把單星文字拼接成新主張
 
-## Rollback / Recovery
+- 處置：組合需要獨立核准的條件與 meaning。
+- 驗收界線：缺少任一必要訊號就不產生。
+- 驗收界線：人工審閱與正反測試均不可省略。
+
+### 來源可追溯被誤解為科學證明或專家認證
+
+- 處置：來源卡分開文本、轉譯、App 契約及專家審核狀態。
+- 驗收界線：不顯示預測準確率。
+
+### 舊引用被新版 catalog 重新詮釋
+
+- 處置：保留內容版本與歷史文字。
+- 驗收界線：未知版本只能封存閱讀。
+- 驗收界線：不回填不存在的審核證據。
+
+### 新資料被舊裝置同步或刪除流程破壞
+
+- 處置：使用獨立 record types、版本化 payload 與父命盤 tombstone 測試。
+- 驗收界線：不相容時停用新資料同步而非刪資料。
+
+### 農曆轉換在不同時區不一致
+
+- 處置：固定沿用目前時區語意。
+- 驗收界線：使用獨立 fixtures、雙向核對與唯一性檢查。
+- 驗收界線：規則若需改動，另行提升版本。
+
+### 功能擠壓主要閱讀流程
+
+- 處置：不新增主分頁。
+- 處置：導覽與來源卡由使用者展開。
+- 驗收界線：主操作、儲存狀態與錯誤資訊始終可見。
+
+### 測試、審核或平台環境不可用
+
+- 處置：保持相關核取方塊未勾選。
+- 處置：明列所需外部條件。
+- 驗收界線：不把 mock 通過宣稱為實機或人工驗收。
+
+## 回復與復原
 
 - 新規則可停用並回到既有基本 seeds，但保留歷史 catalog 與快照的讀取支援，不以降版 App 直接開啟新 store 作為復原方式。
 - schema migration 在本機暫存的舊版 store 副本上先驗證；遷移失敗保留原資料及可重試錯誤，不自動重建空白資料庫。
@@ -296,7 +375,7 @@ xcodebuild test \
 - 停用新增同步種類只停止後續傳送，不代表已刪除遠端資料；遠端刪除與 schema 部署均須另外明確授權。
 - 關閉農曆入口不修改任何已確認並儲存的公曆 `BirthProfile`。
 
-## Completion Checklist
+## 完成檢查清單
 
 - [ ] 五項功能均完成對應階段與驗收；有限組合清單已凍結、所有必要人工 gate 已有證據，未以 facts-only 退回冒充綜合解讀完成。
 - [x] 既有公曆輸入 golden charts 不變；若發現必須修正的既有規則，已經另行確認範圍、提升 ruleset version 並補測試。

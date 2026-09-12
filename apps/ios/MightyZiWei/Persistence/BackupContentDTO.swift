@@ -93,6 +93,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
   let marker: String
   let evidenceSeedIDs: [String]
   let evidenceFactIDs: [String]
+  let contentVersion: String?
   let reviewDate: Date?
   let createdAt: Date
   let updatedAt: Date
@@ -107,6 +108,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     marker: String = SavedInsight.Marker.none.rawValue,
     evidenceSeedIDs: [String] = [],
     evidenceFactIDs: [String] = [],
+    contentVersion: String? = nil,
     reviewDate: Date? = nil,
     createdAt: Date = .now,
     updatedAt: Date = .now
@@ -120,6 +122,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     self.marker = marker
     self.evidenceSeedIDs = evidenceSeedIDs
     self.evidenceFactIDs = evidenceFactIDs
+    self.contentVersion = contentVersion
     self.reviewDate = reviewDate
     self.createdAt = createdAt
     self.updatedAt = updatedAt
@@ -136,6 +139,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
       marker: savedInsight.markerRawValue,
       evidenceSeedIDs: savedInsight.evidenceSeedIDs,
       evidenceFactIDs: savedInsight.evidenceFactIDs,
+      contentVersion: savedInsight.interpretationContentVersion,
       reviewDate: savedInsight.reviewDate,
       createdAt: savedInsight.createdAt,
       updatedAt: savedInsight.updatedAt
@@ -153,6 +157,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
       marker: SavedInsight.Marker(rawValue: marker)!,
       evidenceSeedIDs: evidenceSeedIDs,
       evidenceFactIDs: evidenceFactIDs,
+      interpretationContentVersion: contentVersion,
       reviewDate: reviewDate,
       createdAt: createdAt,
       updatedAt: updatedAt
@@ -166,10 +171,11 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     savedInsight.title = title
     savedInsight.content = body
     savedInsight.markerRawValue = marker
-    savedInsight.evidenceSeedIDsData =
-      (try? BackupJSONCoding.encoder().encode(evidenceSeedIDs)) ?? Data("[]".utf8)
-    savedInsight.evidenceFactIDsData =
-      (try? BackupJSONCoding.encoder().encode(evidenceFactIDs)) ?? Data("[]".utf8)
+    savedInsight.setEvidence(
+      seedIDs: evidenceSeedIDs,
+      factIDs: evidenceFactIDs,
+      contentVersion: contentVersion
+    )
     savedInsight.reviewDate = reviewDate
     savedInsight.reminderIdentifier = nil
     savedInsight.createdAt = createdAt
@@ -186,6 +192,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
     case marker
     case evidenceSeedIDs
     case evidenceFactIDs
+    case contentVersion
     case reviewDate
     case createdAt
     case updatedAt
@@ -206,6 +213,7 @@ struct BackupInsightDTO: Codable, Equatable, Sendable {
         forKey: .evidenceSeedIDs
       ) ?? []
     evidenceFactIDs = try container.decode([String].self, forKey: .evidenceFactIDs)
+    contentVersion = try container.decodeIfPresent(String.self, forKey: .contentVersion)
     reviewDate = try container.decodeIfPresent(Date.self, forKey: .reviewDate)
     createdAt = try container.decode(Date.self, forKey: .createdAt)
     updatedAt = try container.decode(Date.self, forKey: .updatedAt)

@@ -128,7 +128,8 @@ struct ConversationTurnView: View {
       title: "命盤助理：\(turn.question)",
       content: displayedAnswer,
       evidenceSeedIDs: turn.evidenceSeedIDs,
-      evidenceFactIDs: turn.evidenceFactIDs
+      evidenceFactIDs: turn.evidenceFactIDs,
+      interpretationContentVersion: contentVersion
     )
   }
 

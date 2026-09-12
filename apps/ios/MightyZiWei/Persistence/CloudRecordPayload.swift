@@ -124,6 +124,7 @@ struct CloudInsightPayload: Codable {
   let marker: String
   let evidenceSeedIDs: [String]
   let evidenceFactIDs: [String]
+  let contentVersion: String?
   let reviewDate: Date?
   let createdAt: Date
   let updatedAt: Date
@@ -138,6 +139,7 @@ struct CloudInsightPayload: Codable {
     marker = insight.markerRawValue
     evidenceSeedIDs = insight.evidenceSeedIDs
     evidenceFactIDs = insight.evidenceFactIDs
+    contentVersion = insight.interpretationContentVersion
     reviewDate = insight.reviewDate
     createdAt = insight.createdAt
     updatedAt = insight.updatedAt
@@ -190,6 +192,7 @@ struct CloudInsightPayload: Codable {
       marker: SavedInsight.Marker(rawValue: marker) ?? .none,
       evidenceSeedIDs: evidenceSeedIDs,
       evidenceFactIDs: evidenceFactIDs,
+      interpretationContentVersion: contentVersion,
       reviewDate: reviewDate,
       reminderIdentifier: nil,
       createdAt: createdAt,
@@ -204,8 +207,11 @@ struct CloudInsightPayload: Codable {
     insight.title = title
     insight.content = content
     insight.markerRawValue = marker
-    insight.evidenceSeedIDsData = (try? JSONEncoder().encode(evidenceSeedIDs)) ?? Data("[]".utf8)
-    insight.evidenceFactIDsData = (try? JSONEncoder().encode(evidenceFactIDs)) ?? Data("[]".utf8)
+    insight.setEvidence(
+      seedIDs: evidenceSeedIDs,
+      factIDs: evidenceFactIDs,
+      contentVersion: contentVersion
+    )
     insight.reviewDate = reviewDate
     insight.createdAt = createdAt
     insight.updatedAt = updatedAt
@@ -221,6 +227,7 @@ struct CloudInsightPayload: Codable {
     case marker
     case evidenceSeedIDs
     case evidenceFactIDs
+    case contentVersion
     case reviewDate
     case createdAt
     case updatedAt
@@ -241,6 +248,7 @@ struct CloudInsightPayload: Codable {
         forKey: .evidenceSeedIDs
       ) ?? []
     evidenceFactIDs = try container.decode([String].self, forKey: .evidenceFactIDs)
+    contentVersion = try container.decodeIfPresent(String.self, forKey: .contentVersion)
     reviewDate = try container.decodeIfPresent(Date.self, forKey: .reviewDate)
     createdAt = try container.decode(Date.self, forKey: .createdAt)
     updatedAt = try container.decode(Date.self, forKey: .updatedAt)
