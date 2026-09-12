@@ -26,13 +26,15 @@ struct BackupDocument: FileDocument {
 
 enum BackupRestoreWarning {
   static let message =
-    "還原會以備份取代相同識別碼命盤的整本筆記與收藏。本機較新的內容若不在備份中，也會永久刪除。"
+    "還原會以備份取代相同識別碼命盤的整本筆記與收藏。本機較新的內容若不在備份中，也會永久刪除。觀察與回顧只追加；同 ID 原文不同時停止還原，不覆寫初步想法。舊備份不會刪除現有觀察；通知不會自動重設。"
 }
 
 struct BackupManagementView: View {
   @Environment(\.modelContext) private var modelContext
   @Query(sort: \SavedChart.updatedAt, order: .reverse) private var charts: [SavedChart]
   @Query private var insights: [SavedInsight]
+  @Query private var observations: [SavedObservation]
+  @Query private var reviews: [SavedObservationReview]
 
   @State private var exportDocument: BackupDocument?
   @State private var exportRecoveryKey = ""
@@ -50,13 +52,16 @@ struct BackupManagementView: View {
   var body: some View {
     Form {
       Section {
-        Text("備份包含已儲存命盤、私人筆記與收藏；不包含 API key、endpoint、AI 對話或衍生命盤快取。")
-          .font(.footnote)
+        Text(
+          "備份包含已儲存命盤、私人筆記、收藏、觀察快照、原始想法、當時依據與後續回顧；不包含 API key、endpoint、完整 AI 對話或衍生命盤快取。未同意 iCloud 同步的觀察也會納入你主動建立的加密備份。"
+        )
+        .font(.footnote)
       }
 
       Section("建立加密備份") {
         LabeledContent("命盤", value: "\(charts.count) 張")
         LabeledContent("筆記與收藏", value: "\(insights.count) 則")
+        LabeledContent("觀察與回顧", value: "\(observations.count) 則觀察、\(reviews.count) 則回顧")
         Button {
           prepareExport()
         } label: {
@@ -183,7 +188,9 @@ struct BackupManagementView: View {
       let includedInsights = insights.filter { chartIDs.contains($0.chartID) }
       let snapshot = try BackupExportSnapshot(
         savedCharts: charts,
-        savedInsights: includedInsights
+        savedInsights: includedInsights,
+        savedObservations: observations,
+        savedReviews: reviews
       )
       isExporting = true
 
@@ -265,7 +272,9 @@ struct BackupManagementView: View {
         importedData = nil
         importedFilename = nil
         importRecoveryKey = ""
-        statusMessage = "已還原 \(result.chartCount) 張命盤與 \(result.insightCount) 則筆記或收藏。"
+        statusMessage =
+          "已還原 \(result.chartCount) 張命盤、\(result.insightCount) 則筆記或收藏、"
+          + "\(result.observationCount) 則觀察與 \(result.reviewCount) 則回顧。"
       } catch {
         modelContext.rollback()
         errorMessage = safeMessage(for: error)

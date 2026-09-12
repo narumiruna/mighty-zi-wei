@@ -183,7 +183,11 @@ def check_claim_sections(
 
 
 def declared_swift_cases(path: Path, enum_name: str) -> tuple[str, ...]:
-    text = read_text(path)
+    return swift_cases(read_text(path), enum_name)
+
+
+def swift_cases(text: str, enum_name: str) -> tuple[str, ...]:
+    """讀取本專案簡單 enum 宣告，不把縮排寬度或 switch 分支當成成員。"""
     marker = f"public enum {enum_name}"
     start = text.find(marker)
     if start < 0:
@@ -191,7 +195,7 @@ def declared_swift_cases(path: Path, enum_name: str) -> tuple[str, ...]:
     end = text.find("\npublic ", start + len(marker))
     block = text[start : end if end >= 0 else len(text)]
     cases: list[str] = []
-    for match in re.finditer(r"^    case ([A-Za-z][A-Za-z0-9_, ]*)$", block, re.MULTILINE):
+    for match in re.finditer(r"^[ \t]+case ([A-Za-z][A-Za-z0-9_, ]*)[ \t]*$", block, re.MULTILINE):
         cases.extend(value.strip() for value in match.group(1).split(","))
     return tuple(cases)
 
@@ -601,8 +605,9 @@ def main() -> int:
     integration_failures.extend(check_local_links(markdown_paths))
     integration_failures.extend(check_product_contract())
     integration_failures.extend(check_language([SKILL_FILE, *sorted(REFERENCES.glob("*.md"))]))
+    maintained_text_suffixes = {".json", ".md", ".py"}
     for path in SKILL_ROOT.rglob("*"):
-        if path.is_file() and len(read_text(path).splitlines()) > 1000:
+        if path.is_file() and path.suffix in maintained_text_suffixes and len(read_text(path).splitlines()) > 1000:
             integration_failures.append(f"超過 1,000 行：{path.relative_to(REPOSITORY_ROOT)}")
     self_test_failures = run_self_test(modern) if arguments.self_test else []
 

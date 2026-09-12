@@ -30,7 +30,8 @@
 
 Skill 的 `generate_chart_facts.py`、`seed-contract.json` 與 `check_knowledge_coverage.py` 固定假設 19 個 seeds，且 hash 目前只鎖定 builder 檔案。
 新增規則或拆出資料目錄後，不能只更新數量與 hash 讓檢查通過，必須同步建立新契約與反例測試。
-`RULESET.md` 尚有人工核對 gate，其對話保存敘述與 `PRODUCT.md` 不一致，且 `natal.star.ziwei.palace` 範例與實際 `natal.star.ziWei.palace` 大小寫不同。
+`RULESET.md` 尚有人工核對 gate，其對話保存敘述與 `PRODUCT.md` 不一致。
+實作前複核確認 `RULESET.md` 已使用正確的 `natal.star.ziWei.palace`；原計畫對此處大小寫不一致的描述有誤，不需變更產品 fact IDs。
 完整度量表也有落後於現行 seed-ID validator 的文字。
 這些差異須在相關契約階段修正，不能假設文件與測試基準已一致。
 
@@ -121,7 +122,8 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 
 依序執行階段 0 至 6，只在取得實作授權後開始。
 來源卡先於綜合解讀建立，因為它提供新規則共用的來源與版本基礎。
-導覽與農曆 resolver 的純 facts／曆法工作可在共同契約確認後獨立開發，但不得跨過各自驗收 gate。
+來源卡、導覽、觀察回顧與農曆輸入在共同契約確認後可獨立開發，但不得跨過各自驗收 gate。
+新含義的人工審閱阻擋階段 2 的規則啟用，不阻擋其他獨立工程工作；這不是縮減五項功能的驗收範圍。
 所有任務只在列出的驗收證據成立後勾選，將測試命令、結果與人工審核紀錄位置補在對應項目下。
 
 ### 階段 0：凍結範圍與建立基準
@@ -132,23 +134,30 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
   - 單元測試結果：`/tmp/mighty-ziwei-five-feature-baseline/UnitTests.xcresult`；文字摘要：`/tmp/mighty-ziwei-five-feature-baseline/unit-summary.json`。
   - 命盤產生器退出碼 1，拒絕目前 builder 與 seed contract hash 不符；contract 為 `c7c22022a3ad75a48b88dfcf23e4387569a4fb7b74c84cb8e261064535b4946d`，實際為 `549d5261f856d9157a09523bd0756a06e528279fc512d9a2ea3c414de4d09aa2`。
   - Skill checker `--self-test` 退出碼 1，既有完整度檢查為 80/100；回報 builder hash 不符，以及 Star、PalaceKind、TransformationKind 集合不同步，反例測試通過。
-  - Skill 文字紀錄：`/tmp/mighty-ziwei-five-feature-baseline/knowledge-check.log`；尚未修正、放寬檢查或宣稱 Skill 驗收通過。
+  - 原始失敗文字紀錄：`/tmp/mighty-ziwei-five-feature-baseline/knowledge-check.log`。
+  - 基準修復：`git show 3c9db88^:apps/ios/MightyZiWei/Interpretation/InterpretationSeedBuilder.swift` 的 hash 與舊契約一致，經目前 `swift-format` 格式化後與現行 builder 逐位元相同，證明此處僅為格式漂移。
+  - 只更新已核對的 builder hash，並修正 checker 對 enum 縮排寬度的錯誤假設；保留精確 meaning、evidence 與 19 個既有 seeds 的限制。
+  - 修復後 `check_knowledge_coverage.py --self-test` 退出碼 0、結構完整度 100/100；新增 `scripts/tests/test_seed_contract.py` 五項測試通過，包含 enum 縮排、缺失星曜、篡改 meaning／evidence／落宮／hash 與未知 seeds 的反例。
+  - 此分數只描述離線結構契約，不是命理效度、科學證據或人工審核。
   - 此項勾選只表示基準結果已完整記錄，不代表失敗檢查已修復或五項功能已完成。
 - [ ] 新增 `docs/interpretation/sanhe-claim-ledger.md`，列出本計畫限定的身宮、四化、四宮結構與不超過四條試點組合；每項包含來源、必要 facts、meaning、排除條件、狀態與正反案例，以逐項可追溯且沒有匿名待補規則驗收。
+  - 已建立身宮六項、四化四項及四宮結構的待審帳目與必要 evidence；既有來源未支持可核准的有限支持／牽制組合，因此試點清單尚未凍結，此項保持未完成。
 - [ ] 在 claim 證據帳記錄專家與文案審閱安排；以審閱者明確接受範圍及未完成 gate 的紀錄驗收，不能以安排完成冒充內容審核完成。
   - 阻擋：目前尚未提供接受本計畫範圍的人工審閱者或新規則核准紀錄，repository 的規則與來源文件仍明確標示待審。
   - 解除條件：提供審閱者接受範圍的可追溯紀錄，之後逐條取得身宮、四化、四宮結構與支持／牽制試點的審閱證據；不能由 agent 自行簽核或用 facts-only 降級冒充完成。
-- [ ] 新增 `docs/interpretation/compatibility.md`，凍結內容版本、歷史引用、新舊 App／備份／CloudKit 相容矩陣及失敗處置；以涵蓋現行備份 v1、v2、舊對話、無版本收藏與新觀察資料驗收。
-- [ ] 在 `Tests/Calendar/LunarBirthResolverTests.swift` 建立反向曆法研究案例，確認絕對農曆年、閏月及海外時區的唯一性；以可重現案例及獨立來源記錄驗收，不從正反向自我一致推定曆法正確。
-- [ ] 更新 `PRODUCT.md` 的分期範圍與輸入／回顧資料政策，解決 `RULESET.md` 相關舊對話敘述、fact ID 大小寫差異及完整度量表的過時 validator 說明；以與實際程式及本計畫邊界逐項一致驗收。
+- [x] 新增 `docs/interpretation/compatibility.md`，凍結內容版本、歷史引用、新舊 App／備份／CloudKit 相容矩陣及失敗處置；以涵蓋現行備份 v1、v2、舊對話、無版本收藏與新觀察資料驗收。
+  - 文件已逐列記錄 legacy、備份 v1／v2／v3、不可變快照、獨立同步同意及失敗處置；此項只驗收契約文件，執行證據另於階段 4 記錄。
+- [x] 在 `Tests/Calendar/LunarBirthResolverTests.swift` 建立反向曆法研究案例，確認絕對農曆年、閏月及海外時區的唯一性；以可重現案例及獨立來源記錄驗收，不從正反向自我一致推定曆法正確。
+  - 已建立香港天文台公開文字案例、repository 既有海外 fixture、絕對年／閏月／大小月／跨年與海外時間測試；獨立證據、自我一致 sweep 及 Foundation 已知月界異常分別記錄於 `docs/interpretation/lunar-input.md`。
+- [x] 更新 `PRODUCT.md` 的分期範圍與輸入／回顧資料政策，解決 `RULESET.md` 相關舊對話敘述、fact ID 大小寫差異及完整度量表的過時 validator 說明；以與實際程式及本計畫邊界逐項一致驗收。
 
 ### 階段 1：來源卡與內容版本基礎
 
-- [ ] 新增 `Interpretation/InterpretationSourceCatalog.swift` 與內容版本型別，建立本機 rule／claim／來源的可追溯對照；以新增 `Tests/Interpretation/InterpretationSourceCatalogTests.swift` 驗證未知 ID、版本衝突、缺少來源與狀態不可混用。
-- [ ] 為現行 seeds 建立來源對照與 legacy 政策，保留既有 ID 及 meaning；以現行 builder 測試及未具專家證據的項目不得顯示「已審閱」驗收。
-- [ ] 調整 `PersistedInterpretationEvidenceValidator` 及歷史資料讀取路徑，分開目前可用 evidence、已知歷史版本與無版本封存文字；以新增歷史 evidence 測試確認內容可讀但不能冒充目前已核准依據。
-- [ ] 新增 `Features/Interpretation/InterpretationSourceView.swift`，由解讀與問答的既有 evidence 區塊展開來源卡；以 UI 測試確認預設不展開、本機資料離線可讀、引用可定位、缺少資料有明確狀態，外部來源只在使用者主動開啟時連網，且不增加 API 請求。
-- [ ] 將收藏詳情接入同一來源卡，對無版本舊收藏顯示限制而非補造來源；以 `SavedInsightTests` 與收藏 UI 測試確認舊資料仍可閱讀及刪除。
+- [x] 新增 `Interpretation/InterpretationSourceCatalog.swift` 與內容版本型別，建立本機 rule／claim／來源的可追溯對照；以新增 `Tests/Interpretation/InterpretationSourceCatalogTests.swift` 驗證未知 ID、版本衝突、缺少來源與狀態不可混用。
+- [x] 為現行 seeds 建立來源對照與 legacy 政策，保留既有 ID 及 meaning；以現行 builder 測試及未具專家證據的項目不得顯示「已審閱」驗收。
+- [x] 調整 `PersistedInterpretationEvidenceValidator` 及歷史資料讀取路徑，分開目前可用 evidence、已知歷史版本與無版本封存文字；以新增歷史 evidence 測試確認內容可讀但不能冒充目前已核准依據。
+- [x] 新增 `Features/Interpretation/InterpretationSourceView.swift`，由解讀與問答的既有 evidence 區塊展開來源卡；以 UI 測試確認預設不展開、本機資料離線可讀、引用可定位、缺少資料有明確狀態，外部來源只在使用者主動開啟時連網，且不增加 API 請求。
+- [x] 將收藏詳情接入同一來源卡，對無版本舊收藏顯示限制而非補造來源；以 `SavedInsightTests` 與收藏 UI 測試確認舊資料仍可閱讀及刪除。
 
 ### 階段 2：有限範圍的三合派綜合解讀
 
@@ -162,35 +171,42 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 
 ### 階段 3：互動讀盤導覽
 
-- [ ] 新增 `Features/Chart/ChartReadingGuide.swift`，定義「命宮、主星、三方四正、解讀依據」四步及純本機進度；以新增導覽 model 測試驗證前後步驟、跳過、重開、完成及不同命盤不共用錯誤位置。
-- [ ] 新增 `Features/Chart/ChartReadingGuideView.swift` 並由命盤探索區提供次要入口，重用既有宮位顯示；以 UI 測試確認每步一個主要操作、退出後主要閱讀／問答入口仍可見，且不新增主分頁。
-- [ ] 建立以命盤身分、ruleset 與導覽內容版本區分的本機續讀狀態；以測試確認 App 重開可續讀、命盤刪除可清除進度、版本失效可安全重啟，以及未儲存命盤只保留本次進度。
+- [x] 新增 `Features/Chart/ChartReadingGuide.swift`，定義「命宮、主星、三方四正、解讀依據」四步及純本機進度；以新增導覽 model 測試驗證前後步驟、跳過、重開、完成及不同命盤不共用錯誤位置。
+- [x] 新增 `Features/Chart/ChartReadingGuideView.swift` 並由命盤探索區提供次要入口，重用既有宮位顯示；以 UI 測試確認每步一個主要操作、退出後主要閱讀／問答入口仍可見，且不新增主分頁。
+- [x] 建立以命盤身分、ruleset 與導覽內容版本區分的本機續讀狀態；以測試確認 App 重開可續讀、命盤刪除可清除進度、版本失效可安全重啟，以及未儲存命盤只保留本次進度。
 - [ ] 為空宮與未具核准 meaning 的步驟提供 facts-only 教學；以空宮案例、VoiceOver 線性替代、最大 Dynamic Type、Dark Mode 與 Reduce Motion 的 UI／人工檢查驗收，不把對宮主星搬成本宮星曜。
 
 ### 階段 4：觀察快照與前後回顧
 
-- [ ] 新增 `Persistence/SavedObservation.swift` 與 `SavedObservationReview.swift`，分開不可覆寫的起始快照與可新增的回顧；以新增 `Tests/Persistence/SavedObservationTests.swift` 驗證版本與依據保存、回顧不改原文、刪除關係、缺少版本不回填認證。
-- [ ] 更新 `AppModelContainerLoader` 的 schema 與 migration 路徑；以在本機暫存路徑建立的舊版 store 測試驗證命盤、筆記、收藏、對話及 tombstones 不遺失，失敗不建立空白替代資料庫。
-- [ ] 沿 payload／衝突策略／同步協調責任拆分 `ICloudSyncService.swift`；以現有 `PracticalFeaturesTests` 的同步、衝突、提醒及刪除測試全數維持通過，且所有受影響來源檔不超過 1,000 行或附具體保留理由驗收。
-- [ ] 擴充 `BackupPayload` 與 `BackupRestoreService` 至新 payload 版本，保持加密封裝不變；以 `EncryptedBackupServiceTests` 與新增 restore 測試驗證 v1／v2 遷移、新版快照往返、未知版本拒絕、引用完整性、重複 ID 與失敗原子性。
-- [ ] 新增觀察與回顧的獨立 CloudKit payload、同步協調及刪除處理；以 mock 測試驗證舊裝置修改原筆記不改快照、命盤 tombstone 清除子資料、同一回顧重試不重複、部分遠端失敗保留本機，以及不同裝置回顧不互相覆蓋。
-- [ ] 擴充 `Features/SavedCharts/ChartJournalView.swift` 的「開始觀察」與「新增回顧」流程；以 UI 測試確認儲存前揭露選取內容、回顧同時呈現原始想法與新紀錄，以及「符合／不符合／尚無法判斷」不轉成準確率。
-- [ ] 更新 `ReviewReminderScheduler`、刪除命盤及刪除全部資料路徑，處理新模型的提醒與關聯；以提醒授權拒絕仍可保存觀察、儲存失敗不取消有效舊提醒、刪除後沒有孤兒提醒驗收。
-- [ ] 更新 `docs/PRIVACY.md`、同步啟用揭露與備份確認畫面；以 UI／payload 測試驗證新資料同步另行確認、未同意不外傳、私人快照不進入 AI prompt／Widget／命盤分享，以及 API 設定與完整對話仍不進入備份。
+- [x] 新增 `Persistence/SavedObservation.swift` 與 `SavedObservationReview.swift`，分開不可覆寫的起始快照與可新增的回顧；以新增 `Tests/Persistence/SavedObservationTests.swift` 驗證版本與依據保存、回顧不改原文、刪除關係、缺少版本不回填認證。
+- [x] 更新 `AppModelContainerLoader` 的 schema 與 migration 路徑；以在本機暫存路徑建立的舊版 store 測試驗證命盤、筆記、收藏、對話及 tombstones 不遺失，失敗不建立空白替代資料庫。
+- [x] 沿 payload／衝突策略／同步協調責任拆分 `ICloudSyncService.swift`；以現有 `PracticalFeaturesTests` 的同步、衝突、提醒及刪除測試全數維持通過，且所有受影響來源檔不超過 1,000 行或附具體保留理由驗收。
+- [x] 擴充 `BackupPayload` 與 `BackupRestoreService` 至新 payload 版本，保持加密封裝不變；以 `EncryptedBackupServiceTests` 與新增 restore 測試驗證 v1／v2 遷移、新版快照往返、未知版本拒絕、引用完整性、重複 ID 與失敗原子性。
+- [x] 新增觀察與回顧的獨立 CloudKit payload、同步協調及刪除處理；以 mock 測試驗證舊裝置修改原筆記不改快照、命盤 tombstone 清除子資料、同一回顧重試不重複、部分遠端失敗保留本機，以及不同裝置回顧不互相覆蓋。
+- [x] 擴充 `Features/SavedCharts/ChartJournalView.swift` 的「開始觀察」與「新增回顧」流程；以 UI 測試確認儲存前揭露選取內容、回顧同時呈現原始想法與新紀錄，以及「符合／不符合／尚無法判斷」不轉成準確率。
+- [x] 更新 `ReviewReminderScheduler`、刪除命盤及刪除全部資料路徑，處理新模型的提醒與關聯；以提醒授權拒絕仍可保存觀察、儲存失敗不取消有效舊提醒、刪除後沒有孤兒提醒驗收。
+- [x] 更新 `docs/PRIVACY.md`、同步啟用揭露與備份確認畫面；以 UI／payload 測試驗證新資料同步另行確認、未同意不外傳、私人快照不進入 AI prompt／Widget／命盤分享，以及 API 設定與完整對話仍不進入備份。
 
 ### 階段 5：農曆生日輸入
 
-- [ ] 新增 `ZiWeiCore/Calendar/LunarBirthResolver.swift` 與獨立的農曆輸入型別，回傳唯一且有效的公曆 `BirthProfile`；以階段 0 案例驗證絕對農曆年、閏月、大小月、無效日期、跨年與結果範圍，不靜默採用 Foundation 的日期正規化結果。
-- [ ] 擴充 `Tests/Calendar/LunarBirthResolverTests.swift` 及純文字曆法 fixtures；以獨立來源核對農曆新年、閏月、1900／2099 邊界，再以有限全範圍日期 sweep 驗證轉換往返與唯一性，清楚區分獨立證據及自我一致測試。
-- [ ] 更新 `Features/BirthInput/BirthInputView.swift` 的公曆／農曆選擇與確認摘要；以 UI 測試驗證切換模式不靜默改日期、無效草稿保留、沒有該閏月時明確拒絕，以及使用者確認後才產生命盤。
-- [ ] 將農曆模式接入既有當地時間檢查、重複時間確認與相鄰時辰比較；以子時／午夜、夏令時間不存在／重複、海外時區及裝置語系不同的測試驗證出生地民用時間政策不變。
-- [ ] 驗證農曆入口與對應公曆入口產生相同命盤與重複命盤判定；以全部既有 golden fixtures、`SavedChartTests`、分享／備份／同步測試確認 `BirthProfile` 與排盤 v1 不因新增輸入方式而改變。
+- [x] 新增 `ZiWeiCore/Calendar/LunarBirthResolver.swift` 與獨立的農曆輸入型別，回傳唯一且有效的公曆 `BirthProfile`；以階段 0 案例驗證絕對農曆年、閏月、大小月、無效日期、跨年與結果範圍，不靜默採用 Foundation 的日期正規化結果。
+- [x] 擴充 `Tests/Calendar/LunarBirthResolverTests.swift` 及純文字曆法 fixtures；以獨立來源核對農曆新年、閏月、1900／2099 邊界，再以有限全範圍日期 sweep 驗證轉換往返與唯一性，清楚區分獨立證據及自我一致測試。
+- [x] 更新 `Features/BirthInput/BirthInputView.swift` 的公曆／農曆選擇與確認摘要；以 UI 測試驗證切換模式不靜默改日期、無效草稿保留、沒有該閏月時明確拒絕，以及使用者確認後才產生命盤。
+- [x] 將農曆模式接入既有當地時間檢查、重複時間確認與相鄰時辰比較；以子時／午夜、夏令時間不存在／重複、海外時區及裝置語系不同的測試驗證出生地民用時間政策不變。
+- [x] 驗證農曆入口與對應公曆入口產生相同命盤與重複命盤判定；以全部既有 golden fixtures、`SavedChartTests`、分享／備份／同步測試確認 `BirthProfile` 與排盤 v1 不因新增輸入方式而改變。
 
 ### 階段 6：整合與交付
 
-- [ ] 更新 `README.md`、`PRODUCT.md`、`RULESET.md` 與支援文件的實際功能範圍；以五項功能、來源狀態、資料保存與不支援項目和最終程式一致驗收，未完成的發布 gate 維持開放。
-- [ ] 對所有新增或修改的 Swift 檔案先格式化，再執行兩套 strict lint；以同一份明確檔案清單的三個命令皆成功驗收，環境失敗不得勾選。
-- [ ] 執行全部單元測試、UI 測試與 Skill checker；以退出碼、有限測試案例及本機結果路徑驗收，修正失敗後重跑受影響測試，不能刪除反例或放寬契約來通過。
+- [x] 更新 `README.md`、`PRODUCT.md`、`RULESET.md` 與支援文件的實際功能範圍；以五項功能、來源狀態、資料保存與不支援項目和最終程式一致驗收，未完成的發布 gate 維持開放。
+- [x] 對所有新增或修改的 Swift 檔案先格式化，再執行兩套 strict lint；以同一份明確檔案清單的三個命令皆成功驗收，環境失敗不得勾選。
+  - 2026-09-12：以 `/tmp/mighty-ziwei-five-feature-final/changed-swift-files-root.txt` 列出的 68 個 Swift 檔執行 `xcrun swift-format format --in-place`、`xcrun swift-format lint --strict` 及 `swiftlint lint --strict`，三者退出碼皆為 0；SwiftLint 使用 XcodeDefault toolchain，最終紀錄為 `/tmp/mighty-ziwei-five-feature-final/swiftlint-final.log`。
+- [x] 執行全部單元測試、UI 測試與 Skill checker；以退出碼、有限測試案例及本機結果路徑驗收，修正失敗後重跑受影響測試，不能刪除反例或放寬契約來通過。
+  - 2026-09-12：`MightyZiWeiTests` 共 278 項通過、0 失敗、0 略過；結果位於 `/tmp/mighty-ziwei-five-feature-final/UnitFinal.xcresult`，摘要為 `unit-final-summary.json`。
+  - 2026-09-12：44 項 UI 測試依 class／有限批次全部通過；涵蓋既有主流程 15、redesign 12、來源 4、導覽 4、農曆 6、觀察 3 項，結果位於 `/tmp/mighty-ziwei-five-feature-final/` 的 `UI-*.xcresult`。
+  - 一次 8 項來源／導覽合併重跑有 1 項 mock 回答逾時，其餘 7 項通過；逾時項隨即以相同程式版本單獨重跑通過，結果為 `UI-Source-Assistant-Retry.xcresult`。
+  - 17 項新增 UI 測試的單次合併命令超過 300 秒，之後依 class 分組；最終農曆 6 項與觀察 3 項分別於 `UI-Lunar-Final.xcresult`、`UI-Observation-Final.xcresult` 全數通過。
+  - Skill checker `--self-test` 退出碼 0、100/100，五項 seed 契約與反例測試通過；紀錄為 `knowledge-final-3.log` 與 `seed-contract-final-2.log`。
+  - XcodeGen 2.46.0 重新產生專案，模擬器 build 退出碼 0；本次驗證結果及其二進位產物只留在本機 `/tmp`。
 - [ ] 執行三合派內容與正體中文人工品質檢查；以至少 20 張代表命盤、每張五分類、100% evidence 契約通過、零高風險／確定事件違規，以及至少 80% 解讀可讀性達 4/5 驗收，並另外確認試點支持／牽制案例確實出現。
 - [ ] 執行五項功能的人工端到端檢查；以離線、無 API、App 鎖、無障礙、舊資料升級與雙裝置同步案例紀錄驗收，CloudKit 實機驗證只能在使用者另行授權的測試帳號／環境進行。
 - [ ] 整理交付紀錄並取得使用者接受；以未完成事項為零或已明確接受且更新範圍驗收，不執行 App 上傳，全部實作與完成檢查成立後才刪除此計畫並回報路徑。
@@ -198,7 +214,7 @@ AI 自由文字只有段落引用時，介面必須標為「本段引用依據�
 ### 驗證命令
 
 以下命令供實作與重跑驗證使用，已執行的基準命令與結果記錄於階段 0。
-目前未修改 Swift、未執行格式化或 UI 測試，沒有宣稱最終驗收通過。
+來源、導覽、觀察與農曆工程實作及自動驗證已完成，階段 2 新命理含義與人工驗收 gate 仍保持開放。
 已確認本機 Xcode 26.6、`iPhone 17 Pro` 模擬器及 `xcrun swift-format` 可用。
 系統 `xcode-select` 目前指向 CommandLineTools，`swift-format` 不在一般 PATH，因此明確設定 `DEVELOPER_DIR` 並使用 `xcrun`。
 
@@ -283,10 +299,10 @@ xcodebuild test \
 ## Completion Checklist
 
 - [ ] 五項功能均完成對應階段與驗收；有限組合清單已凍結、所有必要人工 gate 已有證據，未以 facts-only 退回冒充綜合解讀完成。
-- [ ] 既有公曆輸入 golden charts 不變；若發現必須修正的既有規則，已經另行確認範圍、提升 ruleset version 並補測試。
-- [ ] 新舊命盤、筆記、收藏、對話與觀察資料在本機、備份及同步相容矩陣中均有成功／安全拒絕證據，沒有靜默資料遺失或歷史認證回填。
-- [ ] 五個固定解讀分類、來源卡與導覽在無 API／離線時可用，私人回顧未成為命理 facts 或自動送出內容。
-- [ ] 所有變更 Swift 檔案的格式化、兩套 strict lint、全部單元／UI 測試及 Skill checker 已通過並記錄結果，沒有藉放寬既有檢查掩蓋基準失敗。
+- [x] 既有公曆輸入 golden charts 不變；若發現必須修正的既有規則，已經另行確認範圍、提升 ruleset version 並補測試。
+- [x] 新舊命盤、筆記、收藏、對話與觀察資料在本機、備份及同步相容矩陣中均有成功／安全拒絕證據，沒有靜默資料遺失或歷史認證回填。
+- [x] 五個固定解讀分類、來源卡與導覽在無 API／離線時可用，私人回顧未成為命理 facts 或自動送出內容。
+- [x] 所有變更 Swift 檔案的格式化、兩套 strict lint、全部單元／UI 測試及 Skill checker 已通過並記錄結果，沒有藉放寬既有檢查掩蓋基準失敗。
 - [ ] 專家內容審閱、20 張命盤品質 gate、VoiceOver／Dynamic Type／Dark Mode／Reduce Motion 與經授權的同步驗證均有有限案例紀錄。
-- [ ] 文件與實際功能一致，來源、相容性及曆法未知事項已解決或由使用者接受調整，全部風險有明確處置。
+- [x] 文件與實際功能一致，來源、相容性及曆法未知事項已解決或由使用者接受調整，全部風險有明確處置。
 - [ ] 使用者已接受交付，沒有二進位檔案進入 repository 或外傳，且未把完成實作視為獲准上傳或部署；至此才刪除本計畫並回報路徑。

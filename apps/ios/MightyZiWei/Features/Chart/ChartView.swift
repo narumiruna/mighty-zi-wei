@@ -47,6 +47,8 @@ struct ChartView: View {
   @State private var assistantChartID = UUID()
   @State private var showsAssistantSwitchConfirmation = false
   @State private var showsSharing = false
+  @State private var readingGuideStore = ChartReadingGuideProgressStore()
+  @State private var readingGuideSessionID = UUID()
   @State private var duplicateChart: SavedChart?
   @State private var isSaved = false
   @State private var newlySavedChartID: UUID?
@@ -133,6 +135,26 @@ struct ChartView: View {
             title: "自由探索十二宮",
             subtitle: "宮格顯示主星分布；點選宮位可查看完整內容。"
           )
+
+          NavigationLink {
+            ChartReadingGuideView(
+              chart: chart,
+              chartID: effectiveSavedChartID,
+              sessionID: readingGuideSessionID,
+              store: readingGuideStore
+            )
+            .id(
+              ChartReadingGuideProgressStore.Identity(
+                chartID: effectiveSavedChartID ?? readingGuideSessionID,
+                chart: chart
+              )
+            )
+          } label: {
+            Label("四步認識這張命盤", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+          }
+          .buttonStyle(.bordered)
+          .accessibilityHint("可跳過或續讀，不影響閱讀與問答")
+          .accessibilityIdentifier("chart.readingGuide")
 
           ChartOverview(
             chart: chart,
@@ -638,10 +660,11 @@ private struct ChartIdentityCard: View {
   }
 }
 
-private struct PalaceOverviewCell: View {
+struct PalaceOverviewCell: View {
   let palace: ChartPalace
   var stars: [StarPlacement] = []
   var size: CGFloat?
+  var showsNavigationHint = true
 
   private var mainStarNames: [String] {
     stars.filter { $0.star.category == .main }.map(\.star.displayName)
@@ -681,7 +704,7 @@ private struct PalaceOverviewCell: View {
     .contentShape(RoundedRectangle(cornerRadius: AppDesign.compactCornerRadius))
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityText)
-    .accessibilityHint("點兩下查看宮位內容")
+    .accessibilityHint(showsNavigationHint ? "點兩下查看宮位內容" : "")
   }
 
   private var compactContent: some View {

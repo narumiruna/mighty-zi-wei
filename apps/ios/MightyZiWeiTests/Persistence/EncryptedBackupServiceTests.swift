@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import CryptoKit
 import Foundation
 import SwiftData
@@ -7,7 +6,6 @@ import XCTest
 @testable import MightyZiWei
 
 @MainActor
-// swiftlint:disable:next type_body_length
 final class EncryptedBackupServiceTests: XCTestCase {
   func test備份往返只保留來源資料與通用Insight() throws {
     let savedChart = try makeSavedChart()
@@ -61,8 +59,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
     let insights = try XCTUnwrap(root["insights"] as? [[String: Any]])
     let insight = try XCTUnwrap(insights.first)
 
-    XCTAssertEqual(Set(root.keys), ["charts", "insights", "schemaVersion"])
-    // swiftlint:disable trailing_comma
+    XCTAssertEqual(
+      Set(root.keys), ["charts", "insights", "observations", "reviews", "schemaVersion"])
     XCTAssertEqual(
       Set(chart.keys),
       [
@@ -92,7 +90,6 @@ final class EncryptedBackupServiceTests: XCTestCase {
         "title",
         "updatedAt",
       ])
-    // swiftlint:enable trailing_comma
 
     let json = try XCTUnwrap(String(data: data, encoding: .utf8))
     XCTAssertFalse(json.contains("chartCacheData"))
@@ -166,7 +163,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
   func test拒絕不支援的PayloadSchema() throws {
     let fixture = try makeValidPayloadFixture()
     var object = fixture.object
-    object["schemaVersion"] = 3
+    object["schemaVersion"] = 4
     let backupData = try seal(
       JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
       recoveryKey: fixture.recoveryKey
@@ -178,7 +175,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         recoveryKey: fixture.recoveryKey
       )
     ) { error in
-      XCTAssertEqual(error as? BackupError, .unsupportedPayloadSchema(3))
+      XCTAssertEqual(error as? BackupError, .unsupportedPayloadSchema(4))
     }
   }
 
@@ -343,6 +340,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
       for: SavedChart.self,
       SavedInsight.self,
       CloudDeletion.self,
+      SavedObservation.self,
+      SavedObservationReview.self,
       configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let context = ModelContext(container)
@@ -368,7 +367,6 @@ final class EncryptedBackupServiceTests: XCTestCase {
     XCTAssertEqual(restoredInsights.first?.evidenceFactIDs, ["natal.palace.life.branch"])
   }
 
-  // swiftlint:disable:next function_body_length
   func test還原會清除舊刪除標記更新同步版本取消舊提醒並重設捷徑() throws {
     let incomingChart = try makeSavedChart()
     incomingChart.isPinned = true
@@ -411,6 +409,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
       for: SavedChart.self,
       SavedInsight.self,
       CloudDeletion.self,
+      SavedObservation.self,
+      SavedObservationReview.self,
       configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let context = ModelContext(container)

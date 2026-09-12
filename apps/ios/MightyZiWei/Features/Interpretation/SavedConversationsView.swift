@@ -206,6 +206,17 @@ private struct SavedConversationDetailView: View {
               .foregroundStyle(.secondary)
             Text(turn.answer)
               .textSelection(.enabled)
+            if turn.status == .answered {
+              NavigationLink {
+                InterpretationSourceView(
+                  seedIDs: turn.evidenceSeedIDs, factIDs: turn.evidenceFactIDs,
+                  contentVersion: nil, isAIGenerated: true
+                )
+              } label: {
+                Label("查看本段引用依據（版本未保存）", systemImage: "books.vertical")
+              }
+              .accessibilityIdentifier("conversation.archivedSources.\(turn.id.uuidString)")
+            }
             if turn.status == .unsupported {
               Label("當時無法用命盤回答", systemImage: "questionmark.bubble")
                 .font(.caption)
@@ -260,7 +271,9 @@ private struct SavedConversationDetailView: View {
       Button("取消", role: .cancel) {}
     } message: {
       Text(
-        "純文字將包含\(SavedConversationExportPrivacyGuard().fieldSummary)：命盤名稱「\(conversation.chartName)」、命盤資料「\(conversation.chartDetail)」。下一步仍需點選匯出按鈕才會開啟系統分享選單。"
+        "純文字將包含\(SavedConversationExportPrivacyGuard().fieldSummary)："
+          + "命盤名稱「\(conversation.chartName)」、命盤資料「\(conversation.chartDetail)」。"
+          + "下一步仍需點選匯出按鈕才會開啟系統分享選單。"
       )
     }
     .confirmationDialog(

@@ -69,7 +69,7 @@ final class PracticalFeaturesTests: XCTestCase {
     )
     XCTAssertEqual(
       PersistenceRecoveryMessage.iCloudRestoration,
-      "如果先前已開啟 iCloud 同步，重建成功後會自動同步已存在 iCloud 的命盤、筆記與收藏。對話只儲存在本機，不會復原。"
+      "如果先前已開啟 iCloud 同步，重建成功後會自動同步已存在 iCloud 的命盤、筆記與收藏；觀察與回顧只有另行同意同步過的內容能復原。對話只儲存在本機，不會復原。"
     )
     XCTAssertEqual(message, "目前無法重建本機資料。請確認裝置有足夠儲存空間後再試。")
     XCTAssertFalse(message.contains(frameworkError.localizedDescription))
@@ -242,19 +242,18 @@ final class PracticalFeaturesTests: XCTestCase {
   }
 
   func test保存AI對話可重新命名搜尋並匯出純文字() throws {
+    let turn = ChartConversationTurn(
+      question: "我的工作風格如何？",
+      answer: "你可能傾向先掌握方向。",
+      evidenceFactIDs: ["natal.palace.life.branch"]
+    )
     let conversation = SavedConversation(
       chartID: UUID(),
       chartName: "常用命盤",
       chartDetail: "1990/06/15　10:30",
       modelIdentifier: "example-model",
       title: "工作討論",
-      turns: [
-        ChartConversationTurn(
-          question: "我的工作風格如何？",
-          answer: "你可能傾向先掌握方向。",
-          evidenceFactIDs: ["natal.palace.life.branch"]
-        )
-      ]
+      turns: [turn]
     )
     let container = try ModelContainer(
       for: SavedConversation.self,
@@ -721,19 +720,17 @@ final class PracticalFeaturesTests: XCTestCase {
     XCTAssertEqual(plan.chartIDs, [deletedChart.id])
     XCTAssertEqual(plan.insightIDs, [childInsight.id, independentInsight.id])
 
+    let deletion = CloudDeletion(
+      entityID: deletedChart.id,
+      entityType: "SavedChart",
+      deletedAt: newer
+    )
+    let remoteRevisions = [deletedChart.id: newer.addingTimeInterval(60)]
     let newerRemotePlan = CloudLocalTombstonePlanner().makePlan(
       charts: [deletedChart],
       insights: [],
-      deletions: [
-        CloudDeletion(
-          entityID: deletedChart.id,
-          entityType: "SavedChart",
-          deletedAt: newer
-        )
-      ],
-      remoteChartUpdatedAt: [
-        deletedChart.id: newer.addingTimeInterval(60)
-      ]
+      deletions: [deletion],
+      remoteChartUpdatedAt: remoteRevisions
     )
     XCTAssertTrue(newerRemotePlan.chartIDs.isEmpty)
   }
@@ -907,11 +904,12 @@ final class PracticalFeaturesTests: XCTestCase {
     do {
       let _: Void = try await CloudSyncMutationTransaction.run(
         modelContext: context,
-        onRollback: { didRunRollbackAction = true }
-      ) {
-        try chart.rename(to: "尚未完成")
-        throw SyncTransactionTestError.expected
-      }
+        onRollback: { didRunRollbackAction = true },
+        operation: {
+          try chart.rename(to: "尚未完成")
+          throw SyncTransactionTestError.expected
+        }
+      )
       XCTFail("同步錯誤應向呼叫端拋出。")
     } catch SyncTransactionTestError.expected {
       // 預期錯誤。
@@ -944,7 +942,8 @@ final class PracticalFeaturesTests: XCTestCase {
     XCTAssertEqual(restoredNote.reviewDate, makeDate(2027, 1, 1))
     XCTAssertNil(restoredNote.reminderIdentifier)
     let encoded = try BackupJSONCoding.encoder().encode(payload)
-    XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("secret-device-id"))
+    let json = try XCTUnwrap(String(bytes: encoded, encoding: .utf8))
+    XCTAssertFalse(json.contains("secret-device-id"))
   }
 
   private var testCalendar: Calendar {

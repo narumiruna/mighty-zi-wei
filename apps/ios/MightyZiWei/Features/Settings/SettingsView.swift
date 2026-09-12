@@ -12,8 +12,10 @@ struct SettingsView: View {
   @Query private var insights: [SavedInsight]
   @Query private var deletions: [CloudDeletion]
   @AppStorage(ICloudSyncService.enabledKey) private var iCloudSyncEnabled = false
+  @AppStorage(ObservationSyncConsent.enabledKey) private var observationSyncEnabled = false
   @AppStorage("accessibility.linear-chart") private var linearChartEnabled = false
   @State private var showsICloudEnablePreview = false
+  @State private var showsObservationSyncPreview = false
   @State private var errorMessage: String?
 
   var body: some View {
@@ -66,6 +68,16 @@ struct SettingsView: View {
           }
 
           if iCloudSyncEnabled {
+            Toggle("同步觀察快照與回顧", isOn: observationSyncBinding)
+              .disabled(iCloudSyncCoordinator.isSyncing)
+              .accessibilityIdentifier("settings.icloud.observations.toggle")
+            Text(
+              observationSyncEnabled
+                ? "已另行同意同步觀察、原始想法、當時依據與後續回顧。關閉不會刪除 iCloud 已有內容。"
+                : "觀察與回顧目前只保存在本機，需另行同意才會同步；仍可主動建立加密備份。"
+            )
+            .font(.footnote).foregroundStyle(.secondary)
+            .accessibilityIdentifier("settings.icloud.observations.disclosure")
             Label(syncStatusMessage, systemImage: syncStatusSymbol)
               .font(.footnote)
               .foregroundStyle(syncStatusIsIncomplete ? .orange : .secondary)
@@ -95,7 +107,8 @@ struct SettingsView: View {
           Text(
             """
             預設關閉。開啟後資料會存入你 Apple ID 的私人 CloudKit 資料庫；同一筆內容衝突時保留較新的修改，刪除也會同步。\
-            API 設定、API key、AI 對話與提醒通知不會同步。\
+            API 設定、API key、AI 對話與提醒通知不會同步。觀察與回顧須另行同意，且不可變原文衝突時停止套用。\
+            刪除父命盤仍會清除其本機觀察與回顧。\
             關閉同步只停止後續同步，不會刪除 iCloud 已有資料。Apple 會依 iCloud 條款處理資料。
             """
           )
@@ -143,7 +156,23 @@ struct SettingsView: View {
         Button("取消", role: .cancel) {}
       } message: {
         Text(
-          "會同步：已儲存命盤、筆記、收藏與刪除紀錄。\n不會同步：API 設定、API key、AI 對話與提醒通知。同步會使用你 Apple ID 的私人 CloudKit 資料庫。")
+          "會同步：已儲存命盤、筆記、收藏與刪除紀錄。\n不會同步：API 設定、API key、AI 對話與提醒通知。觀察快照與回顧需要另行同意。同步會使用你 Apple ID 的私人 CloudKit 資料庫。"
+        )
+      }
+      .alert("另行同意同步觀察與回顧？", isPresented: $showsObservationSyncPreview) {
+        Button("同意並同步觀察") {
+          observationSyncEnabled = true
+          Task { await synchronizeNow() }
+        }
+        Button("取消", role: .cancel) {}
+      } message: {
+        Text(
+          """
+          將新增同步：你選取的單段文字、原始想法、當時命盤依據與解讀線索、來源版本、回顧時間、後續回顧與刪除紀錄。\
+          資料存入你 Apple ID 的私人 CloudKit 資料庫，不會送給 AI。不包含完整對話或提醒通知。\
+          關閉後不會刪除已送出的內容。
+          """
+        )
       }
       .alert("操作未完成", isPresented: errorIsPresented) {
         Button("好", role: .cancel) {}
@@ -170,6 +199,19 @@ struct SettingsView: View {
         } else {
           iCloudSyncEnabled = false
           iCloudSyncCoordinator.markDisabled()
+        }
+      }
+    )
+  }
+
+  private var observationSyncBinding: Binding<Bool> {
+    Binding(
+      get: { observationSyncEnabled },
+      set: { enabled in
+        if enabled {
+          showsObservationSyncPreview = true
+        } else {
+          observationSyncEnabled = false
         }
       }
     )

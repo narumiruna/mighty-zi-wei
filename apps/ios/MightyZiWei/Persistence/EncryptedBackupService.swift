@@ -148,7 +148,9 @@ enum EncryptedBackupService {
   static func makeBackup(_ snapshot: BackupExportSnapshot) throws -> EncryptedBackup {
     let payload = BackupPayload(
       charts: snapshot.charts,
-      insights: snapshot.insights
+      insights: snapshot.insights,
+      observations: snapshot.observations,
+      reviews: snapshot.reviews
     )
     return try encrypt(payload.validated())
   }
@@ -216,6 +218,8 @@ enum EncryptedBackupService {
     let payload: BackupPayload
     do {
       payload = try BackupJSONCoding.decoder().decode(BackupPayload.self, from: payloadData)
+    } catch let error as BackupError {
+      throw error
     } catch {
       throw BackupError.malformedBackup
     }

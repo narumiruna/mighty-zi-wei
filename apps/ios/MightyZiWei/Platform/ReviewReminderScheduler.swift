@@ -8,6 +8,7 @@ struct ReviewReminderScheduler: Sendable {
   static let reminderDatesKey = "privacy-widget.review-dates"
   static let privacyWidgetKind = "MightyZiWeiPrivacyWidget"
   static let reminderIdentifierPrefix = "review."
+  static let observationIdentifierPrefix = "observation-review."
 
   enum ReminderError: LocalizedError {
     case permissionDenied
@@ -76,7 +77,9 @@ struct ReviewReminderScheduler: Sendable {
   }
 
   static func reviewReminderIdentifiers(in identifiers: [String]) -> [String] {
-    identifiers.filter { $0.hasPrefix(reminderIdentifierPrefix) }
+    identifiers.filter {
+      $0.hasPrefix(reminderIdentifierPrefix) || $0.hasPrefix(observationIdentifierPrefix)
+    }
   }
 
   static func storeWidgetReminderDates(
@@ -97,6 +100,7 @@ struct ReviewReminderScheduler: Sendable {
     guard let identifier else { return }
     let center = UNUserNotificationCenter.current()
     center.removePendingNotificationRequests(withIdentifiers: [identifier])
+    center.removeDeliveredNotifications(withIdentifiers: [identifier])
     Task { await refreshWidgetReminder(center: center) }
   }
 
@@ -121,6 +125,37 @@ struct ReviewReminderScheduler: Sendable {
     let defaults = UserDefaults(suiteName: Self.sharedDefaultsSuite)
     Self.storeWidgetReminderDates([], defaults: defaults)
     WidgetCenter.shared.reloadTimelines(ofKind: Self.privacyWidgetKind)
+  }
+
+  /// 不含命盤名稱、私人文字，且不寫入 Widget 的提醒日期集合。
+  func scheduleObservation(observationID: UUID, date: Date) async throws -> String {
+    guard date > .now else { throw ReminderError.invalidDate }
+    let center = UNUserNotificationCenter.current()
+    let settings = await center.notificationSettings()
+    if settings.authorizationStatus == .notDetermined {
+      guard try await center.requestAuthorization(options: [.alert, .sound]) else {
+        throw ReminderError.permissionDenied
+      }
+    } else if settings.authorizationStatus == .denied {
+      throw ReminderError.permissionDenied
+    }
+    let identifier =
+      "\(Self.observationIdentifierPrefix)\(observationID.uuidString).\(UUID().uuidString)"
+    let content = UNMutableNotificationContent()
+    content.title = "回顧你的觀察"
+    content.body = "這是你自行設定的回顧提醒，不是命盤預測。請開啟 App 查看原始想法。"
+    content.sound = .default
+    content.userInfo = ["observationID": observationID.uuidString]
+    let components = Calendar.current.dateComponents(
+      [.year, .month, .day, .hour, .minute], from: date
+    )
+    try await center.add(
+      UNNotificationRequest(
+        identifier: identifier, content: content,
+        trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+      )
+    )
+    return identifier
   }
 
   private func addReminder(

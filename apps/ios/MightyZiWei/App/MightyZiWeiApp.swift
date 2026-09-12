@@ -74,6 +74,7 @@ enum AppModelContainerLoader {
       }
       return try ModelContainer(
         for: makeSchema(),
+        migrationPlan: AppModelSchemaMigrationPlan.self,
         configurations: [configuration]
       )
     }
@@ -111,13 +112,8 @@ enum AppModelContainerLoader {
     }
   }
 
-  private static func makeSchema() -> Schema {
-    Schema([
-      SavedChart.self,
-      SavedInsight.self,
-      SavedConversation.self,
-      CloudDeletion.self,
-    ])
+  static func makeSchema() -> Schema {
+    Schema(versionedSchema: AppModelSchemaV2.self)
   }
 }
 
@@ -227,7 +223,8 @@ struct PersistenceResetReloadValidator {
 struct PersistenceRecoveryMessage {
   static let unavailable = "系統目前無法讀取這台裝置的本機資料。"
   static let retryFailure = "仍無法讀取本機資料。你可以再次重試，或重建本機資料。"
-  static let iCloudRestoration = "如果先前已開啟 iCloud 同步，重建成功後會自動同步已存在 iCloud 的命盤、筆記與收藏。對話只儲存在本機，不會復原。"
+  static let iCloudRestoration =
+    "如果先前已開啟 iCloud 同步，重建成功後會自動同步已存在 iCloud 的命盤、筆記與收藏；觀察與回顧只有另行同意同步過的內容能復原。對話只儲存在本機，不會復原。"
 
   static func resetFailure(for error: any Error) -> String {
     guard let resetError = error as? PersistenceResetError else {
@@ -452,7 +449,7 @@ private struct PersistenceUnavailableView: View {
         }
 
         VStack(alignment: .leading, spacing: 8) {
-          Text("重建會刪除這台裝置上的本機命盤、筆記、收藏與對話。")
+          Text("重建會刪除這台裝置上的本機命盤、筆記、收藏、觀察、回顧與對話。")
           Text(PersistenceRecoveryMessage.iCloudRestoration)
           Text(PersistenceRecoveryMessage.unavailable)
             .font(.footnote)

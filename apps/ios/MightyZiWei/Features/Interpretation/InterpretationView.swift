@@ -70,7 +70,8 @@ struct InterpretationView: View {
             section: overview,
             factsByID: factsByID,
             seedsByID: seedsByID,
-            chartID: chartID
+            chartID: chartID,
+            isAIGenerated: selectedInterpretation.source == .remoteAI
           )
         }
 
@@ -86,7 +87,8 @@ struct InterpretationView: View {
               section: section,
               factsByID: factsByID,
               seedsByID: seedsByID,
-              chartID: chartID
+              chartID: chartID,
+              isAIGenerated: selectedInterpretation.source == .remoteAI
             )
           }
         }
@@ -481,6 +483,7 @@ private struct InterpretationOverviewView: View {
   let factsByID: [String: ChartFact]
   let seedsByID: [String: InterpretationSeed]
   let chartID: UUID?
+  let isAIGenerated: Bool
 
   private var leadingSummary: String {
     section.content
@@ -531,7 +534,8 @@ private struct InterpretationOverviewView: View {
         evidenceSeedIDs: section.evidenceSeedIDs,
         evidenceFactIDs: section.evidenceFactIDs,
         seedsByID: seedsByID,
-        factsByID: factsByID
+        factsByID: factsByID,
+        isAIGenerated: isAIGenerated
       )
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -545,6 +549,7 @@ private struct InterpretationCategoryDisclosure: View {
   let factsByID: [String: ChartFact]
   let seedsByID: [String: InterpretationSeed]
   let chartID: UUID?
+  let isAIGenerated: Bool
 
   @Environment(VoiceCoordinator.self) private var voiceCoordinator
   @State private var isExpanded = false
@@ -581,7 +586,8 @@ private struct InterpretationCategoryDisclosure: View {
             evidenceSeedIDs: section.evidenceSeedIDs,
             evidenceFactIDs: section.evidenceFactIDs,
             seedsByID: seedsByID,
-            factsByID: factsByID
+            factsByID: factsByID,
+            isAIGenerated: isAIGenerated
           )
         }
         .padding(.top, 10)
@@ -613,6 +619,7 @@ private struct InterpretationEvidenceDisclosure: View {
   let evidenceFactIDs: [String]
   let seedsByID: [String: InterpretationSeed]
   let factsByID: [String: ChartFact]
+  let isAIGenerated: Bool
 
   private var evidenceFacts: [ChartFact] {
     evidenceFactIDs.compactMap { factsByID[$0] }
@@ -628,8 +635,22 @@ private struct InterpretationEvidenceDisclosure: View {
 
       DisclosureGroup("查看完整判讀依據") {
         VStack(alignment: .leading, spacing: 12) {
+          NavigationLink {
+            InterpretationSourceView(
+              seedIDs: evidenceSeedIDs,
+              factIDs: evidenceFactIDs,
+              contentVersion: InterpretationSourceCatalog.contentVersion,
+              seeds: evidenceSeedIDs.compactMap { seedsByID[$0] },
+              facts: evidenceFacts,
+              isAIGenerated: isAIGenerated
+            )
+          } label: {
+            Label("本段引用依據與來源", systemImage: "books.vertical")
+          }
+          .accessibilityIdentifier("interpretation.sources")
+
           if !evidenceSeedIDs.isEmpty {
-            Text("使用的核准含義")
+            Text("使用的現行產品語句（專家待審）")
               .font(.caption.weight(.semibold))
               .foregroundStyle(.secondary)
             ForEach(evidenceSeedIDs, id: \.self) { identifier in
