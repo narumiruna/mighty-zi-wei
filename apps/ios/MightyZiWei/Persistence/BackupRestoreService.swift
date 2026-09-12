@@ -24,7 +24,8 @@ enum BackupRestoreService {
     },
     save: (ModelContext) throws -> Void = { try $0.save() }
   ) throws -> BackupRestoreResult {
-    let observationPlan = try ObservationRestorePlan(payload: payload, modelContext: modelContext)
+    let observationPlan = try makeObservationPlan(
+      payload, existingCharts: existingCharts, modelContext: modelContext)
     let validatedCharts = try payload.makeSavedCharts()
     let validatedChartsByID = Dictionary(
       uniqueKeysWithValues: validatedCharts.map { ($0.id, $0) }
@@ -106,7 +107,11 @@ enum BackupRestoreService {
       }
 
       matchingDeletions.forEach(modelContext.delete)
-      observationPlan.apply(modelContext: modelContext, revision: restorationRevision)
+      reminderIdentifiersToCancel.append(
+        contentsOf: observationPlan.apply(
+          modelContext: modelContext,
+          revision: restorationRevision
+        ))
       try save(modelContext)
     } catch {
       modelContext.rollback()
@@ -124,6 +129,28 @@ enum BackupRestoreService {
       insightCount: payload.insights.count,
       observationCount: payload.observations.count,
       reviewCount: payload.reviews.count
+    )
+  }
+
+  private static func makeObservationPlan(
+    _ payload: ValidatedBackupPayload,
+    existingCharts: [SavedChart],
+    modelContext: ModelContext
+  ) throws -> ObservationRestorePlan {
+    let incomingChartsByID = Dictionary(uniqueKeysWithValues: payload.charts.map { ($0.id, $0) })
+    let replacingChartIDs = Set(
+      existingCharts.compactMap { existing -> UUID? in
+        guard let incoming = incomingChartsByID[existing.id] else { return nil }
+        let hasSameParent =
+          (try? existing.birthProfile()) == incoming.birthProfile
+          && existing.ruleSetID == incoming.ruleSetID
+          && existing.ruleSetVersion == incoming.ruleSetVersion
+        return hasSameParent ? nil : existing.id
+      })
+    return try ObservationRestorePlan(
+      payload: payload,
+      replacingChartIDs: replacingChartIDs,
+      modelContext: modelContext
     )
   }
 }

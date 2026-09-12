@@ -107,13 +107,25 @@ struct ObservationParentChartEvidence: Sendable {
   func matches(_ snapshot: ObservationSnapshot) -> Bool {
     guard hasUniqueFactIDs, hasUniqueSeedIDs,
       snapshot.ruleSetID == ruleSetID,
-      snapshot.ruleSetVersion == ruleSetVersion,
-      snapshot.facts.allSatisfy({ factsByID[$0.id] == $0 })
+      snapshot.ruleSetVersion == ruleSetVersion
     else { return false }
-    guard snapshot.contentVersion == InterpretationContentVersion.current.rawValue else {
-      return true
+    let usesCurrentContent =
+      snapshot.contentVersion == InterpretationContentVersion.current.rawValue
+    let factsMatch = snapshot.facts.allSatisfy { snapshotFact in
+      guard let parentFact = factsByID[snapshotFact.id] else { return false }
+      return usesCurrentContent
+        ? parentFact == snapshotFact
+        : parentFact.hasSameStableEvidence(as: snapshotFact)
     }
+    guard factsMatch else { return false }
+    guard usesCurrentContent else { return true }
     return snapshot.seeds.allSatisfy { seedsByID[$0.id] == $0 }
+  }
+}
+
+extension ChartFact {
+  fileprivate func hasSameStableEvidence(as other: Self) -> Bool {
+    id == other.id && category == other.category && subject == other.subject && value == other.value
   }
 }
 
