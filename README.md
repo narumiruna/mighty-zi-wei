@@ -137,6 +137,29 @@ open MightyZiWei.xcodeproj
 
 修改 `project.yml` 後必須重新執行 `xcodegen generate`。
 
+### App icon
+
+圖示以深紫底、暖金牛角與主星呈現，不含文字或預裁圓角。
+`apps/ios/scripts/generate-app-icon.swift` 是圖示的文字來源，只使用 macOS 系統框架。
+建置時會在 `DERIVED_FILE_DIR` 產生 `GeneratedAppIcon.xcassets`，再交由 Xcode 編譯。
+圖片不得納入 repository，腳本也會拒絕輸出到 repository 內。
+
+以下指令可在本機暫存路徑產生 1024 × 1024、不含透明色版的預覽：
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun --sdk macosx swift apps/ios/scripts/generate-app-icon.swift \
+  /tmp/MightyZiWei-AppIcon.xcassets
+```
+
+圖示位於 `/tmp/MightyZiWei-AppIcon.xcassets/AppIcon.appiconset/AppIcon.png`。
+以下指令驗證尺寸、不透明度、可重現性、asset 設定與 repository 輸出限制：
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+bash apps/ios/scripts/tests/generate-app-icon-test.sh
+```
+
 ### 建置與測試
 
 ```sh

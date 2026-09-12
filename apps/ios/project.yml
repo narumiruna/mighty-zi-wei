@@ -24,8 +24,26 @@ targets:
     platform: iOS
     sources:
       - path: MightyZiWei
+      - path: $(DERIVED_FILE_DIR)/GeneratedAppIcon.xcassets
+        type: file
+        optional: true
+        buildPhase: resources
     resources:
       - path: MightyZiWei/Resources
+    preBuildScripts:
+      - name: 產生 App icon
+        script: |
+          set -eu
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+          xcrun --sdk macosx swift \
+            -module-cache-path "$DERIVED_FILE_DIR/AppIconModuleCache" \
+            "$SRCROOT/scripts/generate-app-icon.swift" \
+            "$DERIVED_FILE_DIR/GeneratedAppIcon.xcassets"
+        inputFiles:
+          - $(SRCROOT)/scripts/generate-app-icon.swift
+        outputFiles:
+          - $(DERIVED_FILE_DIR)/AppIconModuleCache
+          - $(DERIVED_FILE_DIR)/GeneratedAppIcon.xcassets
     dependencies:
       - target: MightyZiWeiPrivacyWidget
     settings:
