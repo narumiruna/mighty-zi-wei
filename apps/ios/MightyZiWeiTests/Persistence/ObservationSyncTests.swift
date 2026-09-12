@@ -31,6 +31,69 @@ final class ObservationSyncTests: XCTestCase {
     XCTAssertFalse(ObservationSyncConsent.isEnabled(defaults: defaults))
   }
 
+  func test重複父命盤ID以可處理錯誤拒絕且不存取遠端() async throws {
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    let chart = try ObservationTestSupport.chart()
+    let remote = MockObservationRecordStore()
+
+    do {
+      _ = try await CloudObservationSynchronizer(store: remote).reconcile(
+        consentGranted: true,
+        charts: [chart, chart],
+        deletions: [],
+        modelContext: context
+      )
+      XCTFail("應拒絕重複父命盤識別碼")
+    } catch {
+      XCTAssertEqual(error as? ObservationError, .duplicateID)
+    }
+    XCTAssertEqual(remote.fetchCount, 0)
+    XCTAssertEqual(remote.writes, 0)
+  }
+
+  func test同步驗證不改寫歷史父命盤版本() async throws {
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    let chart = try ObservationTestSupport.chart()
+    let currentSnapshot = try ObservationTestSupport.snapshot(chart: chart)
+    let historicalRuleSetID = "歷史規則"
+    let historicalRuleSetVersion = 2
+    let historicalSnapshot = ObservationSnapshot(
+      selectedText: currentSnapshot.selectedText,
+      initialThought: currentSnapshot.initialThought,
+      source: currentSnapshot.source,
+      locationID: currentSnapshot.locationID,
+      contentVersion: currentSnapshot.contentVersion,
+      ruleSetID: historicalRuleSetID,
+      ruleSetVersion: historicalRuleSetVersion,
+      facts: currentSnapshot.facts,
+      seeds: currentSnapshot.seeds
+    )
+    let observation = try SavedObservation(chartID: chart.id, snapshot: historicalSnapshot)
+    chart.ruleSetID = historicalRuleSetID
+    chart.ruleSetVersion = historicalRuleSetVersion
+    chart.appSchemaVersion = 0
+    let originalUpdatedAt = chart.updatedAt
+    context.insert(chart)
+    context.insert(observation)
+    try context.save()
+    let remote = MockObservationRecordStore()
+
+    _ = try await CloudObservationSynchronizer(store: remote).reconcile(
+      consentGranted: true,
+      charts: [chart],
+      deletions: [],
+      modelContext: context
+    )
+
+    XCTAssertEqual(chart.ruleSetID, historicalRuleSetID)
+    XCTAssertEqual(chart.ruleSetVersion, historicalRuleSetVersion)
+    XCTAssertEqual(chart.appSchemaVersion, 0)
+    XCTAssertEqual(chart.updatedAt, originalUpdatedAt)
+    XCTAssertEqual(remote.state.observations.count, 1)
+  }
+
   func test部分遠端失敗保留本機而固定ID重試不重複() async throws {
     let container = try ObservationTestSupport.container()
     let context = ModelContext(container)

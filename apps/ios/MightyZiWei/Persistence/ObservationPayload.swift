@@ -89,18 +89,31 @@ struct ObservationReviewPayload: Codable, Equatable, Sendable {
 struct ObservationParentChartEvidence: Sendable {
   let ruleSetID: String
   let ruleSetVersion: Int
-  let factsByID: [String: ChartFact]
+  private let factsByID: [String: ChartFact]
+  private let seedsByID: [String: InterpretationSeed]
+  private let hasUniqueFactIDs: Bool
+  private let hasUniqueSeedIDs: Bool
 
   init(ruleSetID: String, ruleSetVersion: Int, facts: [ChartFact]) {
     self.ruleSetID = ruleSetID
     self.ruleSetVersion = ruleSetVersion
-    factsByID = Dictionary(uniqueKeysWithValues: facts.map { ($0.id, $0) })
+    hasUniqueFactIDs = Set(facts.map(\.id)).count == facts.count
+    factsByID = Dictionary(facts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let seeds = hasUniqueFactIDs ? InterpretationSeedBuilder().makeSeeds(from: facts) : []
+    hasUniqueSeedIDs = Set(seeds.map(\.id)).count == seeds.count
+    seedsByID = Dictionary(seeds.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
   }
 
   func matches(_ snapshot: ObservationSnapshot) -> Bool {
-    snapshot.ruleSetID == ruleSetID
-      && snapshot.ruleSetVersion == ruleSetVersion
-      && snapshot.facts.allSatisfy { factsByID[$0.id] == $0 }
+    guard hasUniqueFactIDs, hasUniqueSeedIDs,
+      snapshot.ruleSetID == ruleSetID,
+      snapshot.ruleSetVersion == ruleSetVersion,
+      snapshot.facts.allSatisfy({ factsByID[$0.id] == $0 })
+    else { return false }
+    guard snapshot.contentVersion == InterpretationContentVersion.current.rawValue else {
+      return true
+    }
+    return snapshot.seeds.allSatisfy { seedsByID[$0.id] == $0 }
   }
 }
 
