@@ -1,0 +1,22 @@
+# 與 swift-format 的預設多行排版一致，避免兩套工具互相改回。
+trailing_comma:
+  mandatory_comma: true
+opening_brace:
+  ignore_multiline_statement_conditions: true
+
+# 沿用專案的 1,000 行檔案拆分界線；SwiftUI 畫面及流程測試另設有限的長度上限。
+file_length:
+  warning: 1000
+  error: 1000
+type_body_length:
+  warning: 900
+  error: 1000
+function_body_length:
+  warning: 100
+  error: 150
+
+# 命盤識別碼與 AI 版本使用既有的領域縮寫。
+identifier_name:
+  excluded:
+    - id
+    - ai

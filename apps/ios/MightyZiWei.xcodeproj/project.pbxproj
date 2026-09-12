@@ -76,6 +76,7 @@
 		B6973CE82B56262EFED846B2 /* DualChartInteractionReferenceBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 227BFC8B2D81F66B1248A645 /* DualChartInteractionReferenceBuilderTests.swift */; };
 		B9F3FDD5B321E77DC67D6814 /* Star.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43B88E143C001404E0389BC /* Star.swift */; };
 		BA6AAAA51FFFB71856E1A23C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED3EF7B33865609E6022E471 /* Assets.xcassets */; };
+		BAB8447771BEB659CC20F117 /* DesignSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B69EDA512282DCC4D561AD /* DesignSystemTests.swift */; };
 		BAB9B1BAC6436967C026FA9C /* InterpretationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47FE9CFAA6EC55215BCC0479 /* InterpretationView.swift */; };
 		BBFC7F29C250D32C01527485 /* Celestial.swift in Sources */ = {isa = PBXBuildFile; fileRef = B18A4ECF0644DBF718A3E9E2 /* Celestial.swift */; };
 		BDD774F1DC67EE5B78E6DE85 /* AssistantConversationComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AD98F245A37EAD4EB55E3F7 /* AssistantConversationComponents.swift */; };
@@ -90,6 +91,7 @@
 		CE0D3975202B78474E838061 /* chart_003_lunar_new_year.json in Resources */ = {isa = PBXBuildFile; fileRef = 512F9FDF9201EA97FE79D24C /* chart_003_lunar_new_year.json */; };
 		D3B32803C19447C6D9F7C700 /* SavedConversationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B4AA025E631D823E7413A15 /* SavedConversationsView.swift */; };
 		D455340EBF1B74F16841C733 /* MightyZiWeiRedesignUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E97A06952708AC27BDE339E /* MightyZiWeiRedesignUITests.swift */; };
+		D5604B52FADA0DD01E4E0DEF /* ContentViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EFDFA6B20DAA8E35DA9DCFC /* ContentViewport.swift */; };
 		D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5353F6D59EC127B45D1FDEF5 /* InterpretationSeedBuilderTests.swift */; };
 		D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05AC2BDB95CA8C5B089DBBD8 /* ChartLearningContentTests.swift */; };
 		D85BBEA429A3B02529CC65F3 /* ChartFactBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25651723A2A389BD03B03D4 /* ChartFactBuilder.swift */; };
@@ -177,6 +179,7 @@
 		3AD3B6947F9662D390173554 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3B0B71E02F6E3CC88F2BA4DE /* InterpretationValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretationValidatorTests.swift; sourceTree = "<group>"; };
 		3E97A06952708AC27BDE339E /* MightyZiWeiRedesignUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MightyZiWeiRedesignUITests.swift; sourceTree = "<group>"; };
+		3EFDFA6B20DAA8E35DA9DCFC /* ContentViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewport.swift; sourceTree = "<group>"; };
 		4039F2F414B50A55469B8544 /* AdjacentHourComparisonBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjacentHourComparisonBuilderTests.swift; sourceTree = "<group>"; };
 		41F987B7515934AB8E6AD02B /* ClipboardWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardWriter.swift; sourceTree = "<group>"; };
 		4551E0ACDDF8805E8D18FC5F /* ChartLearningContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartLearningContent.swift; sourceTree = "<group>"; };
@@ -191,6 +194,7 @@
 		5952F0C28AEB29C0531E015F /* chart_012_hour_shen.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_012_hour_shen.json; sourceTree = "<group>"; };
 		5DA807418C099CED157D4DD8 /* UITestVoiceControllers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestVoiceControllers.swift; sourceTree = "<group>"; };
 		5E6484A79DA0CD399368BBE6 /* ChartSharingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSharingTests.swift; sourceTree = "<group>"; };
+		61B69EDA512282DCC4D561AD /* DesignSystemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystemTests.swift; sourceTree = "<group>"; };
 		6CFE44509E5BE1052BE94427 /* chart_007_2099_boundary.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = chart_007_2099_boundary.json; sourceTree = "<group>"; };
 		6EE69DB39BC996ED000FCCC4 /* AIConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfigurationStore.swift; sourceTree = "<group>"; };
 		74723849A1AB0BEDA5C03676 /* DualChartInteractionReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualChartInteractionReference.swift; sourceTree = "<group>"; };
@@ -453,6 +457,7 @@
 		9868BBF11766CC3E6ACF6095 /* MightyZiWeiUITests */ = {
 			isa = PBXGroup;
 			children = (
+				3EFDFA6B20DAA8E35DA9DCFC /* ContentViewport.swift */,
 				3E97A06952708AC27BDE339E /* MightyZiWeiRedesignUITests.swift */,
 				97DB1AE2F8775CC76192AEF9 /* MightyZiWeiUITests.swift */,
 			);
@@ -539,6 +544,7 @@
 		BEEDB938A564BD6D9240A6E9 /* MightyZiWeiTests */ = {
 			isa = PBXGroup;
 			children = (
+				61B69EDA512282DCC4D561AD /* DesignSystemTests.swift */,
 				E92B340638BB9192399A6528 /* PracticalFeaturesTests.swift */,
 				C9FDED900107A8A6F23B9334 /* UIUXWorkflowPolicyTests.swift */,
 				0A4EC5BB5244F464A67A1EC8 /* ZiWeiCoreTests.swift */,
@@ -784,6 +790,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5604B52FADA0DD01E4E0DEF /* ContentViewport.swift in Sources */,
 				D455340EBF1B74F16841C733 /* MightyZiWeiRedesignUITests.swift in Sources */,
 				2B3C06FAFA75B3A4135E0E47 /* MightyZiWeiUITests.swift in Sources */,
 			);
@@ -877,6 +884,7 @@
 				1F2F3B8A8BF7AB56672F02B7 /* ChartFactBuilderTests.swift in Sources */,
 				D7EDBF4D9D75BDB8CCDF1EE1 /* ChartLearningContentTests.swift in Sources */,
 				C5025C73AFA6918B7CF6D948 /* ChartSharingTests.swift in Sources */,
+				BAB8447771BEB659CC20F117 /* DesignSystemTests.swift in Sources */,
 				B6973CE82B56262EFED846B2 /* DualChartInteractionReferenceBuilderTests.swift in Sources */,
 				594F32C26E4B40FAC5BD01F0 /* EncryptedBackupServiceTests.swift in Sources */,
 				D6AB5AAB5562E6AA73372116 /* InterpretationSeedBuilderTests.swift in Sources */,

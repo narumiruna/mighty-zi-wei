@@ -77,9 +77,7 @@ struct InterpretationView: View {
         DisclaimerView()
 
         VStack(alignment: .leading, spacing: 12) {
-          Text("接著想了解什麼？")
-            .font(.title2.bold())
-            .accessibilityAddTraits(.isHeader)
+          SectionHeading(title: "接著想了解什麼？")
 
           ForEach(
             selectedInterpretation.sections.filter { $0.category != .overview }
@@ -93,8 +91,11 @@ struct InterpretationView: View {
           }
         }
       }
-      .padding()
+      .frame(maxWidth: AppDesign.readingWidth)
+      .frame(maxWidth: .infinity)
+      .padding(AppDesign.pageInset)
     }
+    .appPageBackground()
     .navigationTitle("命盤解讀")
     .accessibilityIdentifier("interpretation.screen")
     .navigationBarTitleDisplayMode(.inline)
@@ -144,18 +145,17 @@ struct InterpretationView: View {
         .accessibilityIdentifier("interpretation.source")
 
       HStack(spacing: 10) {
-        Image(
-          systemName: displayState.selectedSource == .remoteAI
+        AppSymbol(
+          name: displayState.selectedSource == .remoteAI
             ? "cloud"
             : "text.book.closed"
         )
-        .accessibilityHidden(true)
         VStack(alignment: .leading, spacing: 2) {
           Text(selectedInterpretation.source.title)
             .font(.headline)
           Text(displayState.selectedSource == .remoteAI ? "第三方整理版本" : "本機基本版本")
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(AppDesign.secondaryText)
         }
         Spacer()
         if isGenerating {
@@ -493,10 +493,10 @@ private struct InterpretationOverviewView: View {
     VStack(alignment: .leading, spacing: 14) {
       Text(section.title)
         .font(.caption.weight(.semibold))
-        .foregroundStyle(.secondary)
+        .foregroundStyle(AppDesign.secondaryText)
 
       Text(leadingSummary)
-        .font(.title3.weight(.semibold))
+        .font(.system(.title3, design: .serif, weight: .medium))
         .lineSpacing(5)
         .textSelection(.enabled)
 

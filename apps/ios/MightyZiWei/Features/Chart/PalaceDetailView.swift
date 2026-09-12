@@ -61,8 +61,11 @@ struct PalaceDetailView: View {
         contextualQuestions
         rawChartData
       }
-      .padding()
+      .frame(maxWidth: AppDesign.readingWidth)
+      .frame(maxWidth: .infinity)
+      .padding(AppDesign.pageInset)
     }
+    .appPageBackground()
     .navigationTitle(palace.kind.displayName)
     .navigationBarTitleDisplayMode(.inline)
     .confirmationDialog(
@@ -117,7 +120,7 @@ struct PalaceDetailView: View {
   private var palaceSummary: some View {
     VStack(alignment: .leading, spacing: 14) {
       Text(learning.focusTitle)
-        .font(.title.bold())
+        .font(.system(.title, design: .serif, weight: .semibold))
         .accessibilityAddTraits(.isHeader)
 
       Text(learning.purpose)
@@ -150,7 +153,7 @@ struct PalaceDetailView: View {
         )
         .frame(maxWidth: .infinity)
       }
-      .buttonStyle(.borderedProminent)
+      .buttonStyle(PrimaryActionStyle())
       .accessibilityIdentifier("palace.why")
       .accessibilityValue(showsWhy ? "已展開" : "已收合")
     }

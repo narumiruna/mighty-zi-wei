@@ -23,6 +23,38 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
     app.launch()
   }
 
+  func test首頁第一屏可開始排盤且保留最近命盤入口() {
+    let create = app.buttons["home.createChart"]
+    assertVisibleInContentViewport(create, navigationTitle: "很牛的紫微斗數")
+    XCTAssertGreaterThanOrEqual(create.frame.height, 44)
+    XCTAssertTrue(app.staticTexts["最近命盤"].exists)
+    XCTAssertFalse(app.buttons["home.viewAllCharts"].exists)
+
+    createDefaultChart(name: "我的命盤")
+    app.buttons["chart.save"].tap()
+    XCTAssertTrue(app.staticTexts["命盤已儲存在這台裝置。"].waitForExistence(timeout: 3))
+    navigateBack(to: "排一張命盤")
+    navigateBack(to: "很牛的紫微斗數")
+
+    let viewAll = app.buttons["home.viewAllCharts"]
+    scrollToElement(viewAll)
+    viewAll.tap()
+    XCTAssertTrue(app.navigationBars["已儲存命盤"].waitForExistence(timeout: 3))
+    XCTAssertTrue(app.staticTexts["我的命盤"].exists)
+    let addChart = app.buttons["savedCharts.addChart"]
+    XCTAssertTrue(addChart.isHittable)
+    addChart.tap()
+    XCTAssertTrue(app.buttons["birthInput.generate"].waitForExistence(timeout: 3))
+  }
+
+  func test命盤助理空狀態主要操作位於第一屏() {
+    app.tabBars.buttons["問命盤"].tap()
+    let create = app.buttons["assistant.createChart"]
+    assertVisibleInContentViewport(create, navigationTitle: "命盤助理")
+    create.tap()
+    XCTAssertTrue(app.buttons["birthInput.generate"].waitForExistence(timeout: 3))
+  }
+
   func test標準最大字級會改用線性命盤避免宮格溢位() {
     app.terminate()
     app = XCUIApplication()
@@ -310,6 +342,20 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
     XCTAssertTrue(app.buttons["重試同步"].isHittable)
   }
 
+  private func navigateBack(to title: String) {
+    let destination = app.navigationBars[title]
+    let back = app.navigationBars.buttons.element(boundBy: 0)
+    XCTAssertTrue(back.waitForExistence(timeout: 5))
+    back.tap()
+    if !destination.waitForExistence(timeout: 5) {
+      let retryBack = app.navigationBars.buttons.element(boundBy: 0)
+      if retryBack.exists {
+        retryBack.tap()
+      }
+    }
+    XCTAssertTrue(destination.waitForExistence(timeout: 5))
+  }
+
   private func relaunchMockAI() {
     app.terminate()
     app = XCUIApplication()
@@ -480,15 +526,6 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
   }
 
   private func scrollToElement(_ element: XCUIElement) {
-    var attempts = 0
-    while !element.isHittable && attempts < 10 {
-      if element.exists, element.frame.midY < app.frame.midY {
-        app.swipeDown()
-      } else {
-        app.swipeUp()
-      }
-      attempts += 1
-    }
-    XCTAssertTrue(element.isHittable)
+    app.scrollToVisibleContent(element)
   }
 }

@@ -35,6 +35,7 @@ struct ChartAssistantView: View {
   var body: some View {
     NavigationStack {
       screenContent
+        .appPageBackground()
         .navigationTitle("命盤助理")
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom) {
@@ -101,21 +102,12 @@ struct ChartAssistantView: View {
     if let chart = assistantStore.selectedChart {
       conversationContent(chart: chart)
     } else if savedCharts.isEmpty {
-      VStack(spacing: 16) {
-        EmptyStateView(
-          symbol: "sparkles",
-          title: "還沒有可以詢問的命盤",
-          message: "先建立一張命盤，命盤助理才能根據 App 已驗證的資料回答問題。"
-        )
-        NavigationLink {
-          BirthInputView()
-        } label: {
-          Label("排一張命盤", systemImage: "plus")
-        }
-        .buttonStyle(.borderedProminent)
-        .accessibilityIdentifier("assistant.createChart")
-      }
-      .padding()
+      CreateChartEmptyState(
+        symbol: "bubble.left.and.text.bubble.right",
+        title: "還沒有可以詢問的命盤",
+        message: "先建立一張命盤，再從你的個性、工作或人際，開啟一段對話。",
+        actionIdentifier: "assistant.createChart"
+      )
     } else if let errorMessage {
       ScrollView {
         operationErrorStatus(message: errorMessage)
@@ -186,8 +178,11 @@ struct ChartAssistantView: View {
               .id("assistant.contentEnd")
           }
         }
-        .padding()
+        .frame(maxWidth: AppDesign.readingWidth)
+        .frame(maxWidth: .infinity)
+        .padding(AppDesign.pageInset)
       }
+      .scrollDismissesKeyboard(.interactively)
       .onChange(of: assistantStore.turns.count) { oldCount, newCount in
         if newCount > oldCount, let lastTurn = assistantStore.turns.last {
           withAnimation {
@@ -241,15 +236,16 @@ struct ChartAssistantView: View {
       }
     } label: {
       HStack(spacing: 12) {
-        Image(systemName: "person.text.rectangle")
-          .font(.title3)
+        AppSymbol(name: "person.text.rectangle")
         VStack(alignment: .leading, spacing: 3) {
           Text("目前命盤")
             .font(.caption)
+            .foregroundStyle(AppDesign.secondaryText)
           Text(chart.name)
             .font(.headline)
           Text(chart.detail)
             .font(.caption)
+            .foregroundStyle(AppDesign.secondaryText)
         }
         Spacer()
         if !savedCharts.isEmpty {
@@ -332,6 +328,8 @@ struct ChartAssistantView: View {
         .font(.title2.bold())
         .accessibilityAddTraits(.isHeader)
       Text("選擇後只會填入草稿，不會自動送出或產生費用。")
+        .font(.footnote)
+        .foregroundStyle(AppDesign.secondaryText)
 
       ForEach(Array(suggestedQuestions.enumerated()), id: \.offset) { index, question in
         Button {
@@ -339,11 +337,12 @@ struct ChartAssistantView: View {
         } label: {
           HStack {
             Text(question)
+              .font(.subheadline)
               .multilineTextAlignment(.leading)
             Spacer()
             Image(systemName: "arrow.down.to.line")
           }
-          .frame(maxWidth: .infinity, alignment: .leading)
+          .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         }
         .buttonStyle(.bordered)
         .disabled(voiceCoordinator.isInputActive)
