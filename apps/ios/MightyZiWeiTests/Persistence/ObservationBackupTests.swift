@@ -118,6 +118,62 @@ final class ObservationBackupTests: XCTestCase {
     XCTAssertEqual(cancelled, ["待取消提醒"])
   }
 
+  func test還原替換父命盤時保留依據仍相容的觀察與回顧() throws {
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    let chart = try ObservationTestSupport.chart()
+    let observation = try ObservationTestSupport.observation(chart: chart)
+    observation.reminderIdentifier = "應保留提醒"
+    let review = ObservationTestSupport.review(observation: observation)
+    context.insert(chart)
+    context.insert(observation)
+    context.insert(review)
+    try context.save()
+    let originalProfile = try chart.birthProfile()
+    let replacementProfile = BirthProfile(
+      localDate: originalProfile.localDate,
+      localTime: LocalTime(
+        hour: originalProfile.localTime.hour,
+        minute: originalProfile.localTime.minute + 1
+      ),
+      calendarIdentifier: originalProfile.calendarIdentifier,
+      timeZoneIdentifier: originalProfile.timeZoneIdentifier
+    )
+    let incomingChart = BackupChartDTO(
+      id: chart.id,
+      name: "同時辰替換命盤",
+      birthProfile: replacementProfile,
+      ruleSetID: chart.ruleSetID,
+      ruleSetVersion: chart.ruleSetVersion,
+      appSchemaVersion: SavedChart.schemaVersion,
+      createdAt: chart.createdAt,
+      updatedAt: chart.updatedAt
+    )
+    let payload = try BackupPayload(charts: [incomingChart], insights: []).validated()
+    var cancelled: [String] = []
+
+    _ = try BackupRestoreService.restore(
+      payload,
+      existingCharts: [chart],
+      existingInsights: [],
+      modelContext: context,
+      shortcutDefaults: nil,
+      cancelReminder: { identifier in
+        if let identifier { cancelled.append(identifier) }
+      }
+    )
+
+    XCTAssertEqual(try chart.birthProfile(), replacementProfile)
+    XCTAssertEqual(
+      try context.fetch(FetchDescriptor<SavedObservation>()).map(\.id), [observation.id]
+    )
+    XCTAssertEqual(
+      try context.fetch(FetchDescriptor<SavedObservationReview>()).map(\.id), [review.id]
+    )
+    XCTAssertTrue(try context.fetch(FetchDescriptor<CloudDeletion>()).isEmpty)
+    XCTAssertTrue(cancelled.isEmpty)
+  }
+
   func test未知版本缺少集合重複ID及孤兒回顧全部拒絕() throws {
     let chart = try ObservationTestSupport.chart()
     let observation = try ObservationTestSupport.observation(chart: chart)

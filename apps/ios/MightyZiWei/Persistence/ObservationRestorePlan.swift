@@ -14,7 +14,7 @@ struct ObservationRestorePlan {
 
   init(
     payload: ValidatedBackupPayload,
-    replacingChartIDs: Set<UUID>,
+    replacementEvidenceByChartID: [UUID: ObservationParentChartEvidence],
     modelContext: ModelContext
   ) throws {
     let observations = try modelContext.fetch(FetchDescriptor<SavedObservation>())
@@ -22,8 +22,12 @@ struct ObservationRestorePlan {
     let observationsByID = Dictionary(uniqueKeysWithValues: observations.map { ($0.id, $0) })
     let reviewsByID = Dictionary(uniqueKeysWithValues: reviews.map { ($0.id, $0) })
     let incomingObservationIDs = Set(payload.observations.map(\.id))
-    let observationsToDelete = observations.filter {
-      replacingChartIDs.contains($0.chartID) && !incomingObservationIDs.contains($0.id)
+    let observationsToDelete = observations.filter { observation in
+      guard !incomingObservationIDs.contains(observation.id),
+        let replacementEvidence = replacementEvidenceByChartID[observation.chartID]
+      else { return false }
+      guard let snapshot = observation.snapshot else { return true }
+      return !replacementEvidence.matches(snapshot)
     }
     let observationIDsToDelete = Set(observationsToDelete.map(\.id))
     let incomingReviewIDs = Set(payload.reviews.map(\.id))

@@ -306,9 +306,12 @@ final class EncryptedBackupServiceTests: XCTestCase {
     }
   }
 
-  func test還原前警告會說明整本內容與較新資料可能刪除() {
+  func test還原前警告會說明整本內容與不相容觀察可能刪除() {
     XCTAssertTrue(BackupRestoreWarning.message.contains("整本筆記與收藏"))
     XCTAssertTrue(BackupRestoreWarning.message.contains("本機較新的內容"))
+    XCTAssertTrue(BackupRestoreWarning.message.contains("不相容的觀察"))
+    XCTAssertTrue(BackupRestoreWarning.message.contains("相關回顧與提醒"))
+    XCTAssertTrue(BackupRestoreWarning.message.contains("舊版備份不含觀察"))
     XCTAssertTrue(BackupRestoreWarning.message.contains("永久刪除"))
   }
 

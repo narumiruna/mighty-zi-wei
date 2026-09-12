@@ -138,18 +138,24 @@ enum BackupRestoreService {
     modelContext: ModelContext
   ) throws -> ObservationRestorePlan {
     let incomingChartsByID = Dictionary(uniqueKeysWithValues: payload.charts.map { ($0.id, $0) })
-    let replacingChartIDs = Set(
-      existingCharts.compactMap { existing -> UUID? in
-        guard let incoming = incomingChartsByID[existing.id] else { return nil }
-        let hasSameParent =
-          (try? existing.birthProfile()) == incoming.birthProfile
-          && existing.ruleSetID == incoming.ruleSetID
-          && existing.ruleSetVersion == incoming.ruleSetVersion
-        return hasSameParent ? nil : existing.id
-      })
+    var replacementEvidenceByChartID: [UUID: ObservationParentChartEvidence] = [:]
+    for existing in existingCharts {
+      guard let incoming = incomingChartsByID[existing.id] else { continue }
+      let hasSameParent =
+        (try? existing.birthProfile()) == incoming.birthProfile
+        && existing.ruleSetID == incoming.ruleSetID
+        && existing.ruleSetVersion == incoming.ruleSetVersion
+      guard !hasSameParent else { continue }
+      let resolvedChart = try ZiWeiCalculator().calculate(incoming.birthProfile)
+      replacementEvidenceByChartID[existing.id] = ObservationParentChartEvidence(
+        ruleSetID: incoming.ruleSetID,
+        ruleSetVersion: incoming.ruleSetVersion,
+        facts: ChartFactBuilder().makeFacts(from: resolvedChart)
+      )
+    }
     return try ObservationRestorePlan(
       payload: payload,
-      replacingChartIDs: replacingChartIDs,
+      replacementEvidenceByChartID: replacementEvidenceByChartID,
       modelContext: modelContext
     )
   }
