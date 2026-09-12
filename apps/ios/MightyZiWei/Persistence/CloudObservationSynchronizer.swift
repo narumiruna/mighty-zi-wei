@@ -38,15 +38,18 @@ struct CloudObservationSynchronizer {
       reviews: reviews.map(ObservationReviewPayload.init),
       deletions: latestObservationDeletions(deletions)
     )
+    let parentCharts = try makeParentChartEvidence(charts)
     let remote = try await store.fetch()
     let chartDeletions = Dictionary(
       deletions.filter { $0.entityType == RecordType.chart }.map { ($0.entityID, $0.deletedAt) },
       uniquingKeysWith: max
     )
     let plan = try CloudObservationMergePlan(
-      local: local, remote: remote,
+      local: local,
+      remote: remote,
       chartRevisions: Dictionary(uniqueKeysWithValues: charts.map { ($0.id, $0.updatedAt) }),
-      chartDeletions: chartDeletions
+      chartDeletions: chartDeletions,
+      parentCharts: parentCharts
     )
     // 所有遠端操作完成前，不改動任何本機觀察資料。
     let uploaded = try await upload(plan: plan, remote: remote)
@@ -60,6 +63,23 @@ struct CloudObservationSynchronizer {
       counts: ICloudSyncResult(uploadedCount: uploaded, downloadedCount: changes, conflictCount: 0),
       reminderIdentifiersToCancel: reminders
     )
+  }
+
+  private func makeParentChartEvidence(
+    _ charts: [SavedChart]
+  ) throws -> [UUID: ObservationParentChartEvidence] {
+    var evidenceByChartID: [UUID: ObservationParentChartEvidence] = [:]
+    for chart in charts {
+      guard evidenceByChartID[chart.id] == nil else { throw ObservationError.duplicateID }
+      let resolvedChart = try ZiWeiCalculator().calculate(chart.birthProfile())
+      let facts = ChartFactBuilder().makeFacts(from: resolvedChart)
+      evidenceByChartID[chart.id] = ObservationParentChartEvidence(
+        ruleSetID: chart.ruleSetID,
+        ruleSetVersion: chart.ruleSetVersion,
+        facts: facts
+      )
+    }
+    return evidenceByChartID
   }
 
   private func latestObservationDeletions(

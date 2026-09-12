@@ -112,12 +112,9 @@ struct BackupPayload: Codable, Equatable, Sendable {
     guard schemaVersion >= 3 || (observations.isEmpty && reviews.isEmpty) else {
       throw BackupError.malformedBackup
     }
-    try ObservationGraphValidator().validate(
-      observations: observations, reviews: reviews, chartIDs: Set(charts.map(\.id))
-    )
-
     let currentRuleSet = RuleSetIdentity.taiwanTraditionalSanheV1
     var chartIDs = Set<UUID>()
+    var parentCharts: [UUID: ObservationParentChartEvidence] = [:]
     var validFactIDsByChartID: [UUID: Set<String>] = [:]
     var seedsByChartID: [UUID: [InterpretationSeed]] = [:]
     for chart in charts {
@@ -143,9 +140,19 @@ struct BackupPayload: Codable, Equatable, Sendable {
         throw BackupError.invalidChartData(chart.id)
       }
       let facts = ChartFactBuilder().makeFacts(from: resolvedChart)
+      parentCharts[chart.id] = ObservationParentChartEvidence(
+        ruleSetID: chart.ruleSetID,
+        ruleSetVersion: chart.ruleSetVersion,
+        facts: facts
+      )
       validFactIDsByChartID[chart.id] = Set(facts.map(\.id))
       seedsByChartID[chart.id] = InterpretationSeedBuilder().makeSeeds(from: facts)
     }
+    try ObservationGraphValidator().validate(
+      observations: observations,
+      reviews: reviews,
+      parentCharts: parentCharts
+    )
 
     var insightIDs = Set<UUID>()
     var bookmarkLocations = Set<BackupBookmarkLocation>()

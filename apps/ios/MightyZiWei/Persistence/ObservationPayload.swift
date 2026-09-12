@@ -86,11 +86,42 @@ struct ObservationReviewPayload: Codable, Equatable, Sendable {
   }
 }
 
+struct ObservationParentChartEvidence: Sendable {
+  let ruleSetID: String
+  let ruleSetVersion: Int
+  private let factsByID: [String: ChartFact]
+  private let seedsByID: [String: InterpretationSeed]
+  private let hasUniqueFactIDs: Bool
+  private let hasUniqueSeedIDs: Bool
+
+  init(ruleSetID: String, ruleSetVersion: Int, facts: [ChartFact]) {
+    self.ruleSetID = ruleSetID
+    self.ruleSetVersion = ruleSetVersion
+    hasUniqueFactIDs = Set(facts.map(\.id)).count == facts.count
+    factsByID = Dictionary(facts.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let seeds = hasUniqueFactIDs ? InterpretationSeedBuilder().makeSeeds(from: facts) : []
+    hasUniqueSeedIDs = Set(seeds.map(\.id)).count == seeds.count
+    seedsByID = Dictionary(seeds.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+  }
+
+  func matches(_ snapshot: ObservationSnapshot) -> Bool {
+    guard hasUniqueFactIDs, hasUniqueSeedIDs,
+      snapshot.ruleSetID == ruleSetID,
+      snapshot.ruleSetVersion == ruleSetVersion,
+      snapshot.facts.allSatisfy({ factsByID[$0.id] == $0 })
+    else { return false }
+    guard snapshot.contentVersion == InterpretationContentVersion.current.rawValue else {
+      return true
+    }
+    return snapshot.seeds.allSatisfy { seedsByID[$0.id] == $0 }
+  }
+}
+
 struct ObservationGraphValidator {
   func validate(
     observations: [ObservationPayload],
     reviews: [ObservationReviewPayload],
-    chartIDs: Set<UUID>
+    parentCharts: [UUID: ObservationParentChartEvidence]
   ) throws {
     guard Set(observations.map(\.id)).count == observations.count,
       Set(reviews.map(\.id)).count == reviews.count
@@ -98,7 +129,12 @@ struct ObservationGraphValidator {
     let observationsByID = Dictionary(uniqueKeysWithValues: observations.map { ($0.id, $0) })
     for observation in observations {
       try observation.validate()
-      guard chartIDs.contains(observation.chartID) else { throw ObservationError.missingParent }
+      guard let parentChart = parentCharts[observation.chartID] else {
+        throw ObservationError.missingParent
+      }
+      guard parentChart.matches(observation.snapshot) else {
+        throw ObservationError.invalidSnapshot
+      }
     }
     for review in reviews {
       try review.validate()
