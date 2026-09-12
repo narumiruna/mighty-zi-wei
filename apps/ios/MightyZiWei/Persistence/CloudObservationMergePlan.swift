@@ -6,8 +6,11 @@ struct CloudObservationMergePlan {
   let deletions: [CloudObservationDeletion]
 
   init(
-    local: CloudObservationState, remote: CloudObservationState, chartRevisions: [UUID: Date],
-    chartDeletions: [UUID: Date]
+    local: CloudObservationState,
+    remote: CloudObservationState,
+    chartRevisions: [UUID: Date],
+    chartDeletions: [UUID: Date],
+    parentCharts: [UUID: ObservationParentChartEvidence]
   ) throws {
     try Self.validateRecords(local)
     try Self.validateRecords(remote)
@@ -28,7 +31,10 @@ struct CloudObservationMergePlan {
     reviews = accumulator.reviews.values.sorted { $0.id.uuidString < $1.id.uuidString }
     deletions = Array(accumulator.deletions.values)
     try ObservationGraphValidator().validate(
-      observations: observations, reviews: reviews, chartIDs: Set(chartRevisions.keys))
+      observations: observations,
+      reviews: reviews,
+      parentCharts: parentCharts
+    )
   }
 
   private static func validateRecords(_ state: CloudObservationState) throws {

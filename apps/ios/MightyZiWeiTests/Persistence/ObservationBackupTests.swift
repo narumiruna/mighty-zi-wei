@@ -80,6 +80,50 @@ final class ObservationBackupTests: XCTestCase {
     XCTAssertThrowsError(try duplicateReviews.validate())
   }
 
+  func test備份觀察快照規則與Fact必須符合父命盤() throws {
+    let chart = try ObservationTestSupport.chart()
+    let snapshot = try ObservationTestSupport.snapshot(chart: chart)
+    let wrongRuleSetSnapshot = ObservationSnapshot(
+      selectedText: snapshot.selectedText,
+      initialThought: snapshot.initialThought,
+      source: snapshot.source,
+      locationID: snapshot.locationID,
+      contentVersion: snapshot.contentVersion,
+      ruleSetID: "其他規則",
+      ruleSetVersion: snapshot.ruleSetVersion,
+      facts: snapshot.facts,
+      seeds: snapshot.seeds
+    )
+    let fact = try XCTUnwrap(snapshot.facts.first)
+    let forgedFact = ChartFact(
+      id: fact.id,
+      category: fact.category,
+      subject: fact.subject,
+      value: fact.value,
+      displayText: "不是父命盤重新計算出的事實"
+    )
+    let wrongFactSnapshot = ObservationSnapshot(
+      selectedText: snapshot.selectedText,
+      initialThought: snapshot.initialThought,
+      source: snapshot.source,
+      locationID: snapshot.locationID,
+      contentVersion: snapshot.contentVersion,
+      ruleSetID: snapshot.ruleSetID,
+      ruleSetVersion: snapshot.ruleSetVersion,
+      facts: [forgedFact] + Array(snapshot.facts.dropFirst()),
+      seeds: snapshot.seeds
+    )
+
+    for invalidSnapshot in [wrongRuleSetSnapshot, wrongFactSnapshot] {
+      try invalidSnapshot.validate()
+      let observation = try SavedObservation(chartID: chart.id, snapshot: invalidSnapshot)
+      let payload = try ObservationTestSupport.payload(chart: chart, observations: [observation])
+      XCTAssertThrowsError(try payload.validate()) { error in
+        XCTAssertEqual(error as? ObservationError, .invalidSnapshot)
+      }
+    }
+  }
+
   func test不可變內容衝突在修改命盤或取消提醒前拒絕() throws {
     let container = try ObservationTestSupport.container()
     let context = ModelContext(container)

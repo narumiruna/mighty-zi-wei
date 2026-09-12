@@ -39,14 +39,29 @@ struct CloudObservationSynchronizer {
       deletions: latestObservationDeletions(deletions)
     )
     let remote = try await store.fetch()
+    let parentCharts = try Dictionary(
+      uniqueKeysWithValues: charts.map { chart in
+        let facts = ChartFactBuilder().makeFacts(from: try chart.resolvedChart())
+        return (
+          chart.id,
+          ObservationParentChartEvidence(
+            ruleSetID: chart.ruleSetID,
+            ruleSetVersion: chart.ruleSetVersion,
+            facts: facts
+          )
+        )
+      }
+    )
     let chartDeletions = Dictionary(
       deletions.filter { $0.entityType == RecordType.chart }.map { ($0.entityID, $0.deletedAt) },
       uniquingKeysWith: max
     )
     let plan = try CloudObservationMergePlan(
-      local: local, remote: remote,
+      local: local,
+      remote: remote,
       chartRevisions: Dictionary(uniqueKeysWithValues: charts.map { ($0.id, $0.updatedAt) }),
-      chartDeletions: chartDeletions
+      chartDeletions: chartDeletions,
+      parentCharts: parentCharts
     )
     // 所有遠端操作完成前，不改動任何本機觀察資料。
     let uploaded = try await upload(plan: plan, remote: remote)
