@@ -28,6 +28,10 @@
 
 舊版收藏資料缺少 seed IDs 時會讀取為空陣列，不得回溯宣稱已通過新版 seed 驗證。
 
+使用者手動變更私人筆記的 fact evidence 集合時會清除既有 seed IDs；只編輯其他欄位時會保留原本的 seed IDs 與 fact IDs 順序。
+
+含 seed evidence 的新備份使用 payload schema version 2，且每筆收藏與筆記都必須明確包含 `evidenceSeedIDs`；version 1 允許缺少此欄位並會經明確遷移後驗證，其他版本會拒絕還原。
+
 本機基本解讀直接使用 deterministic seeds 產生內容，優先顯示非 baseline 線索，並把 App 產生的盤面顯示文字、核准 meaning 與生活核對問題分層呈現。
 
 AI 命盤解讀與問答的 strict JSON Schema 都要求 `evidenceSeedIDs` 與 `evidenceFactIDs`。

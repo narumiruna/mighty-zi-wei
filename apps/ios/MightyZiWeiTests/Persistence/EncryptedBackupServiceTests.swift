@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import CryptoKit
 import Foundation
 import SwiftData
@@ -6,6 +7,7 @@ import XCTest
 @testable import MightyZiWei
 
 @MainActor
+// swiftlint:disable:next type_body_length
 final class EncryptedBackupServiceTests: XCTestCase {
   func test備份往返只保留來源資料與通用Insight() throws {
     let savedChart = try makeSavedChart()
@@ -21,7 +23,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
     )
 
     XCTAssertEqual(backup.recoveryKey.rawRepresentation.count, 32)
-    XCTAssertEqual(payload.schemaVersion, 1)
+    XCTAssertEqual(payload.schemaVersion, BackupPayload.currentSchemaVersion)
     XCTAssertEqual(payload.charts, [try BackupChartDTO(savedChart: savedChart)])
     XCTAssertEqual(payload.insights, [insight])
 
@@ -60,6 +62,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
     let insight = try XCTUnwrap(insights.first)
 
     XCTAssertEqual(Set(root.keys), ["charts", "insights", "schemaVersion"])
+    // swiftlint:disable trailing_comma
     XCTAssertEqual(
       Set(chart.keys),
       [
@@ -89,6 +92,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         "title",
         "updatedAt",
       ])
+    // swiftlint:enable trailing_comma
 
     let json = try XCTUnwrap(String(data: data, encoding: .utf8))
     XCTAssertFalse(json.contains("chartCacheData"))
@@ -162,7 +166,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
   func test拒絕不支援的PayloadSchema() throws {
     let fixture = try makeValidPayloadFixture()
     var object = fixture.object
-    object["schemaVersion"] = 2
+    object["schemaVersion"] = 3
     let backupData = try seal(
       JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
       recoveryKey: fixture.recoveryKey
@@ -174,7 +178,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
         recoveryKey: fixture.recoveryKey
       )
     ) { error in
-      XCTAssertEqual(error as? BackupError, .unsupportedPayloadSchema(2))
+      XCTAssertEqual(error as? BackupError, .unsupportedPayloadSchema(3))
     }
   }
 
@@ -182,8 +186,8 @@ final class EncryptedBackupServiceTests: XCTestCase {
     XCTAssertThrowsError(try BackupRecoveryKey(encoded: "不是 Base64")) { error in
       XCTAssertEqual(error as? BackupError, .invalidRecoveryKey)
     }
-    XCTAssertThrowsError(try BackupRecoveryKey(rawRepresentation: Data(repeating: 0, count: 31))) {
-      error in
+    let invalidLengthKey = Data(repeating: 0, count: 31)
+    XCTAssertThrowsError(try BackupRecoveryKey(rawRepresentation: invalidLengthKey)) { error in
       XCTAssertEqual(error as? BackupError, .invalidRecoveryKey)
     }
   }
@@ -364,6 +368,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
     XCTAssertEqual(restoredInsights.first?.evidenceFactIDs, ["natal.palace.life.branch"])
   }
 
+  // swiftlint:disable:next function_body_length
   func test還原會清除舊刪除標記更新同步版本取消舊提醒並重設捷徑() throws {
     let incomingChart = try makeSavedChart()
     incomingChart.isPinned = true
@@ -474,6 +479,7 @@ final class EncryptedBackupServiceTests: XCTestCase {
   func test舊版備份缺少EvidenceSeedIDs時遷移為空陣列() throws {
     let fixture = try makeValidPayloadFixture()
     var object = fixture.object
+    object["schemaVersion"] = 1
     var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
     insights[0].removeValue(forKey: "evidenceSeedIDs")
     object["insights"] = insights
@@ -487,7 +493,29 @@ final class EncryptedBackupServiceTests: XCTestCase {
       recoveryKey: fixture.recoveryKey
     )
 
+    XCTAssertEqual(payload.schemaVersion, BackupPayload.currentSchemaVersion)
     XCTAssertTrue(try XCTUnwrap(payload.insights.first).evidenceSeedIDs.isEmpty)
+  }
+
+  func test新版備份缺少EvidenceSeedIDs時拒絕還原() throws {
+    let fixture = try makeValidPayloadFixture()
+    var object = fixture.object
+    var insights = try XCTUnwrap(object["insights"] as? [[String: Any]])
+    insights[0].removeValue(forKey: "evidenceSeedIDs")
+    object["insights"] = insights
+    let backupData = try seal(
+      JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+      recoveryKey: fixture.recoveryKey
+    )
+
+    XCTAssertThrowsError(
+      try EncryptedBackupService.restore(
+        from: backupData,
+        recoveryKey: fixture.recoveryKey
+      )
+    ) { error in
+      XCTAssertEqual(error as? BackupError, .malformedBackup)
+    }
   }
 
   func test拒絕無效EvidenceSeedID() throws {
