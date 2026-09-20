@@ -44,37 +44,15 @@ struct PersistedInterpretationEvidenceValidator: Sendable {
     seeds: [InterpretationSeed],
     validFactIDs: Set<String>
   ) -> Bool {
-    guard Set(factIDs).count == factIDs.count,
-      Set(seeds.map(\.id)).count == seeds.count,
-      factIDs.allSatisfy(validFactIDs.contains)
-    else {
+    do {
+      let resolver = try InterpretationEvidenceResolver(
+        factIDs: Array(validFactIDs), seeds: seeds)
+      try resolver.validate(factIDs: factIDs)
+      // 舊資料可能只有 fact 引用，不能補上目前的 seed 認證。
+      guard !seedIDs.isEmpty else { return true }
+      return try factIDs == resolver.resolve(seedIDs: seedIDs)
+    } catch {
       return false
     }
-    guard !seedIDs.isEmpty else {
-      return true
-    }
-    guard Set(seedIDs).count == seedIDs.count else {
-      return false
-    }
-
-    let seedsByID = Dictionary(
-      seeds.map { ($0.id, $0) },
-      uniquingKeysWith: { first, _ in first }
-    )
-    var seenFactIDs: Set<String> = []
-    var expectedFactIDs: [String] = []
-    for seedID in seedIDs {
-      guard let seed = seedsByID[seedID],
-        !seed.evidenceFactIDs.isEmpty,
-        Set(seed.evidenceFactIDs).count == seed.evidenceFactIDs.count,
-        seed.evidenceFactIDs.allSatisfy(validFactIDs.contains)
-      else {
-        return false
-      }
-      for factID in seed.evidenceFactIDs where seenFactIDs.insert(factID).inserted {
-        expectedFactIDs.append(factID)
-      }
-    }
-    return factIDs == expectedFactIDs
   }
 }

@@ -10,8 +10,6 @@ enum RecordType {
   static let observationDeletion = "ObservationDeletedRecord"
 }
 
-typealias DeletionKey = CloudEntityKey
-
 struct CloudEntityKey: Hashable {
   let type: String
   let id: UUID

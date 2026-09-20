@@ -206,8 +206,8 @@ final class PracticalFeaturesTests: XCTestCase {
       chart: ZiWeiCalculator().calculate(differentProfile)
     )
 
-    XCTAssertTrue(first.hasSameBirthProfile(as: duplicate))
-    XCTAssertFalse(first.hasSameBirthProfile(as: different))
+    XCTAssertEqual(try first.birthProfile(), try duplicate.birthProfile())
+    XCTAssertNotEqual(try first.birthProfile(), try different.birthProfile())
   }
 
   func test觀察筆記保留內容連結命盤依據與自訂回顧時間() {
@@ -467,8 +467,8 @@ final class PracticalFeaturesTests: XCTestCase {
     let suite = "AIUsageStoreTests.\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
     defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(2, forKey: "ai.usage.monthly-limit")
     let store = AIUsageStore(defaults: defaults, calendar: testCalendar)
-    store.monthlyLimit = 2
 
     try store.reserve(.conversation)
     try store.reserve(.interpretation)
@@ -493,15 +493,23 @@ final class PracticalFeaturesTests: XCTestCase {
     let credentials = TestCredentialStore()
     let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
 
-    store.setMaximumAnswerCharacters(600)
-    try store.save(
-      endpoint: "https://example.com/v1",
-      model: "model",
-      apiKey: ""
-    )
+    let coordinator = AIConfigurationCommitCoordinator(
+      configurationStore: store, usageStore: AIUsageStore(defaults: defaults))
+    var draft = AIConfigurationDraft(
+      endpoint: "https://example.com/v1", model: "model", apiKey: "",
+      maximumAnswerCharacters: 600, monthlyLimit: 50)
+    try coordinator.commit(draft: draft)
     XCTAssertEqual(try store.configuration().maximumAnswerCharacters, 600)
-    store.setMaximumAnswerCharacters(9_999)
-    XCTAssertEqual(store.maximumAnswerCharacters, 2_000)
+    draft.maximumAnswerCharacters = 9_999
+    XCTAssertThrowsError(try coordinator.commit(draft: draft)) {
+      XCTAssertEqual($0 as? AIConfigurationCommitError, .invalidAnswerLength)
+    }
+    XCTAssertEqual(store.maximumAnswerCharacters, 600)
+    XCTAssertEqual(
+      try OpenAIResponsesConfiguration(
+        endpoint: draft.endpoint, model: draft.model, apiKey: nil,
+        maximumAnswerCharacters: 9_999
+      ).maximumAnswerCharacters, 2_000)
   }
 
   func test命盤整理回答長度會分配到全部必要分類() {
@@ -890,36 +898,6 @@ final class PracticalFeaturesTests: XCTestCase {
     XCTAssertFalse(resolver.isDeleted(contentUpdatedAt: newer, deletedAt: older))
   }
 
-  func test同步流程拋錯時會回復所有尚未儲存的SwiftData變更() async throws {
-    let chart = try makeSavedChart(name: "同步前")
-    let container = try ModelContainer(
-      for: SavedChart.self,
-      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-    )
-    let context = ModelContext(container)
-    context.insert(chart)
-    try context.save()
-    var didRunRollbackAction = false
-
-    do {
-      let _: Void = try await CloudSyncMutationTransaction.run(
-        modelContext: context,
-        onRollback: { didRunRollbackAction = true },
-        operation: {
-          try chart.rename(to: "尚未完成")
-          throw SyncTransactionTestError.expected
-        }
-      )
-      XCTFail("同步錯誤應向呼叫端拋出。")
-    } catch SyncTransactionTestError.expected {
-      // 預期錯誤。
-    }
-
-    let restored = try XCTUnwrap(context.fetch(FetchDescriptor<SavedChart>()).first)
-    XCTAssertEqual(restored.name, "同步前")
-    XCTAssertTrue(didRunRollbackAction)
-  }
-
   func test加密備份保留分類與回顧資料但不含提醒識別碼() throws {
     let chart = try makeSavedChart(name: "備份命盤")
     chart.updateTags(["個案"])
@@ -935,7 +913,12 @@ final class PracticalFeaturesTests: XCTestCase {
     )
     let payload = try BackupPayload(savedCharts: [chart], savedInsights: [note])
     let restoredChart = try XCTUnwrap(payload.validated().makeSavedCharts().first)
-    let restoredNote = try XCTUnwrap(payload.validated().makeSavedInsights().first)
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    _ = try BackupRestoreService.restore(
+      payload.validated(), existingCharts: [], existingInsights: [], modelContext: context,
+      shortcutDefaults: nil)
+    let restoredNote = try XCTUnwrap(context.fetch(FetchDescriptor<SavedInsight>()).first)
 
     XCTAssertEqual(restoredChart.tags, ["個案"])
     XCTAssertTrue(restoredChart.isPinned)
@@ -968,10 +951,6 @@ final class PracticalFeaturesTests: XCTestCase {
       chart: ZiWeiCalculator().calculate(profile)
     )
   }
-}
-
-private enum SyncTransactionTestError: Error {
-  case expected
 }
 
 private final class TestCredentialStore: APICredentialStoring {

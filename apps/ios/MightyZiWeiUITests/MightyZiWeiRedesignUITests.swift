@@ -1,14 +1,8 @@
 import XCTest
 
 @MainActor
-final class MightyZiWeiRedesignUITests: XCTestCase {
-  private var app: XCUIApplication!
-
-  private let localizationArguments = [
-    "-AppleLanguages", "(zh-Hant)",
-    "-AppleLocale", "zh_TW",
-    "-UITestResetData",
-  ]
+final class MightyZiWeiRedesignUITests: XCTestCase, ChartWorkflowUITest {
+  var app: XCUIApplication!
 
   override func setUp() async throws {
     continueAfterFailure = false
@@ -340,6 +334,10 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
         timeout: 5
       ))
     XCTAssertTrue(app.buttons["重試同步"].isHittable)
+    app.buttons["重試同步"].tap()
+    XCTAssertTrue(waitForLabelContaining(status, text: "iCloud 可能已收到部分資料", timeout: 5))
+    XCTAssertEqual(toggle.value as? String, "1")
+    XCTAssertTrue(app.buttons["重試同步"].isHittable)
   }
 
   private func navigateBack(to title: String) {
@@ -354,126 +352,6 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
       }
     }
     XCTAssertTrue(destination.waitForExistence(timeout: 5))
-  }
-
-  private func relaunchMockAI() {
-    app.terminate()
-    app = XCUIApplication()
-    app.launchArguments =
-      localizationArguments + [
-        "-UIPreferredContentSizeCategoryName",
-        "UICTContentSizeCategoryL",
-        "-UITestMockAI",
-      ]
-    app.launch()
-  }
-
-  private func createDefaultChart(name: String? = nil) {
-    let generateButton = openBirthInput()
-    if let name {
-      let nameField = app.textFields["名稱或暱稱（選填）"]
-      XCTAssertTrue(nameField.waitForExistence(timeout: 3))
-      nameField.tap()
-      nameField.typeText("\(name)\n")
-    }
-    scrollToElement(generateButton)
-    let overview = app.staticTexts["命盤總覽"]
-    generateButton.tap()
-    if !overview.waitForExistence(timeout: 5), generateButton.exists {
-      generateButton.tap()
-    }
-    XCTAssertTrue(overview.waitForExistence(timeout: 5))
-  }
-
-  private func openBirthInput() -> XCUIElement {
-    let create = app.buttons["home.createChart"]
-    let generate = app.buttons["birthInput.generate"]
-    XCTAssertTrue(create.waitForExistence(timeout: 5))
-    create.tap()
-    XCTAssertTrue(app.navigationBars["排一張命盤"].waitForExistence(timeout: 5))
-    return generate
-  }
-
-  private func openInterpretation() {
-    let interpretation = app.buttons["chart.interpretation"]
-    let destination = app.navigationBars["命盤解讀"]
-    scrollToElement(interpretation)
-    interpretation.tap()
-    XCTAssertTrue(destination.waitForExistence(timeout: 5))
-  }
-
-  private func presentInterpretationPreview(organizeButton: XCUIElement) {
-    let preview = app.navigationBars["確認 AI 整理"]
-    organizeButton.tap()
-    XCTAssertTrue(preview.waitForExistence(timeout: 5))
-  }
-
-  private func startInterpretationOrganization(organizeButton: XCUIElement) {
-    presentInterpretationPreview(organizeButton: organizeButton)
-    let confirm = app.buttons["interpretation.confirmOrganize"]
-    let loading = app.staticTexts["雲端模型正在整理，完成驗證前不會顯示內容。"]
-    confirm.tap()
-    XCTAssertTrue(loading.waitForExistence(timeout: 5))
-  }
-
-  private func waitForLabelContaining(
-    _ element: XCUIElement,
-    text: String,
-    timeout: TimeInterval
-  ) -> Bool {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label CONTAINS %@", text),
-      object: element
-    )
-    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
-  }
-
-  private func waitForNonExistence(
-    _ element: XCUIElement,
-    timeout: TimeInterval
-  ) -> Bool {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "exists == false"),
-      object: element
-    )
-    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
-  }
-
-  private func interpretationSourceLabel(_ title: String) -> XCUIElement {
-    app.staticTexts.matching(
-      NSPredicate(
-        format: "identifier == %@ AND label CONTAINS %@",
-        "interpretation.source.current",
-        title
-      )
-    ).firstMatch
-  }
-
-  private func assertVisibleInContentViewport(
-    _ element: XCUIElement,
-    navigationTitle: String,
-    file: StaticString = #filePath,
-    line: UInt = #line
-  ) {
-    XCTAssertTrue(element.waitForExistence(timeout: 5), file: file, line: line)
-    let navigationBar = app.navigationBars[navigationTitle]
-    let bottom =
-      app.tabBars.firstMatch.exists
-      ? app.tabBars.firstMatch.frame.minY
-      : app.frame.maxY
-    XCTAssertGreaterThanOrEqual(
-      element.frame.minY,
-      navigationBar.frame.maxY,
-      file: file,
-      line: line
-    )
-    XCTAssertLessThanOrEqual(
-      element.frame.maxY,
-      bottom,
-      file: file,
-      line: line
-    )
-    XCTAssertTrue(element.isHittable, file: file, line: line)
   }
 
   private func replaceText(in field: XCUIElement, with text: String) {
@@ -523,9 +401,5 @@ final class MightyZiWeiRedesignUITests: XCTestCase {
     for _ in 0..<6 {
       app.swipeDown()
     }
-  }
-
-  private func scrollToElement(_ element: XCUIElement) {
-    app.scrollToVisibleContent(element)
   }
 }

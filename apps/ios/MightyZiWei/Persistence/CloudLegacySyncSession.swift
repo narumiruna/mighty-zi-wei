@@ -5,7 +5,8 @@ import SwiftData
 /// 一次同步的可回復本機變更；遠端部分寫入由固定 ID 安全重試。
 @MainActor
 final class CloudLegacySyncSession {
-  private let database: CKDatabase
+  private let makeDatabase: () throws -> CKDatabase
+  private var database: CKDatabase { get throws { try makeDatabase() } }
   private let modelContext: ModelContext
   private let remote: CloudLegacySnapshot
   private var chartsByID: [UUID: SavedChart]
@@ -20,10 +21,11 @@ final class CloudLegacySyncSession {
   private var insightIDsToReconcileReminders = Set<UUID>()
 
   init(
-    database: CKDatabase, modelContext: ModelContext, remote: CloudLegacySnapshot,
+    database: @escaping () throws -> CKDatabase,
+    modelContext: ModelContext, remote: CloudLegacySnapshot,
     charts: [SavedChart], insights: [SavedInsight], deletions: [CloudDeletion]
   ) {
-    self.database = database
+    makeDatabase = database
     self.modelContext = modelContext
     self.remote = remote
     chartsByID = Dictionary(uniqueKeysWithValues: charts.map { ($0.id, $0) })

@@ -76,7 +76,7 @@ final class LunarBirthInputIntegrationTests: XCTestCase {
       XCTAssertEqual(try encoder.encode(lunarChart), try encoder.encode(expectedChart), name)
       let first = try SavedChart.make(name: "公曆", profile: fixture.input, chart: expectedChart)
       let second = try SavedChart.make(name: "農曆", profile: resolved, chart: lunarChart)
-      XCTAssertTrue(first.hasSameBirthProfile(as: second), name)
+      XCTAssertEqual(try first.birthProfile(), try second.birthProfile(), name)
       XCTAssertEqual(first.birthProfileData, second.birthProfileData, name)
     }
   }

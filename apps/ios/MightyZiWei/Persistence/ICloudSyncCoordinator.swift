@@ -28,24 +28,21 @@ final class ICloudSynchronizer {
     self.service = service
   }
 
-  func sync(
-    charts: [SavedChart],
-    insights: [SavedInsight],
-    deletions: [CloudDeletion],
-    modelContext: ModelContext
-  ) async throws -> ICloudSyncResult {
-    _ = (charts, insights, deletions)
+  func sync(modelContext: ModelContext) async throws -> ICloudSyncResult {
     let synchronizationContext = ModelContext(modelContext.container)
     synchronizationContext.autosaveEnabled = false
     let latestCharts = try synchronizationContext.fetch(FetchDescriptor<SavedChart>())
     let latestInsights = try synchronizationContext.fetch(FetchDescriptor<SavedInsight>())
     let latestDeletions = try synchronizationContext.fetch(FetchDescriptor<CloudDeletion>())
-    return try await service.sync(
+    let result = try await service.sync(
       charts: latestCharts,
       insights: latestInsights,
       deletions: latestDeletions,
       modelContext: synchronizationContext
     )
+    let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
+    PinnedChartShortcut.reconcile(charts: currentCharts)
+    return result
   }
 }
 
@@ -184,23 +181,6 @@ final class ICloudSyncCoordinator {
       case .success(let value): waiter.resume(returning: value)
       case .failure(let error): waiter.resume(throwing: error)
       }
-    }
-  }
-}
-
-@MainActor
-enum CloudSyncMutationTransaction {
-  static func run<Result>(
-    modelContext: ModelContext,
-    onRollback: () -> Void = {},
-    operation: () async throws -> Result
-  ) async throws -> Result {
-    do {
-      return try await operation()
-    } catch {
-      modelContext.rollback()
-      onRollback()
-      throw error
     }
   }
 }

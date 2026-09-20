@@ -1,8 +1,8 @@
 import XCTest
 
 @MainActor
-final class InterpretationSourceUITests: XCTestCase {
-  private var app: XCUIApplication!
+final class InterpretationSourceUITests: XCTestCase, ChartWorkflowUITest {
+  var app: XCUIApplication!
 
   override func setUp() async throws {
     continueAfterFailure = false
@@ -124,21 +124,7 @@ final class InterpretationSourceUITests: XCTestCase {
   }
 
   private func createChart() {
-    let create = app.buttons["home.createChart"]
-    XCTAssertTrue(create.waitForExistence(timeout: 5))
-    create.tap()
-    let generate = app.buttons["birthInput.generate"]
-    XCTAssertTrue(generate.waitForExistence(timeout: 5))
-    app.scrollToVisibleContent(generate)
-    generate.tap()
-    XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
-  }
-
-  private func openInterpretation() {
-    let interpretation = app.buttons["chart.interpretation"]
-    app.scrollToVisibleContent(interpretation)
-    interpretation.tap()
-    XCTAssertTrue(app.navigationBars["命盤解讀"].waitForExistence(timeout: 5))
+    createDefaultChart()
   }
 
   private func openSources() {
@@ -146,6 +132,9 @@ final class InterpretationSourceUITests: XCTestCase {
     app.scrollToVisibleContent(evidence)
     evidence.tap()
     let sources = app.buttons["本段引用依據與來源"].firstMatch
+    if !sources.waitForExistence(timeout: 3), evidence.isHittable {
+      evidence.tap()
+    }
     XCTAssertTrue(sources.waitForExistence(timeout: 3))
     app.scrollToVisibleContent(sources)
     sources.tap()

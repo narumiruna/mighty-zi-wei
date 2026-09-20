@@ -40,20 +40,7 @@ final class AIUsageStore {
   private let defaults: UserDefaults
   private let calendar: Calendar
   private let defaultsWriter: (AIUsageDefaultsMutation) throws -> Void
-  private var storedMonthlyLimit: Int
-
-  var monthlyLimit: Int {
-    get { storedMonthlyLimit }
-    set {
-      let normalized = max(0, newValue)
-      do {
-        try defaultsWriter(.saveMonthlyLimit(normalized))
-        storedMonthlyLimit = normalized
-      } catch {
-        // UserDefaults 的 production 寫入不會拋錯；可錯誤注入流程由提交協調器處理。
-      }
-    }
-  }
+  private(set) var monthlyLimit: Int
 
   private(set) var currentMonthCount: Int
   private(set) var lastDiagnostic: String?
@@ -78,7 +65,7 @@ final class AIUsageStore {
           }
         }
       }
-    storedMonthlyLimit =
+    monthlyLimit =
       defaults.object(forKey: Key.monthlyLimit) == nil
       ? 50
       : max(0, defaults.integer(forKey: Key.monthlyLimit))
@@ -107,7 +94,7 @@ final class AIUsageStore {
       throw AIConfigurationCommitError.invalidMonthlyLimit
     }
     try defaultsWriter(.saveMonthlyLimit(value))
-    storedMonthlyLimit = value
+    monthlyLimit = value
   }
 
   func makePersistenceSnapshot() -> PersistenceSnapshot {
@@ -120,7 +107,7 @@ final class AIUsageStore {
 
   func restore(from snapshot: PersistenceSnapshot) throws {
     try defaultsWriter(.restoreMonthlyLimit(snapshot.storedMonthlyLimit))
-    storedMonthlyLimit = snapshot.storedMonthlyLimit.map { max(0, $0) } ?? 50
+    monthlyLimit = snapshot.storedMonthlyLimit.map { max(0, $0) } ?? 50
   }
 
   func reserve(_ kind: RequestKind) throws {
@@ -164,11 +151,6 @@ final class AIUsageStore {
     ].joined(separator: "\n")
     lastDiagnostic = diagnostic
     defaults.set(diagnostic, forKey: Key.lastDiagnostic)
-  }
-
-  func clearDiagnostic() {
-    lastDiagnostic = nil
-    defaults.removeObject(forKey: Key.lastDiagnostic)
   }
 
   private func resetMonthIfNeeded() {

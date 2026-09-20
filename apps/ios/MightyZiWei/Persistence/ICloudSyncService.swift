@@ -39,7 +39,7 @@ final class ICloudSyncService: ICloudSynchronizing {
       insightRecords: fetchRecords(type: RecordType.insight)
     )
     return try await CloudLegacySyncSession(
-      database: database, modelContext: modelContext, remote: remote,
+      database: { self.database }, modelContext: modelContext, remote: remote,
       charts: charts, insights: insights, deletions: deletions
     ).run()
   }
@@ -50,18 +50,7 @@ final class ICloudSyncService: ICloudSynchronizing {
 
   private func fetchRecords(type: String) async throws -> [CKRecord] {
     var records: [CKRecord] = []
-    var cursor: CKQueryOperation.Cursor?
-    repeat {
-      let result: ([(CKRecord.ID, Result<CKRecord, any Error>)], CKQueryOperation.Cursor?)
-      if let cursor {
-        result = try await database.records(continuingMatchFrom: cursor)
-      } else {
-        result = try await database.records(
-          matching: CKQuery(recordType: type, predicate: NSPredicate(value: true)))
-      }
-      for (_, recordResult) in result.0 { records.append(try recordResult.get()) }
-      cursor = result.1
-    } while cursor != nil
+    try await CloudRecordFetcher.fetch(type: type, database: database) { records.append($0) }
     return records
   }
 }

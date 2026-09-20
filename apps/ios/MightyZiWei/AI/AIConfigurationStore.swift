@@ -148,7 +148,7 @@ struct KeychainAPICredentialStore: APICredentialStoring {
     }
 
     var item = baseQuery
-    attributes.forEach { item[$0.key] = $0.value }
+    for (key, value) in attributes { item[key] = value }
     let addStatus = SecItemAdd(item as CFDictionary, nil)
     guard addStatus == errSecSuccess else {
       throw CredentialError.keychain(addStatus)
@@ -290,53 +290,7 @@ final class AIConfigurationStore {
     }
   }
 
-  func save(endpoint: String, model: String, apiKey: String) throws {
-    let snapshot = try makePersistenceSnapshot()
-    let configuration = try OpenAIResponsesConfiguration(
-      endpoint: endpoint,
-      model: model,
-      apiKey: apiKey,
-      maximumAnswerCharacters: maximumAnswerCharacters
-    )
-    do {
-      try saveAPIKey(configuration.apiKey)
-      try apply(
-        configuration: configuration,
-        maximumAnswerCharacters: maximumAnswerCharacters
-      )
-      finishRecovery()
-    } catch {
-      try rollbackOrEnterRecovery(snapshot: snapshot, originalError: error)
-    }
-  }
-
-  func setMaximumAnswerCharacters(_ value: Int) {
-    let normalized = min(max(value, 300), 2_000)
-    do {
-      try defaultsWriter(
-        .save(
-          endpoint: endpoint,
-          model: model,
-          maximumAnswerCharacters: normalized
-        ))
-      maximumAnswerCharacters = normalized
-    } catch {
-      // UserDefaults 的 production 寫入不會拋錯；可錯誤注入流程由提交協調器處理。
-    }
-  }
-
-  func clear() throws {
-    let snapshot = try makePersistenceSnapshot()
-    do {
-      try saveAPIKey(nil)
-      try applyClearedDefaults()
-      finishRecovery()
-    } catch {
-      try rollbackOrEnterRecovery(snapshot: snapshot, originalError: error)
-    }
-  }
-
-  func makePersistenceSnapshot() throws -> PersistenceSnapshot {
+  fileprivate func makePersistenceSnapshot() throws -> PersistenceSnapshot {
     PersistenceSnapshot(
       storedEndpoint: defaults.string(forKey: DefaultsKey.endpoint),
       storedModel: defaults.string(forKey: DefaultsKey.model),
@@ -347,12 +301,12 @@ final class AIConfigurationStore {
     )
   }
 
-  func saveAPIKey(_ apiKey: String?) throws {
+  fileprivate func saveAPIKey(_ apiKey: String?) throws {
     try credentialStore.saveAPIKey(apiKey)
     hasAPIKey = apiKey?.isEmpty == false
   }
 
-  func apply(
+  fileprivate func apply(
     configuration: OpenAIResponsesConfiguration,
     maximumAnswerCharacters: Int
   ) throws {
@@ -368,7 +322,7 @@ final class AIConfigurationStore {
     hasAPIKey = configuration.apiKey != nil
   }
 
-  func applyClearedDefaults() throws {
+  fileprivate func applyClearedDefaults() throws {
     try defaultsWriter(.clear)
     endpoint = Self.defaultEndpoint
     model = ""
@@ -376,7 +330,7 @@ final class AIConfigurationStore {
     hasAPIKey = false
   }
 
-  func restoreDefaults(from snapshot: PersistenceSnapshot) throws {
+  fileprivate func restoreDefaults(from snapshot: PersistenceSnapshot) throws {
     try defaultsWriter(
       .restore(
         endpoint: snapshot.storedEndpoint,
@@ -390,12 +344,12 @@ final class AIConfigurationStore {
     hasAPIKey = snapshot.apiKey != nil
   }
 
-  func restoreAPIKey(from snapshot: PersistenceSnapshot) throws {
+  fileprivate func restoreAPIKey(from snapshot: PersistenceSnapshot) throws {
     try credentialStore.saveAPIKey(snapshot.apiKey)
     hasAPIKey = snapshot.apiKey != nil
   }
 
-  func enterRecoveryMode() {
+  fileprivate func enterRecoveryMode() {
     defaults.removeObject(forKey: DefaultsKey.endpoint)
     defaults.removeObject(forKey: DefaultsKey.model)
     endpoint = defaults.string(forKey: DefaultsKey.endpoint) ?? Self.defaultEndpoint
@@ -410,18 +364,7 @@ final class AIConfigurationStore {
     requiresRecovery = true
   }
 
-  func discardRecoveryConfiguration() throws {
-    do {
-      try credentialStore.saveAPIKey(nil)
-      try applyClearedDefaults()
-      finishRecovery()
-    } catch {
-      enterRecoveryMode()
-      throw AIConfigurationCommitError.recoveryRequired
-    }
-  }
-
-  func finishRecovery() {
+  fileprivate func finishRecovery() {
     requiresRecovery = false
     credentialsTemporarilyUnavailable = false
   }
@@ -446,28 +389,6 @@ final class AIConfigurationStore {
       credentialsTemporarilyUnavailable = false
       requiresRecovery = true
     }
-  }
-
-  private func rollbackOrEnterRecovery(
-    snapshot: PersistenceSnapshot,
-    originalError: any Error
-  ) throws -> Never {
-    var rollbackFailed = false
-    do {
-      try restoreDefaults(from: snapshot)
-    } catch {
-      rollbackFailed = true
-    }
-    do {
-      try restoreAPIKey(from: snapshot)
-    } catch {
-      rollbackFailed = true
-    }
-    if rollbackFailed {
-      enterRecoveryMode()
-      throw AIConfigurationCommitError.recoveryRequired
-    }
-    throw originalError
   }
 
   private static func apply(
@@ -631,7 +552,14 @@ final class AIConfigurationCommitCoordinator {
   }
 
   func discardRecoveryConfiguration() throws {
-    try configurationStore.discardRecoveryConfiguration()
+    do {
+      try configurationStore.saveAPIKey(nil)
+      try configurationStore.applyClearedDefaults()
+      configurationStore.finishRecovery()
+    } catch {
+      configurationStore.enterRecoveryMode()
+      throw AIConfigurationCommitError.recoveryRequired
+    }
     recoveryMessage = nil
   }
 

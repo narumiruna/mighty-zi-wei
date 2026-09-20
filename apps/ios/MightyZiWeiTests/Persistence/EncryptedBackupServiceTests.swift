@@ -36,7 +36,12 @@ final class EncryptedBackupServiceTests: XCTestCase {
     XCTAssertEqual(restored.updatedAt, savedChart.updatedAt)
     XCTAssertNil(restored.chartCacheData)
 
-    let restoredInsight = try XCTUnwrap(payload.makeSavedInsights().first)
+    let container = try ObservationTestSupport.container()
+    let context = ModelContext(container)
+    _ = try BackupRestoreService.restore(
+      payload, existingCharts: [], existingInsights: [], modelContext: context,
+      shortcutDefaults: nil)
+    let restoredInsight = try XCTUnwrap(context.fetch(FetchDescriptor<SavedInsight>()).first)
     XCTAssertEqual(restoredInsight.id, insight.id)
     XCTAssertEqual(restoredInsight.locationID, insight.locationID)
     XCTAssertEqual(restoredInsight.marker, .resonates)

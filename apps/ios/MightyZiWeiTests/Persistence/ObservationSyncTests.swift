@@ -109,10 +109,8 @@ final class ObservationSyncTests: XCTestCase {
     remote.failAfterWrites = 1
     let synchronizer = CloudObservationSynchronizer(store: remote)
     do {
-      _ = try await CloudSyncMutationTransaction.run(modelContext: context) {
-        try await synchronizer.reconcile(
-          consentGranted: true, charts: [chart], deletions: [], modelContext: context)
-      }
+      _ = try await synchronizer.reconcile(
+        consentGranted: true, charts: [chart], deletions: [], modelContext: context)
       XCTFail("應回報部分遠端失敗")
     } catch {
       XCTAssertEqual(remote.state.observations.count, 1)

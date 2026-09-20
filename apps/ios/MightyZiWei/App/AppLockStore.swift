@@ -86,10 +86,6 @@ final class AppLockStore {
     return await authenticate()
   }
 
-  func clearError() {
-    errorMessage = nil
-  }
-
   private func evaluate(reason: String) async -> Bool {
     guard !isAuthenticating else { return false }
     isAuthenticating = true
