@@ -32,7 +32,8 @@ final class AIConfigurationStoreTests: XCTestCase {
   func test儲存後可重新載入設定與APIKey() throws {
     let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
 
-    try store.save(
+    try commit(
+      store,
       endpoint: "https://example.com/v1/responses",
       model: "example-model",
       apiKey: "secret"
@@ -49,7 +50,8 @@ final class AIConfigurationStoreTests: XCTestCase {
   func testBaseURL會自動補上Responses路徑並保存() throws {
     let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
 
-    try store.save(
+    try commit(
+      store,
       endpoint: "https://example.com/openai/v1/",
       model: "example-model",
       apiKey: ""
@@ -91,7 +93,8 @@ final class AIConfigurationStoreTests: XCTestCase {
   func test空白APIKey不會儲存憑證() throws {
     let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
 
-    try store.save(
+    try commit(
+      store,
       endpoint: "https://example.com/responses",
       model: "local-model",
       apiKey: "   "
@@ -103,13 +106,16 @@ final class AIConfigurationStoreTests: XCTestCase {
 
   func test清除設定會移除UserDefaults與憑證() throws {
     let store = AIConfigurationStore(defaults: defaults, credentialStore: credentials)
-    try store.save(
+    try commit(
+      store,
       endpoint: "https://example.com/responses",
       model: "model",
       apiKey: "secret"
     )
 
-    try store.clear()
+    try AIConfigurationCommitCoordinator(
+      configurationStore: store, usageStore: AIUsageStore(defaults: defaults)
+    ).clear()
 
     XCTAssertFalse(store.isConfigured)
     XCTAssertEqual(store.endpoint, AIConfigurationStore.defaultEndpoint)
@@ -704,15 +710,23 @@ final class AIConfigurationStoreTests: XCTestCase {
       defaults: defaults,
       credentialStore: credentials
     )
-    configurationStore.setMaximumAnswerCharacters(maximumAnswerCharacters)
-    try configurationStore.save(
-      endpoint: endpoint,
-      model: model,
-      apiKey: apiKey
-    )
-    let usageStore = AIUsageStore(defaults: defaults)
-    usageStore.monthlyLimit = monthlyLimit
+    try AIConfigurationCommitCoordinator(
+      configurationStore: configurationStore, usageStore: AIUsageStore(defaults: defaults)
+    ).commit(
+      draft: AIConfigurationDraft(
+        endpoint: endpoint, model: model, apiKey: apiKey,
+        maximumAnswerCharacters: maximumAnswerCharacters, monthlyLimit: monthlyLimit))
     credentials.resetSaveInvocations()
+  }
+
+  private func commit(
+    _ store: AIConfigurationStore, endpoint: String, model: String, apiKey: String
+  ) throws {
+    let usage = AIUsageStore(defaults: defaults)
+    try AIConfigurationCommitCoordinator(configurationStore: store, usageStore: usage).commit(
+      draft: AIConfigurationDraft(
+        endpoint: endpoint, model: model, apiKey: apiKey,
+        maximumAnswerCharacters: store.maximumAnswerCharacters, monthlyLimit: usage.monthlyLimit))
   }
 
   private static func apply(

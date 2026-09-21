@@ -361,9 +361,6 @@ struct RootView: View {
   @Environment(ICloudSynchronizer.self) private var iCloudSynchronizer
   @Environment(VoiceCoordinator.self) private var voiceCoordinator
 
-  @Query private var savedCharts: [SavedChart]
-  @Query private var savedInsights: [SavedInsight]
-  @Query private var cloudDeletions: [CloudDeletion]
   @AppStorage(ICloudSyncService.enabledKey) private var iCloudSyncEnabled = false
   @State private var navigation = AppNavigationState()
   @State private var assistantStore: ChartAssistantStore
@@ -478,15 +475,7 @@ struct RootView: View {
     guard iCloudSyncEnabled else { return }
     do {
       _ = try await iCloudSyncCoordinator.synchronize {
-        let result = try await iCloudSynchronizer.sync(
-          charts: savedCharts,
-          insights: savedInsights,
-          deletions: cloudDeletions,
-          modelContext: modelContext
-        )
-        let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
-        PinnedChartShortcut.reconcile(charts: currentCharts)
-        return result
+        try await iCloudSynchronizer.sync(modelContext: modelContext)
       }
     } catch {
       // 保持啟用與安全的可重試狀態，等下次進入前景或由使用者手動重試。

@@ -242,6 +242,13 @@ Responses API 不參與排盤；App 會要求模型不得新增未提供的命�
 
 命盤問答只使用 App 產生的 verified `ChartFact`、`InterpretationSeed`、目前問題與已驗證的本次對話。
 
+解讀、對話與封存引用共用 `InterpretationEvidenceResolver` 展開有序依據，但各自保留內容、分類、版本與錯誤優先順序。
+生成文字的禁止語句與情境專用免責語句集中於 `GeneratedContentSafetyPolicy`。
+API 設定與每月上限只透過 `AIConfigurationCommitCoordinator` 提交；寫入失敗依序回復設定、上限與憑證，回復不完整則停用 AI。
+`ICloudSynchronizer` 從獨立 context 讀取最新持久化資料，成功後才重新核對釘選捷徑，不把畫面尚未儲存的草稿送往 iCloud。
+CloudKit cursor 走訪由 `CloudRecordFetcher` 共用，觀察 payload 解碼與 record 快取仍由 `CloudObservationRecordStore` 管理。
+SwiftData 遷移與重建共用 `AppModelStoreFiles` 列出的主檔、journal、SHM 與 WAL，儲存與傳輸格式維持不變。
+
 ```mermaid
 flowchart TD
     Input["出生資料"]

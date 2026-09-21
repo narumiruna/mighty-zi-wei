@@ -8,9 +8,6 @@ struct SettingsView: View {
   @Environment(AppLockStore.self) private var appLockStore
   @Environment(ICloudSyncCoordinator.self) private var iCloudSyncCoordinator
   @Environment(ICloudSynchronizer.self) private var iCloudSynchronizer
-  @Query private var charts: [SavedChart]
-  @Query private var insights: [SavedInsight]
-  @Query private var deletions: [CloudDeletion]
   @AppStorage(ICloudSyncService.enabledKey) private var iCloudSyncEnabled = false
   @AppStorage(ObservationSyncConsent.enabledKey) private var observationSyncEnabled = false
   @AppStorage("accessibility.linear-chart") private var linearChartEnabled = false
@@ -261,15 +258,7 @@ struct SettingsView: View {
     guard iCloudSyncEnabled else { return }
     do {
       _ = try await iCloudSyncCoordinator.synchronize {
-        let result = try await iCloudSynchronizer.sync(
-          charts: charts,
-          insights: insights,
-          deletions: deletions,
-          modelContext: modelContext
-        )
-        let currentCharts = try modelContext.fetch(FetchDescriptor<SavedChart>())
-        PinnedChartShortcut.reconcile(charts: currentCharts)
-        return result
+        try await iCloudSynchronizer.sync(modelContext: modelContext)
       }
     } catch {
       // 協調器保留安全、可重試的部分同步狀態，且不關閉已啟用設定。

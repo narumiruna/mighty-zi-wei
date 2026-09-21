@@ -39,10 +39,29 @@ protocol CloudObservationRecordStoring {
 
 @MainActor
 final class CloudObservationRecordStore: CloudObservationRecordStoring {
-  private let database: CKDatabase
+  private let fetchRecords: CloudRecordFetcher.Fetch
+  private let saveRecord: @MainActor (CKRecord) async throws -> CKRecord
+  private let removeRecord: @MainActor (CKRecord.ID) async throws -> Void
   private var existingRecords: [String: CKRecord] = [:]
 
-  init(database: CKDatabase) { self.database = database }
+  convenience init(database: CKDatabase) {
+    self.init(
+      fetchRecords: { type, visit in
+        try await CloudRecordFetcher.fetch(type: type, database: database, visit: visit)
+      },
+      saveRecord: { try await database.save($0) },
+      removeRecord: { _ = try await database.deleteRecord(withID: $0) })
+  }
+
+  init(
+    fetchRecords: @escaping CloudRecordFetcher.Fetch,
+    saveRecord: @escaping @MainActor (CKRecord) async throws -> CKRecord,
+    removeRecord: @escaping @MainActor (CKRecord.ID) async throws -> Void
+  ) {
+    self.fetchRecords = fetchRecords
+    self.saveRecord = saveRecord
+    self.removeRecord = removeRecord
+  }
 
   func fetch() async throws -> CloudObservationState {
     existingRecords.removeAll()
@@ -74,8 +93,7 @@ final class CloudObservationRecordStore: CloudObservationRecordStoring {
 
   func deleteRecord(type: String, id: UUID) async throws {
     do {
-      try await database.deleteRecord(
-        withID: CKRecord.ID(recordName: Self.recordName(type: type, id: id)))
+      try await removeRecord(CKRecord.ID(recordName: Self.recordName(type: type, id: id)))
     } catch let error as CKError where error.code == .unknownItem {
       // 固定識別碼的冪等刪除。
     }
@@ -87,30 +105,18 @@ final class CloudObservationRecordStore: CloudObservationRecordStoring {
     let record =
       existingRecords[name] ?? CKRecord(recordType: type, recordID: CKRecord.ID(recordName: name))
     record["payload"] = try JSONEncoder().encode(payload)
-    existingRecords[name] = try await database.save(record)
+    existingRecords[name] = try await saveRecord(record)
   }
 
   private func fetchPayloads<Payload: Decodable>(type: String) async throws -> [Payload] {
     var values: [Payload] = []
-    var cursor: CKQueryOperation.Cursor?
-    repeat {
-      let result: ([(CKRecord.ID, Result<CKRecord, any Error>)], CKQueryOperation.Cursor?)
-      if let cursor {
-        result = try await database.records(continuingMatchFrom: cursor)
-      } else {
-        result = try await database.records(
-          matching: CKQuery(recordType: type, predicate: NSPredicate(value: true)))
+    try await fetchRecords(type) { record in
+      guard let data = record["payload"] as? Data else {
+        throw ICloudSyncService.SyncError.invalidRemoteData
       }
-      for (_, value) in result.0 {
-        let record = try value.get()
-        guard let data = record["payload"] as? Data else {
-          throw ICloudSyncService.SyncError.invalidRemoteData
-        }
-        values.append(try JSONDecoder().decode(Payload.self, from: data))
-        existingRecords[record.recordID.recordName] = record
-      }
-      cursor = result.1
-    } while cursor != nil
+      values.append(try JSONDecoder().decode(Payload.self, from: data))
+      existingRecords[record.recordID.recordName] = record
+    }
     return values
   }
 }

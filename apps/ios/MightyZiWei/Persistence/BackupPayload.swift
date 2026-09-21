@@ -238,10 +238,6 @@ struct ValidatedBackupPayload: Sendable {
   func makeSavedCharts() throws -> [SavedChart] {
     try charts.map { try $0.makeSavedChart() }
   }
-
-  func makeSavedInsights() -> [SavedInsight] {
-    insights.map { $0.makeSavedInsight() }
-  }
 }
 
 enum BackupJSONCoding {

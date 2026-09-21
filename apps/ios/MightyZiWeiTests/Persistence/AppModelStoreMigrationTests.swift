@@ -5,6 +5,39 @@ import XCTest
 
 @MainActor
 final class AppModelStoreMigrationTests: XCTestCase {
+  func test共用路徑只列出主檔JournalSHM與WAL() {
+    let base = URL(filePath: "/tmp/本機資料/default.store")
+    XCTAssertEqual(
+      AppModelStoreFiles.urls(for: base).map(\.lastPathComponent),
+      ["default.store", "default.store-journal", "default.store-shm", "default.store-wal"])
+  }
+
+  func test複製失敗不發布主檔且清除暫存後可重試() throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    let source = root.appending(path: "來源/default.store")
+    let destination = root.appending(path: "目的/default.store")
+    try FileManager.default.createDirectory(
+      at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    for file in AppModelStoreFiles.urls(for: source) {
+      try Data(file.lastPathComponent.utf8).write(to: file)
+    }
+    XCTAssertThrowsError(
+      try AppModelStoreMigrator(
+        fileManager: FailingStoreCopyFileManager(), sourceURL: source, destinationURL: destination
+      ).migrateIfNeeded())
+    for file in AppModelStoreFiles.urls(for: destination) {
+      XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+      XCTAssertFalse(FileManager.default.fileExists(atPath: file.path + ".migration"))
+    }
+    try AppModelStoreMigrator(sourceURL: source, destinationURL: destination).migrateIfNeeded()
+    for (original, copied) in zip(
+      AppModelStoreFiles.urls(for: source), AppModelStoreFiles.urls(for: destination))
+    {
+      XCTAssertEqual(try Data(contentsOf: copied), try Data(contentsOf: original))
+    }
+  }
+
   func test舊共享容器資料庫會在本機資料庫不存在時完整遷移() throws {
     let root = FileManager.default.temporaryDirectory
       .appending(path: "AppModelStoreMigratorTests.\(UUID().uuidString)")
@@ -62,15 +95,12 @@ final class AppModelStoreMigrationTests: XCTestCase {
     try autoreleasepool {
       let sourceContainer = try ModelContainer(
         for: schema,
-        configurations: [
-          ModelConfiguration(
-            schema: schema,
-            url: sourceURL,
-            cloudKitDatabase: .none
-          )
-        ]
+        configurations: ModelConfiguration(
+          schema: schema, url: sourceURL, cloudKitDatabase: .none)
       )
       let context = ModelContext(sourceContainer)
+      let turn = ChartConversationTurn(
+        question: "舊問題", answer: "舊回答", evidenceFactIDs: ["natal.palace.life.branch"])
       context.insert(
         SavedConversation(
           id: conversationID,
@@ -79,13 +109,7 @@ final class AppModelStoreMigrationTests: XCTestCase {
           chartDetail: "1990/01/01　12:00",
           modelIdentifier: "legacy-model",
           title: "舊共享對話",
-          turns: [
-            ChartConversationTurn(
-              question: "舊問題",
-              answer: "舊回答",
-              evidenceFactIDs: ["natal.palace.life.branch"]
-            )
-          ]
+          turns: [turn]
         ))
       try context.save()
     }
@@ -96,13 +120,8 @@ final class AppModelStoreMigrationTests: XCTestCase {
     ).migrateIfNeeded()
     let destinationContainer = try ModelContainer(
       for: schema,
-      configurations: [
-        ModelConfiguration(
-          schema: schema,
-          url: destinationURL,
-          cloudKitDatabase: .none
-        )
-      ]
+      configurations: ModelConfiguration(
+        schema: schema, url: destinationURL, cloudKitDatabase: .none)
     )
     let migrated = try ModelContext(destinationContainer).fetch(
       FetchDescriptor<SavedConversation>(
@@ -188,5 +207,12 @@ final class AppModelStoreMigrationTests: XCTestCase {
     ).migrateIfNeeded()
 
     XCTAssertEqual(try Data(contentsOf: destinationURL), Data("current".utf8))
+  }
+}
+
+private final class FailingStoreCopyFileManager: FileManager, @unchecked Sendable {
+  override func copyItem(at source: URL, to destination: URL) throws {
+    if source.path.hasSuffix("-wal") { throw CocoaError(.fileWriteOutOfSpace) }
+    try super.copyItem(at: source, to: destination)
   }
 }

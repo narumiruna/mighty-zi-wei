@@ -106,10 +106,6 @@ final class SavedChart {
     updatedAt = .now
   }
 
-  func hasSameBirthProfile(as other: SavedChart) -> Bool {
-    (try? birthProfile()) == (try? other.birthProfile())
-  }
-
   func matchesSearch(_ query: String, calendar: Calendar = .current) -> Bool {
     let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !normalized.isEmpty else { return true }

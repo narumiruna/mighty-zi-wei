@@ -1,8 +1,8 @@
 import XCTest
 
 @MainActor
-final class ChartReadingGuideUITests: XCTestCase {
-  private var app: XCUIApplication!
+final class ChartReadingGuideUITests: XCTestCase, ChartWorkflowUITest {
+  var app: XCUIApplication!
 
   override func setUp() async throws {
     continueAfterFailure = false
@@ -112,26 +112,18 @@ final class ChartReadingGuideUITests: XCTestCase {
   }
 
   private func createChart(name: String? = nil) {
-    let create = app.buttons["home.createChart"]
-    XCTAssertTrue(create.waitForExistence(timeout: 5))
-    create.tap()
-    let generate = app.buttons["birthInput.generate"]
-    XCTAssertTrue(app.navigationBars["排一張命盤"].waitForExistence(timeout: 5))
-    if let name {
-      let field = app.textFields["名稱或暱稱（選填）"]
-      field.tap()
-      field.typeText("\(name)\n")
-    }
-    app.scrollToVisibleContent(generate)
-    generate.tap()
-    XCTAssertTrue(app.staticTexts["命盤總覽"].waitForExistence(timeout: 5))
+    createDefaultChart(name: name)
   }
 
   private func openGuide() {
     let guide = app.buttons["chart.readingGuide"]
     app.scrollToVisibleContent(guide)
+    let destination = app.navigationBars["四步讀盤導覽"]
     guide.tap()
-    XCTAssertTrue(app.navigationBars["四步讀盤導覽"].waitForExistence(timeout: 5))
+    if !destination.waitForExistence(timeout: 5), guide.isHittable {
+      guide.tap()
+    }
+    XCTAssertTrue(destination.waitForExistence(timeout: 5))
   }
 
   private func assertStep(_ number: Int, file: StaticString = #filePath, line: UInt = #line) {

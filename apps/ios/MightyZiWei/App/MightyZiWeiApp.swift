@@ -117,96 +117,6 @@ enum AppModelContainerLoader {
   }
 }
 
-struct AppModelStoreMigrator {
-  private static let storeSuffixes = ["", "-journal", "-shm", "-wal"]
-
-  var fileManager = FileManager.default
-  var sourceURL: URL
-  var destinationURL: URL
-
-  func migrateIfNeeded() throws {
-    let sourceURL = sourceURL.standardizedFileURL
-    let destinationURL = destinationURL.standardizedFileURL
-    guard sourceURL != destinationURL,
-      !fileManager.fileExists(atPath: destinationURL.path),
-      fileManager.fileExists(atPath: sourceURL.path)
-    else { return }
-
-    try fileManager.createDirectory(
-      at: destinationURL.deletingLastPathComponent(),
-      withIntermediateDirectories: true
-    )
-    try cleanupTemporaryFiles(destinationURL: destinationURL)
-    for suffix in Self.storeSuffixes.dropFirst() {
-      let incompleteSidecar = storeFile(baseURL: destinationURL, suffix: suffix)
-      if fileManager.fileExists(atPath: incompleteSidecar.path) {
-        try fileManager.removeItem(at: incompleteSidecar)
-      }
-    }
-    do {
-      for suffix in Self.storeSuffixes {
-        let source = storeFile(baseURL: sourceURL, suffix: suffix)
-        guard fileManager.fileExists(atPath: source.path) else { continue }
-        try fileManager.copyItem(
-          at: source,
-          to: temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
-        )
-      }
-
-      for suffix in Self.storeSuffixes.dropFirst() {
-        let temporary = temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
-        guard fileManager.fileExists(atPath: temporary.path) else { continue }
-        let destination = storeFile(baseURL: destinationURL, suffix: suffix)
-        if fileManager.fileExists(atPath: destination.path) {
-          try fileManager.removeItem(at: destination)
-        }
-        try fileManager.moveItem(at: temporary, to: destination)
-      }
-      try fileManager.moveItem(
-        at: temporaryStoreFile(baseURL: destinationURL, suffix: ""),
-        to: destinationURL
-      )
-    } catch {
-      try? cleanupTemporaryFiles(destinationURL: destinationURL)
-      throw error
-    }
-  }
-
-  private func cleanupTemporaryFiles(destinationURL: URL) throws {
-    for suffix in Self.storeSuffixes {
-      let temporary = temporaryStoreFile(baseURL: destinationURL, suffix: suffix)
-      if fileManager.fileExists(atPath: temporary.path) {
-        try fileManager.removeItem(at: temporary)
-      }
-    }
-  }
-
-  private func storeFile(baseURL: URL, suffix: String) -> URL {
-    URL(filePath: baseURL.path + suffix)
-  }
-
-  private func temporaryStoreFile(baseURL: URL, suffix: String) -> URL {
-    URL(filePath: baseURL.path + suffix + ".migration")
-  }
-}
-
-struct AppModelStoreResetter {
-  var fileManager = FileManager.default
-  var storeURL: URL
-
-  func resetStoreFiles() throws {
-    let storeFiles = [
-      storeURL,
-      URL(filePath: storeURL.path + "-journal"),
-      URL(filePath: storeURL.path + "-shm"),
-      URL(filePath: storeURL.path + "-wal"),
-    ]
-    for file in storeFiles where fileManager.fileExists(atPath: file.path) {
-      try fileManager.removeItem(at: file)
-    }
-  }
-}
-
 enum PersistenceResetError: Error, Equatable {
   case authenticationFailed
   case reloadFailed
@@ -317,13 +227,6 @@ struct MightyZiWeiApp: App {
         defaults: defaults,
         credentialStore: UITestCredentialStore()
       )
-      if arguments.contains("-UITestMockAI") {
-        try? store.save(
-          endpoint: "https://example.com/v1",
-          model: "ui-test-model",
-          apiKey: ""
-        )
-      }
       configurationStore = store
     } else {
       configurationStore = AIConfigurationStore()
@@ -334,12 +237,20 @@ struct MightyZiWeiApp: App {
       isUITesting
       ? UITestAIConnectionTester(arguments: arguments)
       : OpenAIConnectionTester()
-    _aiConfigurationCommitCoordinator = State(
-      initialValue: AIConfigurationCommitCoordinator(
-        configurationStore: configurationStore,
-        usageStore: usageStore,
-        connectionTester: connectionTester
-      ))
+    let commitCoordinator = AIConfigurationCommitCoordinator(
+      configurationStore: configurationStore,
+      usageStore: usageStore,
+      connectionTester: connectionTester
+    )
+    if arguments.contains("-UITestMockAI") {
+      try? commitCoordinator.commit(
+        draft: AIConfigurationDraft(
+          endpoint: "https://example.com/v1", model: "ui-test-model", apiKey: "",
+          maximumAnswerCharacters: configurationStore.maximumAnswerCharacters,
+          monthlyLimit: usageStore.monthlyLimit
+        ))
+    }
+    _aiConfigurationCommitCoordinator = State(initialValue: commitCoordinator)
 
     _appLockStore = State(initialValue: AppLockStore())
     _iCloudSyncCoordinator = State(initialValue: ICloudSyncCoordinator())

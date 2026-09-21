@@ -22,30 +22,14 @@ final class UIUXWorkflowPolicyTests: XCTestCase {
 
   func test基本解讀與AI整理並存且重新整理保留目前選擇() {
     let basic = ChartInterpretation(sections: [], source: .deterministic)
-    let firstAI = ChartInterpretation(
-      sections: [
-        InterpretationSection(
-          id: "ai.first",
-          category: .overview,
-          title: "AI 第一版",
-          content: "第一版內容",
-          evidenceFactIDs: []
-        )
-      ],
-      source: .remoteAI
-    )
-    let refreshedAI = ChartInterpretation(
-      sections: [
-        InterpretationSection(
-          id: "ai.refreshed",
-          category: .overview,
-          title: "AI 更新版",
-          content: "更新內容",
-          evidenceFactIDs: []
-        )
-      ],
-      source: .remoteAI
-    )
+    let firstSection = InterpretationSection(
+      id: "ai.first", category: .overview, title: "AI 第一版", content: "第一版內容",
+      evidenceFactIDs: [])
+    let refreshedSection = InterpretationSection(
+      id: "ai.refreshed", category: .overview, title: "AI 更新版", content: "更新內容",
+      evidenceFactIDs: [])
+    let firstAI = ChartInterpretation(sections: [firstSection], source: .remoteAI)
+    let refreshedAI = ChartInterpretation(sections: [refreshedSection], source: .remoteAI)
     var state = InterpretationDisplayState(basic: basic)
 
     XCTAssertEqual(state.selectedSource, .deterministic)
@@ -80,12 +64,7 @@ final class UIUXWorkflowPolicyTests: XCTestCase {
     service.setOriginalContext(context)
     let synchronizer = ICloudSynchronizer(service: service)
 
-    _ = try await synchronizer.sync(
-      charts: [],
-      insights: [],
-      deletions: [],
-      modelContext: context
-    )
+    _ = try await synchronizer.sync(modelContext: context)
 
     XCTAssertEqual(service.receivedChartNames, ["最新命盤"])
     XCTAssertFalse(service.receivedOriginalContext)

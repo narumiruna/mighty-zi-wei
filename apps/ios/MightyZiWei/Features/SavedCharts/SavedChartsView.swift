@@ -15,14 +15,6 @@ struct SavedInsightDeletionSummary: Equatable {
   }
 }
 
-struct SavedChartDuplicateKey: Hashable {
-  let profile: BirthProfile
-
-  init(_ profile: BirthProfile) {
-    self.profile = profile
-  }
-}
-
 struct SavedChartTagSelectionPolicy: Sendable {
   func validSelection(_ selection: String?, availableTags: [String]) -> String? {
     guard let selection, availableTags.contains(selection) else { return nil }
@@ -119,7 +111,7 @@ struct SavedChartsView: View {
 
   private var duplicateChartIDs: Set<UUID> {
     let valid = charts.compactMap { chart in
-      (try? chart.birthProfile()).map { (SavedChartDuplicateKey($0), chart) }
+      (try? chart.birthProfile()).map { ($0, chart) }
     }
     let grouped = Dictionary(grouping: valid, by: \.0)
     return Set(grouped.values.filter { $0.count > 1 }.flatMap { $0.map(\.1.id) })

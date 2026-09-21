@@ -142,6 +142,7 @@ final class LunarBirthInputUITests: XCTestCase {
     let field = app.textFields[identifier]
     app.scrollToVisibleContent(field)
     field.tap()
+    XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
     field.typeKey("a", modifierFlags: .command)
     field.typeText(text)
     XCTAssertEqual(field.value as? String, text)
